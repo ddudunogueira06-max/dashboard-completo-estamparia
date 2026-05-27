@@ -415,6 +415,36 @@ export function Dashboard() {
               </div>
             </div>
           )}
+
+          {matrix.length > 0 && (
+            <div className="mt-6 h-[320px]">
+              <ResponsiveContainer>
+                <LineChart data={matrixChart} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" stroke="oklch(0.72 0.03 240)" fontSize={11} />
+                  <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip
+                    contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
+                    formatter={(v: number) => v === null || v === undefined ? "—" : `${fmtPct(v)}`}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12, color: "oklch(0.92 0.01 240)" }} />
+                  <ReferenceLine y={META_PERDA} stroke="oklch(0.7 0.18 25)" strokeDasharray="4 4" label={{ value: `Meta ${META_PERDA}%`, fill: "oklch(0.85 0.15 25)", fontSize: 11, position: "insideTopRight" }} />
+                  {matrix.map(r => (
+                    <Line
+                      key={r.key}
+                      type="monotone"
+                      dataKey={MATERIAL_LABEL[r.material]}
+                      stroke={MATERIAL_COLOR[r.material]}
+                      strokeWidth={2.5}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                      connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Panel>
       </section>
 
