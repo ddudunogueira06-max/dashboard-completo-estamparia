@@ -35,6 +35,14 @@ const CHART_COLORS = [
   "oklch(0.65 0.22 305)",
 ];
 
+function EmptyChart() {
+  return (
+    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+      Sem dados para exibir. Importe uma planilha para visualizar.
+    </div>
+  );
+}
+
 async function fetchAllRecords(): Promise<WasteRecord[]> {
   const pageSize = 1000;
   let from = 0;
