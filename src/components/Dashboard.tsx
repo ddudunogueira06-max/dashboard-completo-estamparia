@@ -269,15 +269,15 @@ export function Dashboard() {
 
       {/* KPIs */}
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard label="Total Solicitado (m²)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" />
+        <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" />
         <KpiCard label="Média de Desperdício" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" />
-        <KpiCard label="Desperdício Total (m²)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" />
+        <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" />
         <KpiCard label="Quantidade de Itens" value={fmtInt(metrics.itens)} icon={Package} accent="success" />
         <KpiCard label="Total de Solicitações" value={fmtInt(metrics.solicitacoes)} icon={FileText} accent="primary" />
         <KpiCard
           label="Setor c/ maior desp."
           value={metrics.topSetor?.[0] ?? "—"}
-          hint={metrics.topSetor ? `${fmtNum(metrics.topSetor[1])} m²` : ""}
+          hint={metrics.topSetor ? `${fmtNum(metrics.topSetor[1])} kg` : ""}
           icon={Package}
           accent="accent"
         />
