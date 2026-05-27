@@ -256,27 +256,25 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
   years.forEach(yr => {
     if (cardY > pageH - 140) {
       doc.addPage();
-      doc.setFillColor(15, 23, 42);
-      doc.rect(0, 0, pageW, pageH, "F");
       cardY = margin;
     }
 
     // Card title
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(30, 30, 30);
     doc.text(`Média de Desperdício Mensal — ${yr}`, margin, cardY);
     cardY += 6;
 
-    // Build matrix rows with mini sparkline-like cells colored by intensity
+    // Build matrix rows with white background and green/red text based on targets
     const colW = (pageW - margin * 2 - 100 - 60) / 12; // 100=label, 60=acum
     const rowH = 26;
     const tableTop = cardY + 8;
 
     // Header row (months)
-    doc.setFillColor(30, 41, 59);
+    doc.setFillColor(230, 235, 240);
     doc.rect(margin, tableTop, pageW - margin * 2, rowH, "F");
-    doc.setTextColor(148, 163, 184);
+    doc.setTextColor(60, 60, 60);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text("MATERIAL", margin + 8, tableTop + rowH / 2 + 3);
@@ -287,37 +285,36 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
 
     mats.forEach((mat, mi) => {
       const ry = tableTop + rowH + mi * rowH;
-      doc.setFillColor(mi % 2 === 0 ? 22 : 26, mi % 2 === 0 ? 32 : 36, mi % 2 === 0 ? 48 : 54);
+      doc.setFillColor(mi % 2 === 0 ? 255 : 250, mi % 2 === 0 ? 255 : 250, mi % 2 === 0 ? 255 : 250);
       doc.rect(margin, ry, pageW - margin * 2, rowH, "F");
+      doc.setDrawColor(220, 225, 230);
+      doc.rect(margin, ry, pageW - margin * 2, rowH, "S");
 
       // material label with accent
       const [r, g, b] = MAT_COLOR[mat];
       doc.setFillColor(r, g, b);
       doc.circle(margin + 12, ry + rowH / 2, 4, "F");
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(30, 30, 30);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.text(MATERIAL_LABEL[mat], margin + 22, ry + rowH / 2 + 3);
 
       const cells = yearMonthly.get(yr)![mat];
       let tq = 0, td = 0;
+      const meta = META[mat as Exclude<MaterialKind, "outro">];
       cells.forEach((c, i) => {
         tq += c.qtde_kg; td += c.desp_kg;
         const pct = c.qtde_kg > 0 ? (c.desp_kg / c.qtde_kg) * 100 : null;
         const cx = margin + 100 + i * colW;
         if (pct !== null) {
-          // intensity background
-          const intensity = Math.min(1, pct / 30); // 30% as max
-          doc.setFillColor(r, g, b);
-          doc.setGState(doc.GState({ opacity: 0.12 + intensity * 0.55 }));
-          doc.roundedRect(cx + 2, ry + 4, colW - 4, rowH - 8, 3, 3, "F");
-          doc.setGState(doc.GState({ opacity: 1 }));
-          doc.setTextColor(255, 255, 255);
+          // No background — just text color based on target
+          const hit = pct <= meta;
+          doc.setTextColor(hit ? 34 : 220, hit ? 197 : 38, hit ? 94 : 38);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(9);
           doc.text(fmtPct(pct), cx + colW / 2, ry + rowH / 2 + 3, { align: "center" });
         } else {
-          doc.setTextColor(100, 116, 139);
+          doc.setTextColor(150, 160, 170);
           doc.setFont("helvetica", "normal");
           doc.setFontSize(9);
           doc.text("—", cx + colW / 2, ry + rowH / 2 + 3, { align: "center" });
@@ -325,14 +322,12 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
       });
       // Acum.
       const ax = margin + 100 + 12 * colW;
-      doc.setFillColor(r, g, b);
-      doc.setGState(doc.GState({ opacity: 0.25 }));
-      doc.roundedRect(ax + 2, ry + 4, 60 - 4, rowH - 8, 3, 3, "F");
-      doc.setGState(doc.GState({ opacity: 1 }));
-      doc.setTextColor(255, 255, 255);
+      const acumPct = tq > 0 ? (td / tq) * 100 : null;
+      const acumHit = acumPct !== null && acumPct <= meta;
+      doc.setTextColor(acumHit ? 34 : 220, acumHit ? 197 : 38, acumHit ? 94 : 38);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
-      doc.text(tq > 0 ? fmtPct((td / tq) * 100) : "—", ax + 30, ry + rowH / 2 + 3, { align: "center" });
+      doc.text(acumPct !== null ? fmtPct(acumPct) : "—", ax + 30, ry + rowH / 2 + 3, { align: "center" });
     });
 
     cardY = tableTop + rowH * (mats.length + 1) + 24;
