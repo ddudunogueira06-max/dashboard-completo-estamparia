@@ -35,6 +35,12 @@ interface WasteRecord {
 
 const META_PERDA = 15; // meta global (%)
 
+const META_POR_MATERIAL: Record<Exclude<MaterialKind, "outro">, number> = {
+  galvanizado: 13,
+  aluminio: 24,
+  inox: 27,
+};
+
 const CHART_COLORS = [
   "oklch(0.72 0.15 215)",
   "oklch(0.7 0.18 45)",
@@ -424,11 +430,11 @@ export function Dashboard() {
                         />
                         {row.label}
                       </td>
-                      <td className="px-2 py-2.5 text-center text-muted-foreground font-medium">{META_PERDA.toFixed(2)}%</td>
+                      <td className="px-2 py-2.5 text-center text-muted-foreground font-medium">{META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">].toFixed(2)}%</td>
                       {row.monthly.map((v, i) => (
                         <td key={i} className="px-2 py-2.5 text-center font-mono">
                           {v === null ? <span className="text-muted-foreground/50">—</span> : (
-                            <span className={v > META_PERDA ? "text-destructive font-semibold" : "text-success font-medium"}>
+                            <span className={v > META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">] ? "text-destructive font-semibold" : "text-success font-medium"}>
                               {fmtPct(v)}
                             </span>
                           )}
@@ -436,7 +442,7 @@ export function Dashboard() {
                       ))}
                       <td className="px-2 py-2.5 text-center font-mono font-bold">
                         {row.acumulada === null ? "—" : (
-                          <span className={row.acumulada > META_PERDA ? "text-destructive" : "text-success"}>
+                          <span className={row.acumulada > META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">] ? "text-destructive" : "text-success"}>
                             {fmtPct(row.acumulada)}
                           </span>
                         )}
@@ -447,7 +453,7 @@ export function Dashboard() {
               </table>
               <div className="mt-3 flex items-center gap-4 text-[11px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-success" /> abaixo da meta</span>
-                <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-destructive" /> acima da meta ({META_PERDA}%)</span>
+                <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-destructive" /> acima da meta (GALV 13% · ALUM 24% · INOX 27%)</span>
               </div>
             </div>
           )}
@@ -464,7 +470,9 @@ export function Dashboard() {
                     formatter={(v: number) => v === null || v === undefined ? "—" : `${fmtPct(v)}`}
                   />
                   <Legend wrapperStyle={{ fontSize: 12, color: "oklch(0.92 0.01 240)" }} />
-                  <ReferenceLine y={META_PERDA} stroke="oklch(0.7 0.18 25)" strokeDasharray="4 4" label={{ value: `Meta ${META_PERDA}%`, fill: "oklch(0.85 0.15 25)", fontSize: 11, position: "insideTopRight" }} />
+                  <ReferenceLine y={META_POR_MATERIAL.galvanizado} stroke={MATERIAL_COLOR.galvanizado} strokeDasharray="4 4" label={{ value: `Meta GALV ${META_POR_MATERIAL.galvanizado}%`, fill: MATERIAL_COLOR.galvanizado, fontSize: 10, position: "insideTopRight" }} />
+                  <ReferenceLine y={META_POR_MATERIAL.aluminio} stroke={MATERIAL_COLOR.aluminio} strokeDasharray="4 4" label={{ value: `Meta ALUM ${META_POR_MATERIAL.aluminio}%`, fill: MATERIAL_COLOR.aluminio, fontSize: 10, position: "insideTopRight" }} />
+                  <ReferenceLine y={META_POR_MATERIAL.inox} stroke={MATERIAL_COLOR.inox} strokeDasharray="4 4" label={{ value: `Meta INOX ${META_POR_MATERIAL.inox}%`, fill: MATERIAL_COLOR.inox, fontSize: 10, position: "insideTopRight" }} />
                   {matrix.map(r => (
                     <Line
                       key={r.key}
