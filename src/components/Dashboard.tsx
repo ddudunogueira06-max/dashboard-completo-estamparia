@@ -528,29 +528,6 @@ export function Dashboard() {
         </Panel>
       </section>
 
-      {/* Desperdício por Tipo — secundário */}
-      <section className="hidden md:grid grid-cols-1 gap-4">
-        <Panel title="Desperdício por Tipo (kg) — visão complementar">
-          <div className="h-60">
-            {byTipo.length === 0 ? <EmptyChart /> : (
-            <ResponsiveContainer>
-              <BarChart data={byTipo} layout="vertical" margin={{ left: 8, right: 60 }}>
-                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${fmtNum(v, 0)}`} />
-                <YAxis type="category" dataKey="name" stroke="oklch(0.72 0.03 240)" fontSize={11} width={80} />
-                <Tooltip
-                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                  formatter={(v: number) => `${fmtNum(v)} kg`}
-                />
-                <Bar dataKey="value" fill={CHART_COLORS[2]} radius={[0, 4, 4, 0]}>
-                  <LabelList dataKey="value" position="right" fontSize={11} fill="oklch(0.9 0.01 240)" formatter={(v: number) => `${fmtNum(v)} kg`} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            )}
-          </div>
-        </Panel>
-      </section>
 
       {/* === MOBILE: top 5 visual === */}
       <section className="md:hidden">
