@@ -186,17 +186,6 @@ export function Dashboard() {
     return Object.entries(buckets).map(([name, value]) => ({ name, value, pct: +(value * 100 / total).toFixed(1) }));
   }, [filtered]);
 
-  // Setores
-  const bySetor = useMemo(() => {
-    const agg = new Map<string, number>();
-    filtered.forEach(r => {
-      const k = r.armazem ?? "—";
-      const w = (r.qtde_solicitada ?? 0) * ((r.fator_perda ?? 0) / 100);
-      agg.set(k, (agg.get(k) ?? 0) + w);
-    });
-    return Array.from(agg.entries()).map(([name, value]) => ({ name, value: +value.toFixed(2) })).sort((a, b) => b.value - a.value);
-  }, [filtered]);
-
   const clearFilters = () => {
     setStartDate(""); setEndDate(""); setTipoFilter(""); setArmazemFilter(""); setStatusFilter(""); setSearch("");
   };
@@ -205,8 +194,8 @@ export function Dashboard() {
     exportToXLSX(filtered.map(r => ({
       Tipo: r.tipo, Número: r.numero, "Código do Item": r.codigo_item, Descrição: r.descricao,
       Armazém: r.armazem, "Fator de Perda (%)": r.fator_perda, Linha: r.linha,
-      "Qtde. Solicitada (m²)": r.qtde_solicitada, "Data de Registro": fmtDate(r.data_registro),
-      "Retalho (m²)": r.retalho, Status: r.status,
+      "Qtde. Solicitada (kg)": r.qtde_solicitada, "Data de Registro": fmtDate(r.data_registro),
+      "Retalho (kg)": r.retalho, Status: r.status,
     })), `desperdicios_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
