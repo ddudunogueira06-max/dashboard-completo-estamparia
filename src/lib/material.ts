@@ -41,6 +41,28 @@ export function materialThicknessLabel(material: MaterialKind, mm: number): stri
   return `${fmtThickness(mm)} ${MATERIAL_SHORT[material]}`;
 }
 
+// Categoria para o filtro "Material / Espessura"
+// Diferencia INOX BB/EB e GALV BRANCA (CB)
+// Ex.: "1,50-INOX BB", "1,20-INOX EB", "0,65-CB", "0,90-GALV", "1,00-AL"
+export function filterCategory(descricao: string | null | undefined): { key: string; label: string } | null {
+  const mat = detectMaterial(descricao);
+  const mm = detectThicknessMm(descricao);
+  if (mat === "outro" || !mm) return null;
+  const thick = fmtThickness(mm);
+  if (mat === "inox") {
+    const fin = detectInoxFinish(descricao);
+    const suffix = fin ? `INOX ${fin}` : "INOX";
+    return { key: `${thick}-INOX-${fin ?? "X"}`, label: `${thick}-${suffix}` };
+  }
+  if (mat === "galvanizado") {
+    const isBr = detectIsBranca(descricao);
+    return isBr
+      ? { key: `${thick}-CB`, label: `${thick}-CB` }
+      : { key: `${thick}-GALV`, label: `${thick}-GALV` };
+  }
+  return { key: `${thick}-AL`, label: `${thick}-AL` };
+}
+
 export function detectMaterial(descricao: string | null | undefined): MaterialKind {
   if (!descricao) return "outro";
   const d = descricao.toUpperCase();
