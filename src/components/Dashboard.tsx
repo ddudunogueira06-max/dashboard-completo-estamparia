@@ -430,11 +430,11 @@ export function Dashboard() {
                         />
                         {row.label}
                       </td>
-                      <td className="px-2 py-2.5 text-center text-muted-foreground font-medium">{META_PERDA.toFixed(2)}%</td>
+                      <td className="px-2 py-2.5 text-center text-muted-foreground font-medium">{META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">].toFixed(2)}%</td>
                       {row.monthly.map((v, i) => (
                         <td key={i} className="px-2 py-2.5 text-center font-mono">
                           {v === null ? <span className="text-muted-foreground/50">—</span> : (
-                            <span className={v > META_PERDA ? "text-destructive font-semibold" : "text-success font-medium"}>
+                            <span className={v > META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">] ? "text-destructive font-semibold" : "text-success font-medium"}>
                               {fmtPct(v)}
                             </span>
                           )}
@@ -442,7 +442,7 @@ export function Dashboard() {
                       ))}
                       <td className="px-2 py-2.5 text-center font-mono font-bold">
                         {row.acumulada === null ? "—" : (
-                          <span className={row.acumulada > META_PERDA ? "text-destructive" : "text-success"}>
+                          <span className={row.acumulada > META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">] ? "text-destructive" : "text-success"}>
                             {fmtPct(row.acumulada)}
                           </span>
                         )}
