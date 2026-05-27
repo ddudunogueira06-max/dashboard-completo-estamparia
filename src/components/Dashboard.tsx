@@ -35,6 +35,14 @@ const CHART_COLORS = [
   "oklch(0.65 0.22 305)",
 ];
 
+function EmptyChart() {
+  return (
+    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+      Sem dados para exibir. Importe uma planilha para visualizar.
+    </div>
+  );
+}
+
 async function fetchAllRecords(): Promise<WasteRecord[]> {
   const pageSize = 1000;
   let from = 0;
@@ -150,18 +158,24 @@ export function Dashboard() {
     return Array.from(agg.entries()).map(([name, value]) => ({ name, value: +value.toFixed(2) }));
   }, [filtered]);
 
-  // Top 10 materiais
+  // Top 10 materiais (com descrição)
   const topMateriais = useMemo(() => {
-    const agg = new Map<string, { sum: number; n: number }>();
+    const agg = new Map<string, { sum: number; n: number; descricao: string }>();
     filtered.forEach(r => {
       if (!r.codigo_item || r.fator_perda === null) return;
-      const e = agg.get(r.codigo_item) ?? { sum: 0, n: 0 };
+      const e = agg.get(r.codigo_item) ?? { sum: 0, n: 0, descricao: r.descricao ?? "" };
       e.sum += r.fator_perda ?? 0;
       e.n += 1;
+      if (!e.descricao && r.descricao) e.descricao = r.descricao;
       agg.set(r.codigo_item, e);
     });
     return Array.from(agg.entries())
-      .map(([codigo, v]) => ({ codigo, media: +(v.sum / v.n).toFixed(2) }))
+      .map(([codigo, v]) => ({
+        codigo,
+        descricao: v.descricao,
+        label: v.descricao ? `${codigo} — ${v.descricao}` : codigo,
+        media: +(v.sum / v.n).toFixed(2),
+      }))
       .sort((a, b) => b.media - a.media)
       .slice(0, 10);
   }, [filtered]);
@@ -180,17 +194,6 @@ export function Dashboard() {
     return Object.entries(buckets).map(([name, value]) => ({ name, value, pct: +(value * 100 / total).toFixed(1) }));
   }, [filtered]);
 
-  // Setores
-  const bySetor = useMemo(() => {
-    const agg = new Map<string, number>();
-    filtered.forEach(r => {
-      const k = r.armazem ?? "—";
-      const w = (r.qtde_solicitada ?? 0) * ((r.fator_perda ?? 0) / 100);
-      agg.set(k, (agg.get(k) ?? 0) + w);
-    });
-    return Array.from(agg.entries()).map(([name, value]) => ({ name, value: +value.toFixed(2) })).sort((a, b) => b.value - a.value);
-  }, [filtered]);
-
   const clearFilters = () => {
     setStartDate(""); setEndDate(""); setTipoFilter(""); setArmazemFilter(""); setStatusFilter(""); setSearch("");
   };
@@ -199,8 +202,8 @@ export function Dashboard() {
     exportToXLSX(filtered.map(r => ({
       Tipo: r.tipo, Número: r.numero, "Código do Item": r.codigo_item, Descrição: r.descricao,
       Armazém: r.armazem, "Fator de Perda (%)": r.fator_perda, Linha: r.linha,
-      "Qtde. Solicitada (m²)": r.qtde_solicitada, "Data de Registro": fmtDate(r.data_registro),
-      "Retalho (m²)": r.retalho, Status: r.status,
+      "Qtde. Solicitada (kg)": r.qtde_solicitada, "Data de Registro": fmtDate(r.data_registro),
+      "Retalho (kg)": r.retalho, Status: r.status,
     })), `desperdicios_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
@@ -274,15 +277,15 @@ export function Dashboard() {
 
       {/* KPIs */}
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard label="Total Solicitado (m²)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" />
+        <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" />
         <KpiCard label="Média de Desperdício" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" />
-        <KpiCard label="Desperdício Total (m²)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" />
+        <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" />
         <KpiCard label="Quantidade de Itens" value={fmtInt(metrics.itens)} icon={Package} accent="success" />
         <KpiCard label="Total de Solicitações" value={fmtInt(metrics.solicitacoes)} icon={FileText} accent="primary" />
         <KpiCard
           label="Setor c/ maior desp."
           value={metrics.topSetor?.[0] ?? "—"}
-          hint={metrics.topSetor ? `${fmtNum(metrics.topSetor[1])} m²` : ""}
+          hint={metrics.topSetor ? `${fmtNum(metrics.topSetor[1])} kg` : ""}
           icon={Package}
           accent="accent"
         />
@@ -320,7 +323,7 @@ export function Dashboard() {
                 <Legend wrapperStyle={{ fontSize: 12, color: "oklch(0.92 0.01 240)" }} />
                 <Tooltip
                   contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                  formatter={(v: number) => `${fmtNum(v)} m²`}
+                  formatter={(v: number) => `${fmtNum(v)} kg`}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -332,16 +335,25 @@ export function Dashboard() {
       {/* Charts row 2 */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel title="Top 10 Materiais — Maior índice de desperdício (%)" className="lg:col-span-2">
-          <div className="h-72">
+          <div className="h-[420px]">
             {topMateriais.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
-              <BarChart data={topMateriais} layout="vertical" margin={{ left: 20 }}>
+              <BarChart data={topMateriais} layout="vertical" margin={{ left: 8, right: 24 }}>
                 <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${v}%`} />
-                <YAxis type="category" dataKey="codigo" stroke="oklch(0.72 0.03 240)" fontSize={11} width={130} />
+                <YAxis
+                  type="category"
+                  dataKey="label"
+                  stroke="oklch(0.72 0.03 240)"
+                  fontSize={10}
+                  width={300}
+                  interval={0}
+                  tick={{ fill: "oklch(0.85 0.02 240)" }}
+                />
                 <Tooltip
                   contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
                   formatter={(v: number) => [`${v}%`, "Média"]}
+                  labelFormatter={(l) => String(l)}
                 />
                 <Bar dataKey="media" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -370,32 +382,13 @@ export function Dashboard() {
       </section>
 
       {/* Charts row 3 */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Panel title="Desperdício por Setor (Armazém)">
-          <div className="h-64">
-            {bySetor.length === 0 ? <EmptyChart /> : (
-            <ResponsiveContainer>
-              <BarChart data={bySetor}>
-                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" />
-                <XAxis dataKey="name" stroke="oklch(0.72 0.03 240)" fontSize={11} />
-                <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} />
-                <Tooltip
-                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                  formatter={(v: number) => `${fmtNum(v)} m²`}
-                />
-                <Bar dataKey="value" fill={CHART_COLORS[2]} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            )}
-          </div>
-        </Panel>
-
+      <section className="grid grid-cols-1 gap-4">
         <Panel title="Resumo do período">
-          <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
-            <SummaryRow label="Total Solicitado (m²)" value={fmtNum(metrics.totalSolic)} />
-            <SummaryRow label="Desperdício Total (m²)" value={fmtNum(metrics.totalDesperd)} />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3 gap-x-6 text-sm">
+            <SummaryRow label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} />
+            <SummaryRow label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} />
             <SummaryRow label="Média de Desperdício (%)" value={fmtPct(metrics.mediaPerda)} />
-            <SummaryRow label="Retalho Total (m²)" value={fmtNum(metrics.totalRetalho)} />
+            <SummaryRow label="Retalho Total (kg)" value={fmtNum(metrics.totalRetalho)} />
             <SummaryRow label="Maior Fator de Perda" value={fmtPct(metrics.fatorMax)} accent="text-destructive" />
             <SummaryRow label="Menor Fator de Perda" value={fmtPct(metrics.fatorMin)} accent="text-success" />
             <SummaryRow label="Quantidade de Itens" value={fmtInt(metrics.itens)} />
@@ -418,7 +411,7 @@ export function Dashboard() {
           <table className="w-full text-sm">
             <thead className="bg-secondary/40 sticky top-0">
               <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                {["Tipo", "Nº", "Código", "Descrição", "Armazém", "Fator %", "Linha", "Qtde (m²)", "Data", "Retalho", "Status"].map(h => (
+                {["Tipo", "Nº", "Código", "Descrição", "Armazém", "Fator %", "Linha", "Qtde (kg)", "Data", "Retalho (kg)", "Status"].map(h => (
                   <th key={h} className="px-3 py-2 font-medium">{h}</th>
                 ))}
               </tr>
@@ -484,10 +477,3 @@ function SummaryRow({ label, value, accent = "text-foreground" }: { label: strin
   );
 }
 
-function EmptyChart() {
-  return (
-    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-      Sem dados para exibir. Importe uma planilha para visualizar.
-    </div>
-  );
-}
