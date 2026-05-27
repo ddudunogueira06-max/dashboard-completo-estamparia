@@ -473,7 +473,7 @@ export function Dashboard() {
                     fontSize={11}
                     fontWeight={600}
                     fill="oklch(0.95 0.01 240)"
-                    content={(props: Record<string, unknown>) => {
+                    content={((props: Record<string, unknown>) => {
                       const x = Number(props.x ?? 0);
                       const y = Number(props.y ?? 0);
                       const width = Number(props.width ?? 0);
