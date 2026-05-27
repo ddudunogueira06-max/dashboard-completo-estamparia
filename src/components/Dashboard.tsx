@@ -396,8 +396,8 @@ export function Dashboard() {
                 </thead>
                 <tbody>
                   {matrix.map(row => (
-                    <tr key={row.key} className="border-t border-border">
-                      <td className="px-3 py-2.5 font-semibold whitespace-nowrap">
+                    <tr key={row.key} className={`border-t border-border ${row.isSummary ? "bg-secondary/30" : ""}`}>
+                      <td className={`px-3 py-2.5 whitespace-nowrap ${row.isSummary ? "font-bold uppercase text-xs tracking-wider" : "font-semibold"}`}>
                         <span
                           className="inline-block size-2.5 rounded-full mr-2 align-middle"
                           style={{ background: MATERIAL_COLOR[row.material] }}
