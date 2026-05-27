@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { KpiCard } from "@/components/KpiCard";
 import { fmtInt, fmtNum, fmtPct, fmtDate } from "@/lib/format";
 import { exportToXLSX } from "@/lib/parseExcel";
-import { detectMaterial, m2ToKg, MATERIAL_LABEL, type MaterialKind } from "@/lib/material";
+import { detectMaterial, detectThicknessMm, m2ToKg, MATERIAL_LABEL, materialThicknessKey, materialThicknessLabel, type MaterialKind } from "@/lib/material";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell, Legend, ReferenceLine,
