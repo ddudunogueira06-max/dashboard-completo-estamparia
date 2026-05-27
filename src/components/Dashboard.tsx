@@ -2,14 +2,15 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { KpiCard } from "@/components/KpiCard";
-import { fmtInt, fmtNum, fmtPct, fmtDate, fmtShortDate } from "@/lib/format";
+import { fmtInt, fmtNum, fmtPct, fmtDate } from "@/lib/format";
 import { exportToXLSX } from "@/lib/parseExcel";
+import { detectMaterial, m2ToKg, MATERIAL_LABEL, type MaterialKind } from "@/lib/material";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
-  BarChart, Bar, PieChart, Pie, Cell, Legend,
+  BarChart, Bar, PieChart, Pie, Cell, Legend, ReferenceLine,
 } from "recharts";
 import {
-  ClipboardList, Percent, Trash2, Package, FileText, Download, RefreshCw, Search,
+  ClipboardList, Percent, Trash2, Package, FileText, Download, RefreshCw, Search, CheckCircle2,
 } from "lucide-react";
 
 interface WasteRecord {
@@ -27,6 +28,8 @@ interface WasteRecord {
   status: string | null;
 }
 
+const META_PERDA = 15; // meta de média de desperdício (%)
+
 const CHART_COLORS = [
   "oklch(0.72 0.15 215)",
   "oklch(0.7 0.18 45)",
@@ -34,6 +37,13 @@ const CHART_COLORS = [
   "oklch(0.78 0.16 75)",
   "oklch(0.65 0.22 305)",
 ];
+
+const MATERIAL_COLOR: Record<MaterialKind, string> = {
+  inox: "oklch(0.72 0.15 215)",
+  galvanizado: "oklch(0.78 0.16 75)",
+  aluminio: "oklch(0.7 0.16 155)",
+  outro: "oklch(0.6 0.02 240)",
+};
 
 function EmptyChart() {
   return (
@@ -47,7 +57,6 @@ async function fetchAllRecords(): Promise<WasteRecord[]> {
   const pageSize = 1000;
   let from = 0;
   const all: WasteRecord[] = [];
-  // paginated read to bypass 1000-row default
   while (true) {
     const { data, error } = await supabase
       .from("waste_records")
@@ -63,6 +72,13 @@ async function fetchAllRecords(): Promise<WasteRecord[]> {
   return all;
 }
 
+// "2026-03" -> "Mar/2026"
+function fmtMonth(key: string): string {
+  const [y, m] = key.split("-");
+  const names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  return `${names[parseInt(m, 10) - 1]}/${y}`;
+}
+
 export function Dashboard() {
   const { data: records = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["waste_records"],
@@ -72,23 +88,31 @@ export function Dashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [tipoFilter, setTipoFilter] = useState<string>("");
-  const [armazemFilter, setArmazemFilter] = useState<string>("");
+  const [materialFilter, setMaterialFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [monthFilter, setMonthFilter] = useState<string>(""); // YYYY-MM para o gráfico mensal
 
-  const tipos = useMemo(() => Array.from(new Set(records.map(r => r.tipo).filter(Boolean))) as string[], [records]);
-  const armazens = useMemo(() => Array.from(new Set(records.map(r => r.armazem).filter(Boolean))) as string[], [records]);
-  const statuses = useMemo(() => Array.from(new Set(records.map(r => r.status).filter(Boolean))) as string[], [records]);
+  // Anexa material derivado a cada registro
+  const enriched = useMemo(() => records.map(r => ({
+    ...r,
+    material: detectMaterial(r.descricao),
+    qtde_kg: m2ToKg(r.qtde_solicitada, r.descricao),
+    retalho_kg: m2ToKg(r.retalho ? Math.abs(r.retalho) : 0, r.descricao),
+  })), [records]);
+
+  const tipos = useMemo(() => Array.from(new Set(enriched.map(r => r.tipo).filter(Boolean))) as string[], [enriched]);
+  const statuses = useMemo(() => Array.from(new Set(enriched.map(r => r.status).filter(Boolean))) as string[], [enriched]);
 
   const filtered = useMemo(() => {
     const s = startDate ? new Date(startDate).getTime() : 0;
     const e = endDate ? new Date(endDate).getTime() + 86400000 : Infinity;
     const q = search.toLowerCase().trim();
-    return records.filter((r) => {
+    return enriched.filter((r) => {
       const t = r.data_registro ? new Date(r.data_registro).getTime() : 0;
       if (t < s || t > e) return false;
       if (tipoFilter && r.tipo !== tipoFilter) return false;
-      if (armazemFilter && r.armazem !== armazemFilter) return false;
+      if (materialFilter && r.material !== materialFilter) return false;
       if (statusFilter && r.status !== statusFilter) return false;
       if (q) {
         const hay = `${r.codigo_item ?? ""} ${r.descricao ?? ""} ${r.numero ?? ""}`.toLowerCase();
@@ -96,69 +120,82 @@ export function Dashboard() {
       }
       return true;
     });
-  }, [records, startDate, endDate, tipoFilter, armazemFilter, statusFilter, search]);
+  }, [enriched, startDate, endDate, tipoFilter, materialFilter, statusFilter, search]);
 
   const metrics = useMemo(() => {
-    const totalSolic = filtered.reduce((a, r) => a + (r.qtde_solicitada ?? 0), 0);
-    const totalRetalho = filtered.reduce((a, r) => a + Math.abs(r.retalho ?? 0), 0);
-    const totalDesperd = filtered.reduce((a, r) => a + (r.qtde_solicitada ?? 0) * ((r.fator_perda ?? 0) / 100), 0);
+    const totalSolic = filtered.reduce((a, r) => a + r.qtde_kg, 0);
+    const totalRetalho = filtered.reduce((a, r) => a + r.retalho_kg, 0);
+    const totalDesperd = filtered.reduce((a, r) => a + r.qtde_kg * ((r.fator_perda ?? 0) / 100), 0);
+    const totalProcessado = totalSolic - totalDesperd;
     const validPerda = filtered.filter(r => r.fator_perda !== null);
     const mediaPerda = validPerda.length ? validPerda.reduce((a, r) => a + (r.fator_perda ?? 0), 0) / validPerda.length : 0;
     const itens = new Set(filtered.map(r => r.codigo_item)).size;
-    const solicitacoes = new Set(filtered.map(r => r.numero)).size;
+    const totalFPP = filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").length;
     const fatorMax = filtered.reduce((a, r) => Math.max(a, r.fator_perda ?? 0), 0);
     const fatorMin = validPerda.length ? validPerda.reduce((a, r) => Math.min(a, r.fator_perda ?? 0), Infinity) : 0;
 
-    // Material mais desperdiçado
     const matAgg = new Map<string, number>();
     filtered.forEach(r => {
       if (!r.codigo_item) return;
-      const w = (r.qtde_solicitada ?? 0) * ((r.fator_perda ?? 0) / 100);
+      const w = r.qtde_kg * ((r.fator_perda ?? 0) / 100);
       matAgg.set(r.codigo_item, (matAgg.get(r.codigo_item) ?? 0) + w);
     });
     const topMat = Array.from(matAgg.entries()).sort((a, b) => b[1] - a[1])[0];
 
-    // Setor (armazém) com mais desperdício
-    const setorAgg = new Map<string, number>();
-    filtered.forEach(r => {
-      if (!r.armazem) return;
-      const w = (r.qtde_solicitada ?? 0) * ((r.fator_perda ?? 0) / 100);
-      setorAgg.set(r.armazem, (setorAgg.get(r.armazem) ?? 0) + w);
-    });
-    const topSetor = Array.from(setorAgg.entries()).sort((a, b) => b[1] - a[1])[0];
-
-    return { totalSolic, totalDesperd, totalRetalho, mediaPerda, itens, solicitacoes, fatorMax, fatorMin, topMat, topSetor };
+    return { totalSolic, totalDesperd, totalProcessado, totalRetalho, mediaPerda, itens, totalFPP, fatorMax, fatorMin, topMat };
   }, [filtered]);
 
-  // Time series: média de perda por dia
-  const timeSeries = useMemo(() => {
-    const byDay = new Map<string, { sum: number; n: number; t: number }>();
+  // Time series MENSAL: média do fator de perda por mês
+  const monthlySeries = useMemo(() => {
+    const byMonth = new Map<string, { sum: number; n: number }>();
     filtered.forEach(r => {
       if (!r.data_registro || r.fator_perda === null) return;
       const d = new Date(r.data_registro);
-      const key = d.toISOString().slice(0, 10);
-      const e = byDay.get(key) ?? { sum: 0, n: 0, t: d.getTime() };
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const e = byMonth.get(key) ?? { sum: 0, n: 0 };
       e.sum += r.fator_perda ?? 0;
       e.n += 1;
-      byDay.set(key, e);
+      byMonth.set(key, e);
     });
-    return Array.from(byDay.entries())
-      .sort((a, b) => a[1].t - b[1].t)
-      .map(([k, v]) => ({ date: fmtShortDate(k), media: +(v.sum / v.n).toFixed(2) }));
+    return Array.from(byMonth.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([k, v]) => ({ key: k, mes: fmtMonth(k), media: +(v.sum / v.n).toFixed(2) }));
   }, [filtered]);
 
-  // Desperdício por tipo (pie)
+  // Meses disponíveis
+  const availableMonths = useMemo(() => monthlySeries.map(m => ({ key: m.key, label: m.mes })), [monthlySeries]);
+
+  // KPI por material — respeita filtro de mês se selecionado
+  const materialKpis = useMemo(() => {
+    const source = monthFilter
+      ? filtered.filter(r => {
+          if (!r.data_registro) return false;
+          const d = new Date(r.data_registro);
+          const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          return k === monthFilter;
+        })
+      : filtered;
+    const result: { material: MaterialKind; media: number; n: number }[] = [];
+    (["inox", "galvanizado", "aluminio"] as MaterialKind[]).forEach(m => {
+      const rows = source.filter(r => r.material === m && r.fator_perda !== null);
+      const media = rows.length ? rows.reduce((a, r) => a + (r.fator_perda ?? 0), 0) / rows.length : 0;
+      result.push({ material: m, media, n: rows.length });
+    });
+    return result;
+  }, [filtered, monthFilter]);
+
+  // Pie por tipo (FPP/FPG) — desperdício em kg
   const byTipo = useMemo(() => {
     const agg = new Map<string, number>();
     filtered.forEach(r => {
       const k = r.tipo ?? "—";
-      const w = (r.qtde_solicitada ?? 0) * ((r.fator_perda ?? 0) / 100);
+      const w = r.qtde_kg * ((r.fator_perda ?? 0) / 100);
       agg.set(k, (agg.get(k) ?? 0) + w);
     });
     return Array.from(agg.entries()).map(([name, value]) => ({ name, value: +value.toFixed(2) }));
   }, [filtered]);
 
-  // Top 10 materiais (com descrição)
+  // Top 10 materiais
   const topMateriais = useMemo(() => {
     const agg = new Map<string, { sum: number; n: number; descricao: string }>();
     filtered.forEach(r => {
@@ -180,7 +217,6 @@ export function Dashboard() {
       .slice(0, 10);
   }, [filtered]);
 
-  // Distribuição faixas de perda
   const distribuicao = useMemo(() => {
     const buckets = { "0% a 5%": 0, "5% a 10%": 0, "10% a 20%": 0, "Acima de 20%": 0 } as Record<string, number>;
     filtered.forEach(r => {
@@ -195,21 +231,21 @@ export function Dashboard() {
   }, [filtered]);
 
   const clearFilters = () => {
-    setStartDate(""); setEndDate(""); setTipoFilter(""); setArmazemFilter(""); setStatusFilter(""); setSearch("");
+    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setStatusFilter(""); setSearch(""); setMonthFilter("");
   };
 
   const handleExport = () => {
     exportToXLSX(filtered.map(r => ({
       Tipo: r.tipo, Número: r.numero, "Código do Item": r.codigo_item, Descrição: r.descricao,
-      Armazém: r.armazem, "Fator de Perda (%)": r.fator_perda, Linha: r.linha,
-      "Qtde. Solicitada (kg)": r.qtde_solicitada, "Data de Registro": fmtDate(r.data_registro),
-      "Retalho (kg)": r.retalho, Status: r.status,
+      Material: MATERIAL_LABEL[r.material], Armazém: r.armazem, "Fator de Perda (%)": r.fator_perda,
+      Linha: r.linha, "Qtde. Solicitada (kg)": +r.qtde_kg.toFixed(2),
+      "Data de Registro": fmtDate(r.data_registro),
+      "Retalho (kg)": +r.retalho_kg.toFixed(2), Status: r.status,
     })), `desperdicios_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard de Materiais e Desperdícios</h1>
@@ -218,17 +254,11 @@ export function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => refetch()}
-            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-secondary"
-          >
+          <button onClick={() => refetch()} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-secondary">
             <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
             Atualizar
           </button>
-          <button
-            onClick={handleExport}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
+          <button onClick={handleExport} className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
             <Download className="size-4" /> Exportar Excel
           </button>
         </div>
@@ -249,10 +279,13 @@ export function Dashboard() {
               {tipos.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </Field>
-          <Field label="Setor (Armazém)">
-            <select value={armazemFilter} onChange={(e) => setArmazemFilter(e.target.value)} className={inputCls}>
+          <Field label="Tipo de Material">
+            <select value={materialFilter} onChange={(e) => setMaterialFilter(e.target.value)} className={inputCls}>
               <option value="">Todos</option>
-              {armazens.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value="inox">Inox</option>
+              <option value="galvanizado">Galvanizado</option>
+              <option value="aluminio">Alumínio</option>
+              <option value="outro">Outro</option>
             </select>
           </Field>
           <Field label="Status">
@@ -278,41 +311,72 @@ export function Dashboard() {
       {/* KPIs */}
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" />
-        <KpiCard label="Média de Desperdício" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" />
+        <KpiCard label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} icon={CheckCircle2} accent="success" />
         <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" />
+        <KpiCard label="Média de Desperdício" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" />
         <KpiCard label="Quantidade de Itens" value={fmtInt(metrics.itens)} icon={Package} accent="success" />
-        <KpiCard label="Total de Solicitações" value={fmtInt(metrics.solicitacoes)} icon={FileText} accent="primary" />
-        <KpiCard
-          label="Setor c/ maior desp."
-          value={metrics.topSetor?.[0] ?? "—"}
-          hint={metrics.topSetor ? `${fmtNum(metrics.topSetor[1])} kg` : ""}
-          icon={Package}
-          accent="accent"
-        />
+        <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" />
+      </section>
+
+      {/* KPI por material — meta 15% */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {materialKpis.map(k => {
+          const acima = k.media > META_PERDA;
+          return (
+            <div key={k.material} className="bg-card border border-border rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">
+                  Média {MATERIAL_LABEL[k.material]} {monthFilter ? `· ${fmtMonth(monthFilter)}` : "· período"}
+                </span>
+                <span className="text-[10px] text-muted-foreground">meta {META_PERDA}%</span>
+              </div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className={`text-3xl font-bold ${acima ? "text-destructive" : "text-success"}`}>{fmtPct(k.media)}</span>
+                <span className="text-xs text-muted-foreground">{fmtInt(k.n)} reg.</span>
+              </div>
+              <div className="mt-2 h-1.5 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className={acima ? "h-full bg-destructive" : "h-full bg-success"}
+                  style={{ width: `${Math.min(100, (k.media / (META_PERDA * 2)) * 100)}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </section>
 
       {/* Charts row 1 */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Panel title="Média de Desperdício (%) ao longo do tempo" className="lg:col-span-2">
+        <Panel
+          title="Média de Desperdício (%) — mensal"
+          className="lg:col-span-2"
+          right={
+            <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className={`${inputCls} max-w-[180px] py-1 text-xs`}>
+              <option value="">Todos os meses</option>
+              {availableMonths.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+            </select>
+          }
+        >
           <div className="h-64">
-            {timeSeries.length === 0 ? <EmptyChart /> : (
+            {monthlySeries.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
-              <LineChart data={timeSeries}>
+              <LineChart data={monthlySeries}>
                 <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" />
-                <XAxis dataKey="date" stroke="oklch(0.72 0.03 240)" fontSize={11} />
+                <XAxis dataKey="mes" stroke="oklch(0.72 0.03 240)" fontSize={11} />
                 <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${v}%`} />
                 <Tooltip
                   contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
                   formatter={(v: number) => [`${v}%`, "Média"]}
                 />
-                <Line type="monotone" dataKey="media" stroke={CHART_COLORS[0]} strokeWidth={2.5} dot={{ r: 3, fill: CHART_COLORS[0] }} />
+                <ReferenceLine y={META_PERDA} stroke="oklch(0.65 0.2 25)" strokeDasharray="4 4" label={{ value: `meta ${META_PERDA}%`, fill: "oklch(0.75 0.18 25)", fontSize: 10, position: "insideTopRight" }} />
+                <Line type="monotone" dataKey="media" stroke={CHART_COLORS[0]} strokeWidth={2.5} dot={{ r: 4, fill: CHART_COLORS[0] }} />
               </LineChart>
             </ResponsiveContainer>
             )}
           </div>
         </Panel>
 
-        <Panel title="Desperdício por Tipo">
+        <Panel title="Desperdício por Tipo (kg)">
           <div className="h-64">
             {byTipo.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
@@ -341,15 +405,7 @@ export function Dashboard() {
               <BarChart data={topMateriais} layout="vertical" margin={{ left: 8, right: 24 }}>
                 <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${v}%`} />
-                <YAxis
-                  type="category"
-                  dataKey="label"
-                  stroke="oklch(0.72 0.03 240)"
-                  fontSize={10}
-                  width={300}
-                  interval={0}
-                  tick={{ fill: "oklch(0.85 0.02 240)" }}
-                />
+                <YAxis type="category" dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={10} width={300} interval={0} tick={{ fill: "oklch(0.85 0.02 240)" }} />
                 <Tooltip
                   contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
                   formatter={(v: number) => [`${v}%`, "Média"]}
@@ -371,9 +427,7 @@ export function Dashboard() {
                   {distribuicao.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                 </Pie>
                 <Legend wrapperStyle={{ fontSize: 12, color: "oklch(0.92 0.01 240)" }} />
-                <Tooltip
-                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                />
+                <Tooltip contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }} />
               </PieChart>
             </ResponsiveContainer>
             )}
@@ -381,20 +435,20 @@ export function Dashboard() {
         </Panel>
       </section>
 
-      {/* Charts row 3 */}
+      {/* Resumo */}
       <section className="grid grid-cols-1 gap-4">
         <Panel title="Resumo do período">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3 gap-x-6 text-sm">
             <SummaryRow label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} />
+            <SummaryRow label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} />
             <SummaryRow label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} />
-            <SummaryRow label="Média de Desperdício (%)" value={fmtPct(metrics.mediaPerda)} />
             <SummaryRow label="Retalho Total (kg)" value={fmtNum(metrics.totalRetalho)} />
+            <SummaryRow label="Média de Desperdício (%)" value={fmtPct(metrics.mediaPerda)} />
             <SummaryRow label="Maior Fator de Perda" value={fmtPct(metrics.fatorMax)} accent="text-destructive" />
             <SummaryRow label="Menor Fator de Perda" value={fmtPct(metrics.fatorMin)} accent="text-success" />
             <SummaryRow label="Quantidade de Itens" value={fmtInt(metrics.itens)} />
-            <SummaryRow label="Total de Solicitações" value={fmtInt(metrics.solicitacoes)} />
+            <SummaryRow label="Total de FPPs" value={fmtInt(metrics.totalFPP)} />
             <SummaryRow label="Material mais desp." value={metrics.topMat?.[0] ?? "—"} />
-            <SummaryRow label="Setor mais desp." value={metrics.topSetor?.[0] ?? "—"} />
           </div>
         </Panel>
       </section>
@@ -411,7 +465,7 @@ export function Dashboard() {
           <table className="w-full text-sm">
             <thead className="bg-secondary/40 sticky top-0">
               <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                {["Tipo", "Nº", "Código", "Descrição", "Armazém", "Fator %", "Linha", "Qtde (kg)", "Data", "Retalho (kg)", "Status"].map(h => (
+                {["Tipo", "Nº", "Código", "Descrição", "Material", "Fator %", "Linha", "Qtde (kg)", "Data", "Retalho (kg)", "Status"].map(h => (
                   <th key={h} className="px-3 py-2 font-medium">{h}</th>
                 ))}
               </tr>
@@ -423,12 +477,12 @@ export function Dashboard() {
                   <td className="px-3 py-2 text-muted-foreground">{r.numero}</td>
                   <td className="px-3 py-2 font-mono text-xs">{r.codigo_item}</td>
                   <td className="px-3 py-2 max-w-[260px] truncate">{r.descricao}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{r.armazem}</td>
+                  <td className="px-3 py-2 text-muted-foreground"><span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${MATERIAL_COLOR[r.material]} 18%, transparent)`, color: MATERIAL_COLOR[r.material] }}>{MATERIAL_LABEL[r.material]}</span></td>
                   <td className="px-3 py-2 font-medium">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 0)}%` : "—"}</td>
                   <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
-                  <td className="px-3 py-2">{r.qtde_solicitada !== null ? fmtNum(r.qtde_solicitada) : "—"}</td>
+                  <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
                   <td className="px-3 py-2 text-muted-foreground text-xs">{fmtDate(r.data_registro)}</td>
-                  <td className="px-3 py-2">{r.retalho !== null ? fmtNum(r.retalho) : "—"}</td>
+                  <td className="px-3 py-2">{r.retalho_kg > 0 ? fmtNum(r.retalho_kg) : "—"}</td>
                   <td className="px-3 py-2"><span className="text-xs text-success">{r.status}</span></td>
                 </tr>
               ))}
@@ -459,10 +513,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Panel({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
+function Panel({ title, children, className = "", right }: { title: string; children: React.ReactNode; className?: string; right?: React.ReactNode }) {
   return (
     <div className={`bg-card border border-border rounded-xl p-4 ${className}`}>
-      <h3 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">{title}</h3>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <h3 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">{title}</h3>
+        {right}
+      </div>
       {children}
     </div>
   );
@@ -476,4 +533,3 @@ function SummaryRow({ label, value, accent = "text-foreground" }: { label: strin
     </>
   );
 }
-
