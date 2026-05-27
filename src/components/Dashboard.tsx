@@ -315,7 +315,7 @@ export function Dashboard() {
                 <Legend wrapperStyle={{ fontSize: 12, color: "oklch(0.92 0.01 240)" }} />
                 <Tooltip
                   contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                  formatter={(v: number) => `${fmtNum(v)} m²`}
+                  formatter={(v: number) => `${fmtNum(v)} kg`}
                 />
               </PieChart>
             </ResponsiveContainer>
