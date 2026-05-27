@@ -19,13 +19,15 @@ export function AppLayout() {
       {/* Desktop sidebar (collapsible) */}
       <aside
         className={`hidden md:flex ${desktopW} shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex-col transition-[width] duration-200`}
-        onMouseEnter={() => setExpanded(true)}
-        onMouseLeave={() => setExpanded(false)}
       >
-        <div className="px-3 py-4 flex items-center gap-3 border-b border-sidebar-border">
-          <div className="size-10 shrink-0 rounded-lg bg-primary/15 grid place-items-center">
-            <Boxes className="size-5 text-primary" />
-          </div>
+        <div className="px-3 py-4 flex items-center gap-2 border-b border-sidebar-border">
+          <button
+            onClick={() => setExpanded(v => !v)}
+            title={expanded ? "Recolher" : "Expandir"}
+            className="size-10 shrink-0 rounded-lg bg-primary/15 grid place-items-center hover:bg-primary/25 transition-colors"
+          >
+            {expanded ? <PanelLeft className="size-5 text-primary" /> : <Boxes className="size-5 text-primary" />}
+          </button>
           {expanded && (
             <div className="min-w-0">
               <div className="font-semibold text-sm leading-tight truncate">Controle</div>
