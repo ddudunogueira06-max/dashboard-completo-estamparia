@@ -23,8 +23,8 @@ export const MATERIAL_LABEL: Record<MaterialKind, string> = {
 export function detectMaterial(descricao: string | null | undefined): MaterialKind {
   if (!descricao) return "outro";
   const d = descricao.toUpperCase();
-  if (/AISI|INOX|\b30[44]\b|\b316\b|\b430\b/.test(d)) return "inox";
-  if (/GALV|\bGI\b|ZINC/.test(d)) return "galvanizado";
+  if (/AISI|INOX|\b304\b|\b316\b|\b430\b/.test(d)) return "inox";
+  if (/GALV|\bGI\b|ZINC|BRANC[AO]|\bBR\b/.test(d)) return "galvanizado";
   if (/ALUM|\bAL\b/.test(d)) return "aluminio";
   return "outro";
 }
