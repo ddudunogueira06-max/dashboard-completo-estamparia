@@ -20,6 +20,26 @@ export const MATERIAL_LABEL: Record<MaterialKind, string> = {
   outro: "Outro",
 };
 
+export const MATERIAL_SHORT: Record<MaterialKind, string> = {
+  inox: "INOX",
+  galvanizado: "GALV",
+  aluminio: "AL",
+  outro: "OUT",
+};
+
+// Formata espessura em mm: 1.5 -> "1,50" / 0.65 -> "0,65"
+export function fmtThickness(mm: number): string {
+  return mm.toFixed(2).replace(".", ",");
+}
+
+// Chave estável "1,50-INOX" e label "1,50 INOX"
+export function materialThicknessKey(material: MaterialKind, mm: number): string {
+  return `${fmtThickness(mm)}-${MATERIAL_SHORT[material]}`;
+}
+export function materialThicknessLabel(material: MaterialKind, mm: number): string {
+  return `${fmtThickness(mm)} ${MATERIAL_SHORT[material]}`;
+}
+
 export function detectMaterial(descricao: string | null | undefined): MaterialKind {
   if (!descricao) return "outro";
   const d = descricao.toUpperCase();

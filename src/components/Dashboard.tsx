@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { KpiCard } from "@/components/KpiCard";
 import { fmtInt, fmtNum, fmtPct, fmtDate } from "@/lib/format";
 import { exportToXLSX } from "@/lib/parseExcel";
-import { detectMaterial, m2ToKg, MATERIAL_LABEL, type MaterialKind } from "@/lib/material";
+import { detectMaterial, detectThicknessMm, m2ToKg, MATERIAL_LABEL, materialThicknessKey, materialThicknessLabel, type MaterialKind } from "@/lib/material";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell, Legend, ReferenceLine,
@@ -94,15 +94,34 @@ export function Dashboard() {
   const [monthFilter, setMonthFilter] = useState<string>(""); // YYYY-MM para o gráfico mensal
 
   // Anexa material derivado a cada registro
-  const enriched = useMemo(() => records.map(r => ({
-    ...r,
-    material: detectMaterial(r.descricao),
-    qtde_kg: m2ToKg(r.qtde_solicitada, r.descricao),
-    retalho_kg: m2ToKg(r.retalho ? Math.abs(r.retalho) : 0, r.descricao),
-  })), [records]);
+  const enriched = useMemo(() => records.map(r => {
+    const material = detectMaterial(r.descricao);
+    const thickness = detectThicknessMm(r.descricao);
+    return {
+      ...r,
+      material,
+      thickness,
+      matKey: thickness ? materialThicknessKey(material, thickness) : "",
+      matLabel: thickness ? materialThicknessLabel(material, thickness) : MATERIAL_LABEL[material],
+      qtde_kg: m2ToKg(r.qtde_solicitada, r.descricao),
+      retalho_kg: m2ToKg(r.retalho ? Math.abs(r.retalho) : 0, r.descricao),
+    };
+  }), [records]);
 
   const tipos = useMemo(() => Array.from(new Set(enriched.map(r => r.tipo).filter(Boolean))) as string[], [enriched]);
   const statuses = useMemo(() => Array.from(new Set(enriched.map(r => r.status).filter(Boolean))) as string[], [enriched]);
+
+  // Opções de Material+Espessura: "1,20-INOX" etc.
+  const materialThickOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    enriched.forEach(r => {
+      if (r.matKey && !map.has(r.matKey)) map.set(r.matKey, r.matLabel);
+    });
+    // ordena: material > espessura
+    return Array.from(map.entries())
+      .map(([key, label]) => ({ key, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR", { numeric: true }));
+  }, [enriched]);
 
   const filtered = useMemo(() => {
     const s = startDate ? new Date(startDate).getTime() : 0;
@@ -112,7 +131,7 @@ export function Dashboard() {
       const t = r.data_registro ? new Date(r.data_registro).getTime() : 0;
       if (t < s || t > e) return false;
       if (tipoFilter && r.tipo !== tipoFilter) return false;
-      if (materialFilter && r.material !== materialFilter) return false;
+      if (materialFilter && r.matKey !== materialFilter) return false;
       if (statusFilter && r.status !== statusFilter) return false;
       if (q) {
         const hay = `${r.codigo_item ?? ""} ${r.descricao ?? ""} ${r.numero ?? ""}`.toLowerCase();
@@ -145,10 +164,11 @@ export function Dashboard() {
     return { totalSolic, totalDesperd, totalProcessado, totalRetalho, mediaPerda, itens, totalFPP, fatorMax, fatorMin, topMat };
   }, [filtered]);
 
-  // Time series MENSAL: média do fator de perda por mês
+  // === Gráfico mensal e KPIs por material — INDEPENDENTES do filtro do topo ===
+  // Time series MENSAL: média do fator de perda por mês (base = todos os registros)
   const monthlySeries = useMemo(() => {
     const byMonth = new Map<string, { sum: number; n: number }>();
-    filtered.forEach(r => {
+    enriched.forEach(r => {
       if (!r.data_registro || r.fator_perda === null) return;
       const d = new Date(r.data_registro);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -160,21 +180,20 @@ export function Dashboard() {
     return Array.from(byMonth.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([k, v]) => ({ key: k, mes: fmtMonth(k), media: +(v.sum / v.n).toFixed(2) }));
-  }, [filtered]);
+  }, [enriched]);
 
-  // Meses disponíveis
   const availableMonths = useMemo(() => monthlySeries.map(m => ({ key: m.key, label: m.mes })), [monthlySeries]);
 
-  // KPI por material — respeita filtro de mês se selecionado
+  // KPI por material — usa enriched + filtro de mês do gráfico
   const materialKpis = useMemo(() => {
     const source = monthFilter
-      ? filtered.filter(r => {
+      ? enriched.filter(r => {
           if (!r.data_registro) return false;
           const d = new Date(r.data_registro);
           const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
           return k === monthFilter;
         })
-      : filtered;
+      : enriched;
     const result: { material: MaterialKind; media: number; n: number }[] = [];
     (["inox", "galvanizado", "aluminio"] as MaterialKind[]).forEach(m => {
       const rows = source.filter(r => r.material === m && r.fator_perda !== null);
@@ -182,7 +201,7 @@ export function Dashboard() {
       result.push({ material: m, media, n: rows.length });
     });
     return result;
-  }, [filtered, monthFilter]);
+  }, [enriched, monthFilter]);
 
   // Pie por tipo (FPP/FPG) — desperdício em kg
   const byTipo = useMemo(() => {
@@ -279,13 +298,10 @@ export function Dashboard() {
               {tipos.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </Field>
-          <Field label="Tipo de Material">
+          <Field label="Material / Espessura">
             <select value={materialFilter} onChange={(e) => setMaterialFilter(e.target.value)} className={inputCls}>
               <option value="">Todos</option>
-              <option value="inox">Inox</option>
-              <option value="galvanizado">Galvanizado</option>
-              <option value="aluminio">Alumínio</option>
-              <option value="outro">Outro</option>
+              {materialThickOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
           </Field>
           <Field label="Status">
