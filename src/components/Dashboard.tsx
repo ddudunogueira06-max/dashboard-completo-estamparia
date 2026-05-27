@@ -451,10 +451,10 @@ export function Dashboard() {
       {/* Charts row (desktop) */}
       <section className="hidden md:grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel title="Top 10 — Maior volume de desperdício (kg)" className="lg:col-span-2">
-          <div className="h-[420px]">
+          <div className="h-[460px]">
             {topMateriais.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
-              <BarChart data={topMateriais} layout="vertical" margin={{ left: 8, right: 32 }}>
+              <BarChart data={topMateriais} layout="vertical" margin={{ left: 8, right: 80 }}>
                 <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${fmtNum(v, 0)}`} />
                 <YAxis type="category" dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={10} width={300} interval={0} tick={{ fill: "oklch(0.85 0.02 240)" }} />
@@ -466,26 +466,44 @@ export function Dashboard() {
                   }}
                   labelFormatter={(l) => String(l)}
                 />
-                <Bar dataKey="desp" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="desp" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]}>
+                  <LabelList
+                    dataKey="desp"
+                    position="right"
+                    fontSize={11}
+                    fill="oklch(0.95 0.01 240)"
+                    formatter={(_v: number, _name, props: { payload?: { desp: number; media: number } }) => {
+                      const p = props?.payload;
+                      if (!p) return "";
+                      return `${fmtNum(p.desp)} kg · ${fmtPct(p.media)}`;
+                    }}
+                  />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
             )}
           </div>
         </Panel>
 
-        <Panel title="Desperdício por Tipo (kg)">
-          <div className="h-[420px]">
-            {byTipo.length === 0 ? <EmptyChart /> : (
+        <Panel title="Distribuição do Fator de Perda">
+          <div className="h-[460px]">
+            {filtered.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={byTipo} dataKey="value" nameKey="name" innerRadius={60} outerRadius={110} paddingAngle={2}>
-                  {byTipo.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                <Pie
+                  data={distribuicao}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={70}
+                  outerRadius={140}
+                  paddingAngle={2}
+                  label={(d) => `${d.pct}%`}
+                  labelLine={false}
+                >
+                  {distribuicao.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                 </Pie>
                 <Legend wrapperStyle={{ fontSize: 12, color: "oklch(0.92 0.01 240)" }} />
-                <Tooltip
-                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                  formatter={(v: number) => `${fmtNum(v)} kg`}
-                />
+                <Tooltip contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }} />
               </PieChart>
             </ResponsiveContainer>
             )}
@@ -493,19 +511,24 @@ export function Dashboard() {
         </Panel>
       </section>
 
-      {/* Distribuição (desktop) */}
+      {/* Desperdício por Tipo — secundário */}
       <section className="hidden md:grid grid-cols-1 gap-4">
-        <Panel title="Distribuição do Fator de Perda">
-          <div className="h-72">
-            {filtered.length === 0 ? <EmptyChart /> : (
+        <Panel title="Desperdício por Tipo (kg) — visão complementar">
+          <div className="h-60">
+            {byTipo.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
-              <PieChart>
-                <Pie data={distribuicao} dataKey="value" nameKey="name" outerRadius={90} label={(d) => `${d.pct}%`} labelLine={false}>
-                  {distribuicao.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                </Pie>
-                <Legend wrapperStyle={{ fontSize: 12, color: "oklch(0.92 0.01 240)" }} />
-                <Tooltip contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }} />
-              </PieChart>
+              <BarChart data={byTipo} layout="vertical" margin={{ left: 8, right: 60 }}>
+                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${fmtNum(v, 0)}`} />
+                <YAxis type="category" dataKey="name" stroke="oklch(0.72 0.03 240)" fontSize={11} width={80} />
+                <Tooltip
+                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
+                  formatter={(v: number) => `${fmtNum(v)} kg`}
+                />
+                <Bar dataKey="value" fill={CHART_COLORS[2]} radius={[0, 4, 4, 0]}>
+                  <LabelList dataKey="value" position="right" fontSize={11} fill="oklch(0.9 0.01 240)" formatter={(v: number) => `${fmtNum(v)} kg`} />
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
             )}
           </div>
