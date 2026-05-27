@@ -365,32 +365,13 @@ export function Dashboard() {
       </section>
 
       {/* Charts row 3 */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Panel title="Desperdício por Setor (Armazém)">
-          <div className="h-64">
-            {bySetor.length === 0 ? <EmptyChart /> : (
-            <ResponsiveContainer>
-              <BarChart data={bySetor}>
-                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" />
-                <XAxis dataKey="name" stroke="oklch(0.72 0.03 240)" fontSize={11} />
-                <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} />
-                <Tooltip
-                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                  formatter={(v: number) => `${fmtNum(v)} m²`}
-                />
-                <Bar dataKey="value" fill={CHART_COLORS[2]} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            )}
-          </div>
-        </Panel>
-
+      <section className="grid grid-cols-1 gap-4">
         <Panel title="Resumo do período">
-          <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
-            <SummaryRow label="Total Solicitado (m²)" value={fmtNum(metrics.totalSolic)} />
-            <SummaryRow label="Desperdício Total (m²)" value={fmtNum(metrics.totalDesperd)} />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3 gap-x-6 text-sm">
+            <SummaryRow label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} />
+            <SummaryRow label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} />
             <SummaryRow label="Média de Desperdício (%)" value={fmtPct(metrics.mediaPerda)} />
-            <SummaryRow label="Retalho Total (m²)" value={fmtNum(metrics.totalRetalho)} />
+            <SummaryRow label="Retalho Total (kg)" value={fmtNum(metrics.totalRetalho)} />
             <SummaryRow label="Maior Fator de Perda" value={fmtPct(metrics.fatorMax)} accent="text-destructive" />
             <SummaryRow label="Menor Fator de Perda" value={fmtPct(metrics.fatorMin)} accent="text-success" />
             <SummaryRow label="Quantidade de Itens" value={fmtInt(metrics.itens)} />
