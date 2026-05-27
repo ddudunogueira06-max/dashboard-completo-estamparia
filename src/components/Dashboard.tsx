@@ -298,13 +298,10 @@ export function Dashboard() {
               {tipos.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </Field>
-          <Field label="Tipo de Material">
+          <Field label="Material / Espessura">
             <select value={materialFilter} onChange={(e) => setMaterialFilter(e.target.value)} className={inputCls}>
               <option value="">Todos</option>
-              <option value="inox">Inox</option>
-              <option value="galvanizado">Galvanizado</option>
-              <option value="aluminio">Alumínio</option>
-              <option value="outro">Outro</option>
+              {materialThickOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
           </Field>
           <Field label="Status">
