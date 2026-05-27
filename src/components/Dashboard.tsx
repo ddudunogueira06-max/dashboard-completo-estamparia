@@ -35,6 +35,12 @@ interface WasteRecord {
 
 const META_PERDA = 15; // meta global (%)
 
+const META_POR_MATERIAL: Record<Exclude<MaterialKind, "outro">, number> = {
+  galvanizado: 13,
+  aluminio: 24,
+  inox: 27,
+};
+
 const CHART_COLORS = [
   "oklch(0.72 0.15 215)",
   "oklch(0.7 0.18 45)",
