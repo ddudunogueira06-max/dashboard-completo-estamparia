@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { fmtNum, fmtInt, fmtPct, fmtDate } from "@/lib/format";
+import { fmtNum, fmtInt, fmtPct } from "@/lib/format";
 import { MATERIAL_LABEL, type MaterialKind } from "@/lib/material";
 
 export interface ReportRecord {
@@ -16,7 +16,7 @@ export interface ReportRecord {
   material: MaterialKind;
   matLabel: string;
   detLabel: string;
-  qtde_m2: number; // qtde_solicitada (m²)
+  qtde_m2: number;
   retalho_m2: number;
   qtde_kg: number;
   retalho_kg: number;
@@ -39,10 +39,23 @@ interface Totals {
 
 const MONTHS = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
+// Material accent colors (RGB) — alinhados ao dashboard
+const MAT_COLOR: Record<MaterialKind, [number, number, number]> = {
+  inox: [99, 179, 237],
+  galvanizado: [251, 191, 36],
+  aluminio: [167, 139, 250],
+  outro: [148, 163, 184],
+};
+
 export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, filtroResumo: string) {
-  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
   const margin = 36;
+
+  // ============================================================
+  // PÁGINA 1 — Resumo executivo + por material + top 10
+  // ============================================================
   let y = margin;
 
   // Header
@@ -58,15 +71,13 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
   doc.text(filtroResumo, margin, 62);
   y = 90;
 
-  // Resumo executivo
   doc.setTextColor(20, 20, 20);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.text("Resumo Executivo", margin, y);
-  y += 8;
 
   autoTable(doc, {
-    startY: y + 4,
+    startY: y + 8,
     head: [["Indicador", "Valor (kg)", "Valor (m²)"]],
     body: [
       ["Total Solicitado", fmtNum(totals.solic_kg), fmtNum(totals.solic_m2)],
@@ -83,7 +94,7 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
     bodyStyles: { fontSize: 10 },
     margin: { left: margin, right: margin },
   });
-  // @ts-expect-error - lastAutoTable injected
+  // @ts-expect-error
   y = doc.lastAutoTable.finalY + 20;
 
   // Resumo por material
@@ -123,7 +134,7 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
   // @ts-expect-error
   y = doc.lastAutoTable.finalY + 20;
 
-  // Top 10 itens por desperdício
+  // Top 10 itens
   const itemAgg = new Map<string, { qtde_kg: number; qtde_m2: number; desp_kg: number; desp_m2: number; descricao: string }>();
   records.forEach(r => {
     if (!r.codigo_item || r.fator_perda === null) return;
@@ -140,7 +151,7 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
     .sort((a, b) => b.desp_kg - a.desp_kg)
     .slice(0, 10);
 
-  if (y > 700) { doc.addPage(); y = margin; }
+  if (y > pageH - 120) { doc.addPage(); y = margin; }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.text("Top 10 Itens — Maior Desperdício", margin, y);
@@ -149,7 +160,7 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
     head: [["Código", "Descrição", "Desperd. (kg)", "Desperd. (m²)", "Média %"]],
     body: top10.map(t => [
       t.cod,
-      t.descricao.length > 50 ? t.descricao.slice(0, 50) + "…" : t.descricao,
+      t.descricao.length > 70 ? t.descricao.slice(0, 70) + "…" : t.descricao,
       fmtNum(t.desp_kg),
       fmtNum(t.desp_m2),
       fmtPct(t.media),
@@ -157,31 +168,61 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
     theme: "striped",
     headStyles: { fillColor: [30, 64, 110], textColor: 255, fontSize: 9 },
     bodyStyles: { fontSize: 9 },
-    columnStyles: { 1: { cellWidth: 200 } },
+    columnStyles: { 1: { cellWidth: 320 } },
     margin: { left: margin, right: margin },
   });
-  // @ts-expect-error
-  y = doc.lastAutoTable.finalY + 20;
 
-  // Evolução mensal por material (ano corrente nos dados)
-  const yearAgg = new Map<number, Map<MaterialKind, { qtde_kg: number; desp_kg: number }>>();
-  records.forEach(r => {
-    if (!r.data_registro || r.material === "outro") return;
-    const d = new Date(r.data_registro);
-    const yr = d.getFullYear();
-    const mo = d.getMonth();
-    if (!yearAgg.has(yr)) yearAgg.set(yr, new Map());
-    const yMap = yearAgg.get(yr)!;
-    const key = r.material;
-    const cur = yMap.get(key) ?? { qtde_kg: 0, desp_kg: 0 };
-    cur.qtde_kg += r.qtde_kg;
-    cur.desp_kg += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
-    yMap.set(key, cur);
-    // monthly stored separately below
-    void mo;
+  // ============================================================
+  // PÁGINA 2 — KPI Dashboard: Evolução mensal por material
+  // ============================================================
+  doc.addPage();
+
+  // Header escuro estilo dashboard
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageW, pageH, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(20);
+  doc.text("Painel de Desperdício — Visão por Material", margin, 50);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(180, 190, 210);
+  doc.text(filtroResumo, margin, 68);
+
+  // KPIs grandes no topo (4 cartões)
+  const kpiY = 90;
+  const kpiH = 78;
+  const gap = 14;
+  const kpiW = (pageW - margin * 2 - gap * 3) / 4;
+  const kpis: Array<{ label: string; value: string; sub: string; color: [number, number, number] }> = [
+    { label: "Solicitado", value: fmtNum(totals.solic_kg) + " kg", sub: fmtNum(totals.solic_m2) + " m²", color: [56, 189, 248] },
+    { label: "Processado", value: fmtNum(totals.proc_kg) + " kg", sub: fmtNum(totals.proc_m2) + " m²", color: [74, 222, 128] },
+    { label: "Desperdício", value: fmtNum(totals.desp_kg) + " kg", sub: fmtNum(totals.desp_m2) + " m²", color: [248, 113, 113] },
+    { label: "Média de Perda", value: fmtPct(totals.mediaPerda), sub: fmtInt(totals.fpps) + " FPPs", color: [251, 191, 36] },
+  ];
+  kpis.forEach((k, i) => {
+    const x = margin + i * (kpiW + gap);
+    doc.setFillColor(30, 41, 59);
+    doc.roundedRect(x, kpiY, kpiW, kpiH, 8, 8, "F");
+    // accent bar
+    doc.setFillColor(...k.color);
+    doc.roundedRect(x, kpiY, 4, kpiH, 2, 2, "F");
+    doc.setTextColor(148, 163, 184);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(k.label.toUpperCase(), x + 14, kpiY + 18);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.text(k.value, x + 14, kpiY + 44);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(148, 163, 184);
+    doc.text(k.sub, x + 14, kpiY + 62);
   });
 
-  // Build per-year monthly matrix
+  // Matriz mensal por ano (estilo dashboard)
   const yearMonthly = new Map<number, Record<MaterialKind, Array<{ qtde_kg: number; desp_kg: number }>>>();
   records.forEach(r => {
     if (!r.data_registro || r.material === "outro") return;
@@ -201,63 +242,92 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
   });
 
   const years = Array.from(yearMonthly.keys()).sort((a, b) => b - a);
-  years.forEach(yr => {
-    if (y > 650) { doc.addPage(); y = margin; }
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text(`Média de Desperdício Mensal — ${yr}`, margin, y);
-    const mats: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
-    const body = mats.map(mat => {
-      const cells = yearMonthly.get(yr)![mat];
-      const row: string[] = [MATERIAL_LABEL[mat]];
-      let tq = 0, td = 0;
-      cells.forEach(c => {
-        tq += c.qtde_kg; td += c.desp_kg;
-        row.push(c.qtde_kg > 0 ? fmtPct((c.desp_kg / c.qtde_kg) * 100) : "—");
-      });
-      row.push(tq > 0 ? fmtPct((td / tq) * 100) : "—");
-      return row;
-    });
-    autoTable(doc, {
-      startY: y + 8,
-      head: [["Material", ...MONTHS, "Acum."]],
-      body,
-      theme: "grid",
-      headStyles: { fillColor: [30, 64, 110], textColor: 255, fontSize: 8 },
-      bodyStyles: { fontSize: 8, halign: "center" },
-      columnStyles: { 0: { halign: "left", fontStyle: "bold" } },
-      margin: { left: margin, right: margin },
-    });
-    // @ts-expect-error
-    y = doc.lastAutoTable.finalY + 16;
-  });
+  let cardY = kpiY + kpiH + 24;
+  const mats: MaterialKind[] = ["galvanizado", "inox", "aluminio"];
 
-  // Detalhamento completo
-  doc.addPage();
-  y = margin;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.text(`Detalhamento Completo (${fmtInt(records.length)} registros)`, margin, y);
-  autoTable(doc, {
-    startY: y + 8,
-    head: [["Data", "Tipo", "Nº", "Código", "Descrição", "Material", "Fator %", "Qtde (kg)", "Qtde (m²)", "Retalho (kg)"]],
-    body: records.map(r => [
-      r.data_registro ? fmtDate(r.data_registro) : "—",
-      r.tipo ?? "—",
-      r.numero ?? "—",
-      r.codigo_item ?? "—",
-      (r.descricao ?? "").length > 38 ? (r.descricao ?? "").slice(0, 38) + "…" : (r.descricao ?? ""),
-      r.detLabel || MATERIAL_LABEL[r.material],
-      r.fator_perda !== null ? fmtPct(r.fator_perda) : "—",
-      fmtNum(r.qtde_kg),
-      fmtNum(r.qtde_m2),
-      fmtNum(r.retalho_kg),
-    ]),
-    theme: "striped",
-    headStyles: { fillColor: [30, 64, 110], textColor: 255, fontSize: 7 },
-    bodyStyles: { fontSize: 7 },
-    columnStyles: { 4: { cellWidth: 130 } },
-    margin: { left: margin, right: margin },
+  years.forEach(yr => {
+    if (cardY > pageH - 140) {
+      doc.addPage();
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageW, pageH, "F");
+      cardY = margin;
+    }
+
+    // Card title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Média de Desperdício Mensal — ${yr}`, margin, cardY);
+    cardY += 6;
+
+    // Build matrix rows with mini sparkline-like cells colored by intensity
+    const colW = (pageW - margin * 2 - 100 - 60) / 12; // 100=label, 60=acum
+    const rowH = 26;
+    const tableTop = cardY + 8;
+
+    // Header row (months)
+    doc.setFillColor(30, 41, 59);
+    doc.rect(margin, tableTop, pageW - margin * 2, rowH, "F");
+    doc.setTextColor(148, 163, 184);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("MATERIAL", margin + 8, tableTop + rowH / 2 + 3);
+    MONTHS.forEach((mo, i) => {
+      doc.text(mo, margin + 100 + i * colW + colW / 2, tableTop + rowH / 2 + 3, { align: "center" });
+    });
+    doc.text("ACUM.", margin + 100 + 12 * colW + 30, tableTop + rowH / 2 + 3, { align: "center" });
+
+    mats.forEach((mat, mi) => {
+      const ry = tableTop + rowH + mi * rowH;
+      doc.setFillColor(mi % 2 === 0 ? 22 : 26, mi % 2 === 0 ? 32 : 36, mi % 2 === 0 ? 48 : 54);
+      doc.rect(margin, ry, pageW - margin * 2, rowH, "F");
+
+      // material label with accent
+      const [r, g, b] = MAT_COLOR[mat];
+      doc.setFillColor(r, g, b);
+      doc.circle(margin + 12, ry + rowH / 2, 4, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(MATERIAL_LABEL[mat], margin + 22, ry + rowH / 2 + 3);
+
+      const cells = yearMonthly.get(yr)![mat];
+      let tq = 0, td = 0;
+      cells.forEach((c, i) => {
+        tq += c.qtde_kg; td += c.desp_kg;
+        const pct = c.qtde_kg > 0 ? (c.desp_kg / c.qtde_kg) * 100 : null;
+        const cx = margin + 100 + i * colW;
+        if (pct !== null) {
+          // intensity background
+          const intensity = Math.min(1, pct / 30); // 30% as max
+          doc.setFillColor(r, g, b);
+          doc.setGState(doc.GState({ opacity: 0.12 + intensity * 0.55 }));
+          doc.roundedRect(cx + 2, ry + 4, colW - 4, rowH - 8, 3, 3, "F");
+          doc.setGState(doc.GState({ opacity: 1 }));
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.text(fmtPct(pct), cx + colW / 2, ry + rowH / 2 + 3, { align: "center" });
+        } else {
+          doc.setTextColor(100, 116, 139);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.text("—", cx + colW / 2, ry + rowH / 2 + 3, { align: "center" });
+        }
+      });
+      // Acum.
+      const ax = margin + 100 + 12 * colW;
+      doc.setFillColor(r, g, b);
+      doc.setGState(doc.GState({ opacity: 0.25 }));
+      doc.roundedRect(ax + 2, ry + 4, 60 - 4, rowH - 8, 3, 3, "F");
+      doc.setGState(doc.GState({ opacity: 1 }));
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(tq > 0 ? fmtPct((td / tq) * 100) : "—", ax + 30, ry + rowH / 2 + 3, { align: "center" });
+    });
+
+    cardY = tableTop + rowH * (mats.length + 1) + 24;
   });
 
   // Footer com paginação
@@ -266,7 +336,7 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(120, 120, 120);
-    doc.text(`Página ${i} de ${total}`, pageW - margin, doc.internal.pageSize.getHeight() - 16, { align: "right" });
+    doc.text(`Página ${i} de ${total}`, pageW - margin, pageH - 16, { align: "right" });
   }
 
   doc.save(`relatorio_desperdicio_${new Date().toISOString().slice(0, 10)}.pdf`);
