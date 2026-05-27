@@ -4,10 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { KpiCard } from "@/components/KpiCard";
 import { fmtInt, fmtNum, fmtPct, fmtDate } from "@/lib/format";
 import { exportToXLSX } from "@/lib/parseExcel";
-import { detectMaterial, detectThicknessMm, m2ToKg, MATERIAL_LABEL, materialThicknessKey, materialThicknessLabel, type MaterialKind } from "@/lib/material";
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
-  BarChart, Bar, PieChart, Pie, Cell, Legend, ReferenceLine,
+  detectMaterial, detectThicknessMm, m2ToKg, detailedCategory,
+  MATERIAL_LABEL, materialThicknessKey, materialThicknessLabel, type MaterialKind,
+} from "@/lib/material";
+import {
+  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
+  BarChart, Bar, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
   ClipboardList, Percent, Trash2, Package, FileText, Download, RefreshCw, Search, CheckCircle2,
@@ -28,7 +31,7 @@ interface WasteRecord {
   status: string | null;
 }
 
-const META_PERDA = 15; // meta de média de desperdício (%)
+const META_PERDA = 15; // meta global (%)
 
 const CHART_COLORS = [
   "oklch(0.72 0.15 215)",
@@ -44,6 +47,8 @@ const MATERIAL_COLOR: Record<MaterialKind, string> = {
   aluminio: "oklch(0.7 0.16 155)",
   outro: "oklch(0.6 0.02 240)",
 };
+
+const MONTH_NAMES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
 function EmptyChart() {
   return (
@@ -72,13 +77,6 @@ async function fetchAllRecords(): Promise<WasteRecord[]> {
   return all;
 }
 
-// "2026-03" -> "Mar/2026"
-function fmtMonth(key: string): string {
-  const [y, m] = key.split("-");
-  const names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-  return `${names[parseInt(m, 10) - 1]}/${y}`;
-}
-
 export function Dashboard() {
   const { data: records = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["waste_records"],
@@ -91,18 +89,20 @@ export function Dashboard() {
   const [materialFilter, setMaterialFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [search, setSearch] = useState("");
-  const [monthFilter, setMonthFilter] = useState<string>(""); // YYYY-MM para o gráfico mensal
+  const [matrixYear, setMatrixYear] = useState<string>(""); // ano para matriz mensal
 
-  // Anexa material derivado a cada registro
   const enriched = useMemo(() => records.map(r => {
     const material = detectMaterial(r.descricao);
     const thickness = detectThicknessMm(r.descricao);
+    const det = detailedCategory(r.descricao);
     return {
       ...r,
       material,
       thickness,
       matKey: thickness ? materialThicknessKey(material, thickness) : "",
       matLabel: thickness ? materialThicknessLabel(material, thickness) : MATERIAL_LABEL[material],
+      detKey: det?.key ?? "",
+      detLabel: det?.label ?? "",
       qtde_kg: m2ToKg(r.qtde_solicitada, r.descricao),
       retalho_kg: m2ToKg(r.retalho ? Math.abs(r.retalho) : 0, r.descricao),
     };
@@ -111,13 +111,11 @@ export function Dashboard() {
   const tipos = useMemo(() => Array.from(new Set(enriched.map(r => r.tipo).filter(Boolean))) as string[], [enriched]);
   const statuses = useMemo(() => Array.from(new Set(enriched.map(r => r.status).filter(Boolean))) as string[], [enriched]);
 
-  // Opções de Material+Espessura: "1,20-INOX" etc.
   const materialThickOptions = useMemo(() => {
     const map = new Map<string, string>();
     enriched.forEach(r => {
       if (r.matKey && !map.has(r.matKey)) map.set(r.matKey, r.matLabel);
     });
-    // ordena: material > espessura
     return Array.from(map.entries())
       .map(([key, label]) => ({ key, label }))
       .sort((a, b) => a.label.localeCompare(b.label, "pt-BR", { numeric: true }));
@@ -147,63 +145,64 @@ export function Dashboard() {
     const totalDesperd = filtered.reduce((a, r) => a + r.qtde_kg * ((r.fator_perda ?? 0) / 100), 0);
     const totalProcessado = totalSolic - totalDesperd;
     const validPerda = filtered.filter(r => r.fator_perda !== null);
-    const mediaPerda = validPerda.length ? validPerda.reduce((a, r) => a + (r.fator_perda ?? 0), 0) / validPerda.length : 0;
+    // média ponderada por kg
+    const mediaPerda = totalSolic > 0 ? (totalDesperd / totalSolic) * 100 : 0;
     const itens = new Set(filtered.map(r => r.codigo_item)).size;
     const totalFPP = filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").length;
     const fatorMax = filtered.reduce((a, r) => Math.max(a, r.fator_perda ?? 0), 0);
     const fatorMin = validPerda.length ? validPerda.reduce((a, r) => Math.min(a, r.fator_perda ?? 0), Infinity) : 0;
-
-    const matAgg = new Map<string, number>();
-    filtered.forEach(r => {
-      if (!r.codigo_item) return;
-      const w = r.qtde_kg * ((r.fator_perda ?? 0) / 100);
-      matAgg.set(r.codigo_item, (matAgg.get(r.codigo_item) ?? 0) + w);
-    });
-    const topMat = Array.from(matAgg.entries()).sort((a, b) => b[1] - a[1])[0];
-
-    return { totalSolic, totalDesperd, totalProcessado, totalRetalho, mediaPerda, itens, totalFPP, fatorMax, fatorMin, topMat };
+    return { totalSolic, totalDesperd, totalProcessado, totalRetalho, mediaPerda, itens, totalFPP, fatorMax, fatorMin };
   }, [filtered]);
 
-  // === Gráfico mensal e KPIs por material — INDEPENDENTES do filtro do topo ===
-  // Time series MENSAL: média do fator de perda por mês (base = todos os registros)
-  const monthlySeries = useMemo(() => {
-    const byMonth = new Map<string, { sum: number; n: number }>();
+  // === Matriz mensal — base = TODOS os registros (independe dos filtros do topo)
+  const availableYears = useMemo(() => {
+    const set = new Set<string>();
     enriched.forEach(r => {
-      if (!r.data_registro || r.fator_perda === null) return;
-      const d = new Date(r.data_registro);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const e = byMonth.get(key) ?? { sum: 0, n: 0 };
-      e.sum += r.fator_perda ?? 0;
-      e.n += 1;
-      byMonth.set(key, e);
+      if (!r.data_registro) return;
+      set.add(String(new Date(r.data_registro).getFullYear()));
     });
-    return Array.from(byMonth.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([k, v]) => ({ key: k, mes: fmtMonth(k), media: +(v.sum / v.n).toFixed(2) }));
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
   }, [enriched]);
 
-  const availableMonths = useMemo(() => monthlySeries.map(m => ({ key: m.key, label: m.mes })), [monthlySeries]);
+  // ano padrão = mais recente
+  const yearSel = matrixYear || availableYears[0] || String(new Date().getFullYear());
 
-  // KPI por material — usa enriched + filtro de mês do gráfico
-  const materialKpis = useMemo(() => {
-    const source = monthFilter
-      ? enriched.filter(r => {
-          if (!r.data_registro) return false;
-          const d = new Date(r.data_registro);
-          const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-          return k === monthFilter;
-        })
-      : enriched;
-    const result: { material: MaterialKind; media: number; n: number }[] = [];
-    (["inox", "galvanizado", "aluminio"] as MaterialKind[]).forEach(m => {
-      const rows = source.filter(r => r.material === m && r.fator_perda !== null);
-      const media = rows.length ? rows.reduce((a, r) => a + (r.fator_perda ?? 0), 0) / rows.length : 0;
-      result.push({ material: m, media, n: rows.length });
+  const matrix = useMemo(() => {
+    // categorias detalhadas no ano
+    const catMap = new Map<string, { label: string; material: MaterialKind }>();
+    enriched.forEach(r => {
+      if (!r.detKey || !r.data_registro) return;
+      const y = String(new Date(r.data_registro).getFullYear());
+      if (y !== yearSel) return;
+      if (!catMap.has(r.detKey)) catMap.set(r.detKey, { label: r.detLabel, material: r.material });
     });
-    return result;
-  }, [enriched, monthFilter]);
+    // agrega kg solicitado e desperdiçado por categoria/mês
+    type Cell = { qtde: number; desp: number };
+    const data = new Map<string, Cell[]>();
+    catMap.forEach((_v, k) => data.set(k, Array.from({ length: 12 }, () => ({ qtde: 0, desp: 0 }))));
+    enriched.forEach(r => {
+      if (!r.detKey || !r.data_registro) return;
+      const d = new Date(r.data_registro);
+      if (String(d.getFullYear()) !== yearSel) return;
+      const cell = data.get(r.detKey);
+      if (!cell) return;
+      const m = d.getMonth();
+      cell[m].qtde += r.qtde_kg;
+      cell[m].desp += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
+    });
+    // ordena: inox > galv > alum, por label
+    const rows = Array.from(catMap.entries()).map(([key, v]) => ({ key, ...v, cells: data.get(key)! }));
+    const order: Record<MaterialKind, number> = { inox: 0, galvanizado: 1, aluminio: 2, outro: 3 };
+    rows.sort((a, b) => order[a.material] - order[b.material] || a.label.localeCompare(b.label, "pt-BR", { numeric: true }));
+    return rows.map(r => {
+      const monthly = r.cells.map(c => (c.qtde > 0 ? +(c.desp / c.qtde * 100).toFixed(2) : null));
+      const totalQ = r.cells.reduce((a, c) => a + c.qtde, 0);
+      const totalD = r.cells.reduce((a, c) => a + c.desp, 0);
+      const acumulada = totalQ > 0 ? +(totalD / totalQ * 100).toFixed(2) : null;
+      return { ...r, monthly, acumulada };
+    });
+  }, [enriched, yearSel]);
 
-  // Pie por tipo (FPP/FPG) — desperdício em kg
   const byTipo = useMemo(() => {
     const agg = new Map<string, number>();
     filtered.forEach(r => {
@@ -214,14 +213,15 @@ export function Dashboard() {
     return Array.from(agg.entries()).map(([name, value]) => ({ name, value: +value.toFixed(2) }));
   }, [filtered]);
 
-  // Top 10 materiais
+  // Top 10 ponderado pelo VOLUME (kg desperdiçado absoluto)
+  // % exibido = média ponderada = totalDespKg / totalQtdeKg
   const topMateriais = useMemo(() => {
-    const agg = new Map<string, { sum: number; n: number; descricao: string }>();
+    const agg = new Map<string, { qtde: number; desp: number; descricao: string }>();
     filtered.forEach(r => {
-      if (!r.codigo_item || r.fator_perda === null) return;
-      const e = agg.get(r.codigo_item) ?? { sum: 0, n: 0, descricao: r.descricao ?? "" };
-      e.sum += r.fator_perda ?? 0;
-      e.n += 1;
+      if (!r.codigo_item || r.fator_perda === null || r.qtde_kg <= 0) return;
+      const e = agg.get(r.codigo_item) ?? { qtde: 0, desp: 0, descricao: r.descricao ?? "" };
+      e.qtde += r.qtde_kg;
+      e.desp += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
       if (!e.descricao && r.descricao) e.descricao = r.descricao;
       agg.set(r.codigo_item, e);
     });
@@ -230,9 +230,10 @@ export function Dashboard() {
         codigo,
         descricao: v.descricao,
         label: v.descricao ? `${codigo} — ${v.descricao}` : codigo,
-        media: +(v.sum / v.n).toFixed(2),
+        desp: +v.desp.toFixed(2),
+        media: v.qtde > 0 ? +(v.desp / v.qtde * 100).toFixed(2) : 0,
       }))
-      .sort((a, b) => b.media - a.media)
+      .sort((a, b) => b.desp - a.desp) // ordena por volume absoluto
       .slice(0, 10);
   }, [filtered]);
 
@@ -250,13 +251,13 @@ export function Dashboard() {
   }, [filtered]);
 
   const clearFilters = () => {
-    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setStatusFilter(""); setSearch(""); setMonthFilter("");
+    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setStatusFilter(""); setSearch("");
   };
 
   const handleExport = () => {
     exportToXLSX(filtered.map(r => ({
       Tipo: r.tipo, Número: r.numero, "Código do Item": r.codigo_item, Descrição: r.descricao,
-      Material: MATERIAL_LABEL[r.material], Armazém: r.armazem, "Fator de Perda (%)": r.fator_perda,
+      Material: r.detLabel || MATERIAL_LABEL[r.material], Armazém: r.armazem, "Fator de Perda (%)": r.fator_perda,
       Linha: r.linha, "Qtde. Solicitada (kg)": +r.qtde_kg.toFixed(2),
       "Data de Registro": fmtDate(r.data_registro),
       "Retalho (kg)": +r.retalho_kg.toFixed(2), Status: r.status,
@@ -264,27 +265,37 @@ export function Dashboard() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 md:p-6 space-y-4 md:space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard de Materiais e Desperdícios</h1>
-          <p className="text-sm text-muted-foreground">
-            {isLoading ? "Carregando…" : `${fmtInt(records.length)} registros no banco · ${fmtInt(filtered.length)} no filtro atual`}
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Dashboard de Materiais e Desperdícios</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">
+            {isLoading ? "Carregando…" : `${fmtInt(records.length)} registros · ${fmtInt(filtered.length)} no filtro`}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => refetch()} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-secondary">
             <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
-            Atualizar
+            <span className="hidden sm:inline">Atualizar</span>
           </button>
           <button onClick={handleExport} className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
-            <Download className="size-4" /> Exportar Excel
+            <Download className="size-4" /> <span className="hidden sm:inline">Exportar</span>
           </button>
         </div>
       </header>
 
-      {/* Filtros */}
-      <section className="bg-card border border-border rounded-xl p-4">
+      {/* === MOBILE: pílulas grandes e visuais === */}
+      <section className="md:hidden grid grid-cols-2 gap-3">
+        <BigKpi label="Solicitado" value={fmtNum(metrics.totalSolic)} unit="kg" color="primary" />
+        <BigKpi label="Processado" value={fmtNum(metrics.totalProcessado)} unit="kg" color="success" />
+        <BigKpi label="Desperdício" value={fmtNum(metrics.totalDesperd)} unit="kg" color="destructive" />
+        <BigKpi label="Média" value={fmtPct(metrics.mediaPerda)} unit={`meta ${META_PERDA}%`} color={metrics.mediaPerda > META_PERDA ? "destructive" : "success"} />
+        <BigKpi label="Itens" value={fmtInt(metrics.itens)} unit="únicos" color="accent" />
+        <BigKpi label="FPPs" value={fmtInt(metrics.totalFPP)} unit="ordens" color="primary" />
+      </section>
+
+      {/* === DESKTOP/TV: filtros === */}
+      <section className="hidden md:block bg-card border border-border rounded-xl p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
           <Field label="Data inicial">
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
@@ -324,80 +335,113 @@ export function Dashboard() {
         </div>
       </section>
 
-      {/* KPIs */}
-      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* KPIs (desktop) */}
+      <section className="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" />
         <KpiCard label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} icon={CheckCircle2} accent="success" />
         <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" />
-        <KpiCard label="Média de Desperdício" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" />
+        <KpiCard label="Média Ponderada (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} />
         <KpiCard label="Quantidade de Itens" value={fmtInt(metrics.itens)} icon={Package} accent="success" />
         <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" />
       </section>
 
-      {/* KPI por material — meta 15% */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {materialKpis.map(k => {
-          const acima = k.media > META_PERDA;
-          return (
-            <div key={k.material} className="bg-card border border-border rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">
-                  Média {MATERIAL_LABEL[k.material]} {monthFilter ? `· ${fmtMonth(monthFilter)}` : "· período"}
-                </span>
-                <span className="text-[10px] text-muted-foreground">meta {META_PERDA}%</span>
-              </div>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className={`text-3xl font-bold ${acima ? "text-destructive" : "text-success"}`}>{fmtPct(k.media)}</span>
-                <span className="text-xs text-muted-foreground">{fmtInt(k.n)} reg.</span>
-              </div>
-              <div className="mt-2 h-1.5 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className={acima ? "h-full bg-destructive" : "h-full bg-success"}
-                  style={{ width: `${Math.min(100, (k.media / (META_PERDA * 2)) * 100)}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* Charts row 1 */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* === MATRIZ MENSAL POR CATEGORIA (desktop/TV) === */}
+      <section className="hidden md:block">
         <Panel
-          title="Média de Desperdício (%) — mensal"
-          className="lg:col-span-2"
+          title={`Média de Desperdício por Material — ${yearSel}`}
           right={
-            <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className={`${inputCls} max-w-[180px] py-1 text-xs`}>
-              <option value="">Todos os meses</option>
-              {availableMonths.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+            <select value={yearSel} onChange={(e) => setMatrixYear(e.target.value)} className={`${inputCls} max-w-[120px] py-1 text-xs`}>
+              {availableYears.length === 0 && <option>{yearSel}</option>}
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           }
         >
-          <div className="h-64">
-            {monthlySeries.length === 0 ? <EmptyChart /> : (
+          {matrix.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">Sem dados para o ano selecionado.</div>
+          ) : (
+            <div className="overflow-auto">
+              <table className="w-full text-sm border-separate border-spacing-0">
+                <thead>
+                  <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <th className="text-left px-3 py-2 bg-secondary/40 rounded-l-md">Indicador</th>
+                    <th className="px-2 py-2 bg-secondary/40">Meta<br/>Mensal</th>
+                    {MONTH_NAMES.map(m => (
+                      <th key={m} className="px-2 py-2 bg-secondary/40">{m}</th>
+                    ))}
+                    <th className="px-2 py-2 bg-secondary/40 rounded-r-md">Média<br/>Acumulada</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrix.map(row => (
+                    <tr key={row.key} className="border-t border-border">
+                      <td className="px-3 py-2.5 font-semibold whitespace-nowrap">
+                        <span
+                          className="inline-block size-2.5 rounded-full mr-2 align-middle"
+                          style={{ background: MATERIAL_COLOR[row.material] }}
+                        />
+                        {row.label}
+                      </td>
+                      <td className="px-2 py-2.5 text-center text-muted-foreground font-medium">{META_PERDA.toFixed(2)}%</td>
+                      {row.monthly.map((v, i) => (
+                        <td key={i} className="px-2 py-2.5 text-center font-mono">
+                          {v === null ? <span className="text-muted-foreground/50">—</span> : (
+                            <span className={v > META_PERDA ? "text-destructive font-semibold" : "text-success font-medium"}>
+                              {fmtPct(v)}
+                            </span>
+                          )}
+                        </td>
+                      ))}
+                      <td className="px-2 py-2.5 text-center font-mono font-bold">
+                        {row.acumulada === null ? "—" : (
+                          <span className={row.acumulada > META_PERDA ? "text-destructive" : "text-success"}>
+                            {fmtPct(row.acumulada)}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-3 flex items-center gap-4 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-success" /> abaixo da meta</span>
+                <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-destructive" /> acima da meta ({META_PERDA}%)</span>
+              </div>
+            </div>
+          )}
+        </Panel>
+      </section>
+
+      {/* Charts row (desktop) */}
+      <section className="hidden md:grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Panel title="Top 10 — Maior volume de desperdício (kg)" className="lg:col-span-2">
+          <div className="h-[420px]">
+            {topMateriais.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
-              <LineChart data={monthlySeries}>
-                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" />
-                <XAxis dataKey="mes" stroke="oklch(0.72 0.03 240)" fontSize={11} />
-                <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${v}%`} />
+              <BarChart data={topMateriais} layout="vertical" margin={{ left: 8, right: 32 }}>
+                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${fmtNum(v, 0)}`} />
+                <YAxis type="category" dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={10} width={300} interval={0} tick={{ fill: "oklch(0.85 0.02 240)" }} />
                 <Tooltip
                   contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                  formatter={(v: number) => [`${v}%`, "Média"]}
+                  formatter={(_v: number, _n, item) => {
+                    const p = item?.payload as { desp: number; media: number };
+                    return [`${fmtNum(p.desp)} kg · ${fmtPct(p.media)} médio`, "Desperdício"];
+                  }}
+                  labelFormatter={(l) => String(l)}
                 />
-                <ReferenceLine y={META_PERDA} stroke="oklch(0.65 0.2 25)" strokeDasharray="4 4" label={{ value: `meta ${META_PERDA}%`, fill: "oklch(0.75 0.18 25)", fontSize: 10, position: "insideTopRight" }} />
-                <Line type="monotone" dataKey="media" stroke={CHART_COLORS[0]} strokeWidth={2.5} dot={{ r: 4, fill: CHART_COLORS[0] }} />
-              </LineChart>
+                <Bar dataKey="desp" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} />
+              </BarChart>
             </ResponsiveContainer>
             )}
           </div>
         </Panel>
 
         <Panel title="Desperdício por Tipo (kg)">
-          <div className="h-64">
+          <div className="h-[420px]">
             {byTipo.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={byTipo} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
+                <Pie data={byTipo} dataKey="value" nameKey="name" innerRadius={60} outerRadius={110} paddingAngle={2}>
                   {byTipo.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                 </Pie>
                 <Legend wrapperStyle={{ fontSize: 12, color: "oklch(0.92 0.01 240)" }} />
@@ -412,28 +456,8 @@ export function Dashboard() {
         </Panel>
       </section>
 
-      {/* Charts row 2 */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Panel title="Top 10 Materiais — Maior índice de desperdício (%)" className="lg:col-span-2">
-          <div className="h-[420px]">
-            {topMateriais.length === 0 ? <EmptyChart /> : (
-            <ResponsiveContainer>
-              <BarChart data={topMateriais} layout="vertical" margin={{ left: 8, right: 24 }}>
-                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${v}%`} />
-                <YAxis type="category" dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={10} width={300} interval={0} tick={{ fill: "oklch(0.85 0.02 240)" }} />
-                <Tooltip
-                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                  formatter={(v: number) => [`${v}%`, "Média"]}
-                  labelFormatter={(l) => String(l)}
-                />
-                <Bar dataKey="media" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            )}
-          </div>
-        </Panel>
-
+      {/* Distribuição (desktop) */}
+      <section className="hidden md:grid grid-cols-1 gap-4">
         <Panel title="Distribuição do Fator de Perda">
           <div className="h-72">
             {filtered.length === 0 ? <EmptyChart /> : (
@@ -451,26 +475,37 @@ export function Dashboard() {
         </Panel>
       </section>
 
-      {/* Resumo */}
-      <section className="grid grid-cols-1 gap-4">
-        <Panel title="Resumo do período">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3 gap-x-6 text-sm">
-            <SummaryRow label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} />
-            <SummaryRow label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} />
-            <SummaryRow label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} />
-            <SummaryRow label="Retalho Total (kg)" value={fmtNum(metrics.totalRetalho)} />
-            <SummaryRow label="Média de Desperdício (%)" value={fmtPct(metrics.mediaPerda)} />
-            <SummaryRow label="Maior Fator de Perda" value={fmtPct(metrics.fatorMax)} accent="text-destructive" />
-            <SummaryRow label="Menor Fator de Perda" value={fmtPct(metrics.fatorMin)} accent="text-success" />
-            <SummaryRow label="Quantidade de Itens" value={fmtInt(metrics.itens)} />
-            <SummaryRow label="Total de FPPs" value={fmtInt(metrics.totalFPP)} />
-            <SummaryRow label="Material mais desp." value={metrics.topMat?.[0] ?? "—"} />
-          </div>
-        </Panel>
+      {/* === MOBILE: top 5 visual === */}
+      <section className="md:hidden">
+        <div className="bg-card border border-border rounded-xl p-4">
+          <h3 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Top 5 Maior Desperdício</h3>
+          {topMateriais.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">Sem dados.</p>
+          ) : (
+            <ul className="space-y-3">
+              {topMateriais.slice(0, 5).map(m => {
+                const max = topMateriais[0].desp || 1;
+                const pct = (m.desp / max) * 100;
+                return (
+                  <li key={m.codigo} className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-mono truncate max-w-[60%]">{m.codigo}</span>
+                      <span className="text-destructive font-semibold">{fmtNum(m.desp)} kg</span>
+                    </div>
+                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                      <div className="h-full bg-destructive rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="text-[10px] text-muted-foreground truncate">{m.descricao} · {fmtPct(m.media)}</div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </section>
 
-      {/* Detail table */}
-      <section className="bg-card border border-border rounded-xl overflow-hidden">
+      {/* Detail table (desktop only) */}
+      <section className="hidden md:block bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
             Detalhamento das Solicitações
@@ -481,7 +516,7 @@ export function Dashboard() {
           <table className="w-full text-sm">
             <thead className="bg-secondary/40 sticky top-0">
               <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                {["Tipo", "Nº", "Código", "Descrição", "Material", "Fator %", "Linha", "Qtde (kg)", "Data", "Retalho (kg)", "Status"].map(h => (
+                {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Qtde (kg)", "Data", "Retalho (kg)", "Status"].map(h => (
                   <th key={h} className="px-3 py-2 font-medium">{h}</th>
                 ))}
               </tr>
@@ -493,7 +528,7 @@ export function Dashboard() {
                   <td className="px-3 py-2 text-muted-foreground">{r.numero}</td>
                   <td className="px-3 py-2 font-mono text-xs">{r.codigo_item}</td>
                   <td className="px-3 py-2 max-w-[260px] truncate">{r.descricao}</td>
-                  <td className="px-3 py-2 text-muted-foreground"><span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${MATERIAL_COLOR[r.material]} 18%, transparent)`, color: MATERIAL_COLOR[r.material] }}>{MATERIAL_LABEL[r.material]}</span></td>
+                  <td className="px-3 py-2"><span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${MATERIAL_COLOR[r.material]} 18%, transparent)`, color: MATERIAL_COLOR[r.material] }}>{r.detLabel || MATERIAL_LABEL[r.material]}</span></td>
                   <td className="px-3 py-2 font-medium">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 0)}%` : "—"}</td>
                   <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
                   <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
@@ -541,11 +576,18 @@ function Panel({ title, children, className = "", right }: { title: string; chil
   );
 }
 
-function SummaryRow({ label, value, accent = "text-foreground" }: { label: string; value: string; accent?: string }) {
+function BigKpi({ label, value, unit, color }: { label: string; value: string; unit: string; color: "primary" | "success" | "destructive" | "accent" }) {
+  const map = {
+    primary: "from-primary/25 to-primary/5 text-primary",
+    success: "from-success/25 to-success/5 text-success",
+    destructive: "from-destructive/25 to-destructive/5 text-destructive",
+    accent: "from-accent/25 to-accent/5 text-accent",
+  };
   return (
-    <>
-      <div className="text-muted-foreground">{label}</div>
-      <div className={`text-right font-semibold ${accent}`}>{value}</div>
-    </>
+    <div className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${map[color]} p-4`}>
+      <div className="text-[10px] uppercase tracking-wider font-semibold opacity-80">{label}</div>
+      <div className="mt-1 text-2xl font-extrabold text-foreground leading-tight">{value}</div>
+      <div className="text-[10px] text-muted-foreground mt-0.5">{unit}</div>
+    </div>
   );
 }
