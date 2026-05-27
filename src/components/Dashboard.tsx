@@ -153,14 +153,17 @@ export function Dashboard() {
     const totalRetalho = filtered.reduce((a, r) => a + r.retalho_kg, 0);
     const totalDesperd = filtered.reduce((a, r) => a + r.qtde_kg * ((r.fator_perda ?? 0) / 100), 0);
     const totalProcessado = totalSolic - totalDesperd;
+    const totalSolic_m2 = filtered.reduce((a, r) => a + r.qtde_m2, 0);
+    const totalRetalho_m2 = filtered.reduce((a, r) => a + r.retalho_m2, 0);
+    const totalDesperd_m2 = filtered.reduce((a, r) => a + r.qtde_m2 * ((r.fator_perda ?? 0) / 100), 0);
+    const totalProcessado_m2 = totalSolic_m2 - totalDesperd_m2;
     const validPerda = filtered.filter(r => r.fator_perda !== null);
-    // média ponderada por kg
     const mediaPerda = totalSolic > 0 ? (totalDesperd / totalSolic) * 100 : 0;
     const itens = new Set(filtered.map(r => r.codigo_item)).size;
     const totalFPP = filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").length;
     const fatorMax = filtered.reduce((a, r) => Math.max(a, r.fator_perda ?? 0), 0);
     const fatorMin = validPerda.length ? validPerda.reduce((a, r) => Math.min(a, r.fator_perda ?? 0), Infinity) : 0;
-    return { totalSolic, totalDesperd, totalProcessado, totalRetalho, mediaPerda, itens, totalFPP, fatorMax, fatorMin };
+    return { totalSolic, totalDesperd, totalProcessado, totalRetalho, totalSolic_m2, totalDesperd_m2, totalProcessado_m2, totalRetalho_m2, mediaPerda, itens, totalFPP, fatorMax, fatorMin };
   }, [filtered]);
 
   // === Matriz mensal — base = TODOS os registros (independe dos filtros do topo)
