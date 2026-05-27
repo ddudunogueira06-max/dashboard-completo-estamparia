@@ -471,11 +471,24 @@ export function Dashboard() {
                     dataKey="desp"
                     position="right"
                     fontSize={11}
+                    fontWeight={600}
                     fill="oklch(0.95 0.01 240)"
-                    formatter={(_v: number, _name: string, props: { payload?: { desp: number; media: number } }) => {
-                      const p = props?.payload;
-                      if (!p) return "";
-                      return `${fmtNum(p.desp)} kg · ${fmtPct(p.media)}`;
+                    content={(props: { x?: number; y?: number; width?: number; height?: number; value?: number; index?: number }) => {
+                      const { x = 0, y = 0, width = 0, height = 0, index = 0 } = props;
+                      const p = topMateriais[index];
+                      if (!p) return null;
+                      return (
+                        <text
+                          x={x + width + 6}
+                          y={y + height / 2}
+                          fill="oklch(0.95 0.01 240)"
+                          fontSize={11}
+                          fontWeight={600}
+                          dominantBaseline="middle"
+                        >
+                          {`${fmtNum(p.desp)} kg · ${fmtPct(p.media)}`}
+                        </text>
+                      );
                     }}
                   />
                 </Bar>
