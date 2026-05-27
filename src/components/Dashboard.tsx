@@ -472,7 +472,7 @@ export function Dashboard() {
                     position="right"
                     fontSize={11}
                     fill="oklch(0.95 0.01 240)"
-                    formatter={(_v: number, _name, props: { payload?: { desp: number; media: number } }) => {
+                    formatter={(_v: number, _name: string, props: { payload?: { desp: number; media: number } }) => {
                       const p = props?.payload;
                       if (!p) return "";
                       return `${fmtNum(p.desp)} kg · ${fmtPct(p.media)}`;
