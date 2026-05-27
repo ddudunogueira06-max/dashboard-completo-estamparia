@@ -13,8 +13,10 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, Legend, LineChart, Line, ReferenceLine, LabelList,
 } from "recharts";
 import {
-  ClipboardList, Percent, Trash2, Package, FileText, Download, RefreshCw, Search, CheckCircle2,
+  ClipboardList, Percent, Trash2, Package, FileText, Download, RefreshCw, Search, CheckCircle2, FileDown,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { generateWasteReportPDF } from "@/lib/pdfReport";
 
 interface WasteRecord {
   id: string;
