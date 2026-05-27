@@ -329,12 +329,12 @@ export function Dashboard() {
 
       {/* === MOBILE: pílulas grandes e visuais === */}
       <section className="md:hidden grid grid-cols-2 gap-3">
-        <BigKpi label="Solicitado" value={fmtNum(metrics.totalSolic)} unit="kg" color="primary" />
-        <BigKpi label="Processado" value={fmtNum(metrics.totalProcessado)} unit="kg" color="success" />
-        <BigKpi label="Desperdício" value={fmtNum(metrics.totalDesperd)} unit="kg" color="destructive" />
-        <BigKpi label="Média" value={fmtPct(metrics.mediaPerda)} unit={`meta ${META_PERDA}%`} color={metrics.mediaPerda > META_PERDA ? "destructive" : "success"} />
-        <BigKpi label="Itens" value={fmtInt(metrics.itens)} unit="únicos" color="accent" />
-        <BigKpi label="FPPs" value={fmtInt(metrics.totalFPP)} unit="ordens" color="primary" />
+        <BigKpi label="Solicitado" value={fmtNum(metrics.totalSolic)} unit="kg" color="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2 })} />
+        <BigKpi label="Processado" value={fmtNum(metrics.totalProcessado)} unit="kg" color="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2 })} />
+        <BigKpi label="Desperdício" value={fmtNum(metrics.totalDesperd)} unit="kg" color="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2 })} />
+        <BigKpi label="Média" value={fmtPct(metrics.mediaPerda)} unit={`meta ${META_PERDA}%`} color={metrics.mediaPerda > META_PERDA ? "destructive" : "success"} onClick={() => setKpiDetail({ title: "Média Ponderada de Perda", pct: metrics.mediaPerda, hint: `Meta: ${META_PERDA}%` })} />
+        <BigKpi label="Itens" value={fmtInt(metrics.itens)} unit="únicos" color="accent" onClick={() => setKpiDetail({ title: "Itens Únicos", count: metrics.itens, hint: "Códigos distintos no filtro" })} />
+        <BigKpi label="FPPs" value={fmtInt(metrics.totalFPP)} unit="ordens" color="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, hint: "Ordens do tipo FPP" })} />
       </section>
 
       {/* === DESKTOP/TV: filtros === */}
