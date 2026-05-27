@@ -275,6 +275,35 @@ export function Dashboard() {
     })), `desperdicios_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
+  const handleGeneratePDF = () => {
+    const filtroResumo = [
+      startDate || endDate ? `Período: ${startDate || "início"} → ${endDate || "hoje"}` : "Período: todos",
+      tipoFilter && `Tipo: ${tipoFilter}`,
+      materialFilter && `Material: ${materialFilter}`,
+      statusFilter && `Status: ${statusFilter}`,
+      search && `Busca: "${search}"`,
+    ].filter(Boolean).join("  ·  ");
+    generateWasteReportPDF(
+      filtered.map(r => ({
+        tipo: r.tipo, numero: r.numero, codigo_item: r.codigo_item, descricao: r.descricao,
+        armazem: r.armazem, fator_perda: r.fator_perda, linha: r.linha,
+        data_registro: r.data_registro, status: r.status,
+        material: r.material, matLabel: r.matLabel, detLabel: r.detLabel,
+        qtde_m2: r.qtde_m2, retalho_m2: r.retalho_m2,
+        qtde_kg: r.qtde_kg, retalho_kg: r.retalho_kg,
+      })),
+      {
+        solic_kg: metrics.totalSolic, desp_kg: metrics.totalDesperd,
+        proc_kg: metrics.totalProcessado, retalho_kg: metrics.totalRetalho,
+        solic_m2: metrics.totalSolic_m2, desp_m2: metrics.totalDesperd_m2,
+        proc_m2: metrics.totalProcessado_m2, retalho_m2: metrics.totalRetalho_m2,
+        mediaPerda: metrics.mediaPerda, itens: metrics.itens, fpps: metrics.totalFPP,
+        registros: filtered.length,
+      },
+      filtroResumo || "Sem filtros aplicados",
+    );
+  };
+
   return (
     <div className="p-3 md:p-6 space-y-4 md:space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
