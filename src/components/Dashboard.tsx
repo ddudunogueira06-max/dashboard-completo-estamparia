@@ -210,15 +210,8 @@ export function Dashboard() {
     });
   }, [matrix]);
 
-  const byTipo = useMemo(() => {
-    const agg = new Map<string, number>();
-    filtered.forEach(r => {
-      const k = r.tipo ?? "—";
-      const w = r.qtde_kg * ((r.fator_perda ?? 0) / 100);
-      agg.set(k, (agg.get(k) ?? 0) + w);
-    });
-    return Array.from(agg.entries()).map(([name, value]) => ({ name, value: +value.toFixed(2) }));
-  }, [filtered]);
+
+
 
   // Top 10 ponderado pelo VOLUME (kg desperdiçado absoluto)
   // % exibido = média ponderada = totalDespKg / totalQtdeKg
