@@ -453,7 +453,7 @@ export function Dashboard() {
               </table>
               <div className="mt-3 flex items-center gap-4 text-[11px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-success" /> abaixo da meta</span>
-                <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-destructive" /> acima da meta ({META_PERDA}%)</span>
+                <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-destructive" /> acima da meta (GALV 13% · ALUM 24% · INOX 27%)</span>
               </div>
             </div>
           )}
