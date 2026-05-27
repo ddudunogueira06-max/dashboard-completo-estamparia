@@ -470,7 +470,9 @@ export function Dashboard() {
                     formatter={(v: number) => v === null || v === undefined ? "—" : `${fmtPct(v)}`}
                   />
                   <Legend wrapperStyle={{ fontSize: 12, color: "oklch(0.92 0.01 240)" }} />
-                  <ReferenceLine y={META_PERDA} stroke="oklch(0.7 0.18 25)" strokeDasharray="4 4" label={{ value: `Meta ${META_PERDA}%`, fill: "oklch(0.85 0.15 25)", fontSize: 11, position: "insideTopRight" }} />
+                  <ReferenceLine y={META_POR_MATERIAL.galvanizado} stroke={MATERIAL_COLOR.galvanizado} strokeDasharray="4 4" label={{ value: `Meta GALV ${META_POR_MATERIAL.galvanizado}%`, fill: MATERIAL_COLOR.galvanizado, fontSize: 10, position: "insideTopRight" }} />
+                  <ReferenceLine y={META_POR_MATERIAL.aluminio} stroke={MATERIAL_COLOR.aluminio} strokeDasharray="4 4" label={{ value: `Meta ALUM ${META_POR_MATERIAL.aluminio}%`, fill: MATERIAL_COLOR.aluminio, fontSize: 10, position: "insideTopRight" }} />
+                  <ReferenceLine y={META_POR_MATERIAL.inox} stroke={MATERIAL_COLOR.inox} strokeDasharray="4 4" label={{ value: `Meta INOX ${META_POR_MATERIAL.inox}%`, fill: MATERIAL_COLOR.inox, fontSize: 10, position: "insideTopRight" }} />
                   {matrix.map(r => (
                     <Line
                       key={r.key}
