@@ -93,11 +93,15 @@ export function Dashboard() {
   const [search, setSearch] = useState("");
   const [matrixYear, setMatrixYear] = useState<string>(""); // ano para matriz mensal
 
+  const [kpiDetail, setKpiDetail] = useState<null | { title: string; kg?: number; m2?: number; pct?: number; count?: number; hint?: string }>(null);
+
   const enriched = useMemo(() => records.map(r => {
     const material = detectMaterial(r.descricao);
     const thickness = detectThicknessMm(r.descricao);
     const det = detailedCategory(r.descricao);
     const fc = filterCategory(r.descricao);
+    const qtde_m2 = r.qtde_solicitada ?? 0;
+    const retalho_m2 = r.retalho ? Math.abs(r.retalho) : 0;
     return {
       ...r,
       material,
@@ -106,8 +110,10 @@ export function Dashboard() {
       matLabel: fc?.label ?? MATERIAL_LABEL[material],
       detKey: det?.key ?? "",
       detLabel: det?.label ?? "",
+      qtde_m2,
+      retalho_m2,
       qtde_kg: m2ToKg(r.qtde_solicitada, r.descricao),
-      retalho_kg: m2ToKg(r.retalho ? Math.abs(r.retalho) : 0, r.descricao),
+      retalho_kg: m2ToKg(retalho_m2, r.descricao),
     };
   }), [records]);
 
