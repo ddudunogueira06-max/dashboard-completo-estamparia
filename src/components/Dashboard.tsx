@@ -6,7 +6,7 @@ import { fmtInt, fmtNum, fmtPct, fmtDate } from "@/lib/format";
 import { exportToXLSX } from "@/lib/parseExcel";
 import {
   detectMaterial, detectThicknessMm, m2ToKg, detailedCategory, filterCategory,
-  MATERIAL_LABEL, MATERIAL_SHORT, type MaterialKind,
+  MATERIAL_LABEL, type MaterialKind,
 } from "@/lib/material";
 import {
   ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
