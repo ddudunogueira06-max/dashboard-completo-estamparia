@@ -13,8 +13,10 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, Legend, LineChart, Line, ReferenceLine, LabelList,
 } from "recharts";
 import {
-  ClipboardList, Percent, Trash2, Package, FileText, Download, RefreshCw, Search, CheckCircle2,
+  ClipboardList, Percent, Trash2, Package, FileText, Download, RefreshCw, Search, CheckCircle2, FileDown,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { generateWasteReportPDF } from "@/lib/pdfReport";
 
 interface WasteRecord {
   id: string;
@@ -91,11 +93,15 @@ export function Dashboard() {
   const [search, setSearch] = useState("");
   const [matrixYear, setMatrixYear] = useState<string>(""); // ano para matriz mensal
 
+  const [kpiDetail, setKpiDetail] = useState<null | { title: string; kg?: number; m2?: number; pct?: number; count?: number; hint?: string }>(null);
+
   const enriched = useMemo(() => records.map(r => {
     const material = detectMaterial(r.descricao);
     const thickness = detectThicknessMm(r.descricao);
     const det = detailedCategory(r.descricao);
     const fc = filterCategory(r.descricao);
+    const qtde_m2 = r.qtde_solicitada ?? 0;
+    const retalho_m2 = r.retalho ? Math.abs(r.retalho) : 0;
     return {
       ...r,
       material,
@@ -104,8 +110,10 @@ export function Dashboard() {
       matLabel: fc?.label ?? MATERIAL_LABEL[material],
       detKey: det?.key ?? "",
       detLabel: det?.label ?? "",
+      qtde_m2,
+      retalho_m2,
       qtde_kg: m2ToKg(r.qtde_solicitada, r.descricao),
-      retalho_kg: m2ToKg(r.retalho ? Math.abs(r.retalho) : 0, r.descricao),
+      retalho_kg: m2ToKg(retalho_m2, r.descricao),
     };
   }), [records]);
 
@@ -145,14 +153,17 @@ export function Dashboard() {
     const totalRetalho = filtered.reduce((a, r) => a + r.retalho_kg, 0);
     const totalDesperd = filtered.reduce((a, r) => a + r.qtde_kg * ((r.fator_perda ?? 0) / 100), 0);
     const totalProcessado = totalSolic - totalDesperd;
+    const totalSolic_m2 = filtered.reduce((a, r) => a + r.qtde_m2, 0);
+    const totalRetalho_m2 = filtered.reduce((a, r) => a + r.retalho_m2, 0);
+    const totalDesperd_m2 = filtered.reduce((a, r) => a + r.qtde_m2 * ((r.fator_perda ?? 0) / 100), 0);
+    const totalProcessado_m2 = totalSolic_m2 - totalDesperd_m2;
     const validPerda = filtered.filter(r => r.fator_perda !== null);
-    // média ponderada por kg
     const mediaPerda = totalSolic > 0 ? (totalDesperd / totalSolic) * 100 : 0;
     const itens = new Set(filtered.map(r => r.codigo_item)).size;
     const totalFPP = filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").length;
     const fatorMax = filtered.reduce((a, r) => Math.max(a, r.fator_perda ?? 0), 0);
     const fatorMin = validPerda.length ? validPerda.reduce((a, r) => Math.min(a, r.fator_perda ?? 0), Infinity) : 0;
-    return { totalSolic, totalDesperd, totalProcessado, totalRetalho, mediaPerda, itens, totalFPP, fatorMax, fatorMin };
+    return { totalSolic, totalDesperd, totalProcessado, totalRetalho, totalSolic_m2, totalDesperd_m2, totalProcessado_m2, totalRetalho_m2, mediaPerda, itens, totalFPP, fatorMax, fatorMin };
   }, [filtered]);
 
   // === Matriz mensal — base = TODOS os registros (independe dos filtros do topo)
@@ -264,6 +275,35 @@ export function Dashboard() {
     })), `desperdicios_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
+  const handleGeneratePDF = () => {
+    const filtroResumo = [
+      startDate || endDate ? `Período: ${startDate || "início"} → ${endDate || "hoje"}` : "Período: todos",
+      tipoFilter && `Tipo: ${tipoFilter}`,
+      materialFilter && `Material: ${materialFilter}`,
+      statusFilter && `Status: ${statusFilter}`,
+      search && `Busca: "${search}"`,
+    ].filter(Boolean).join("  ·  ");
+    generateWasteReportPDF(
+      filtered.map(r => ({
+        tipo: r.tipo, numero: r.numero, codigo_item: r.codigo_item, descricao: r.descricao,
+        armazem: r.armazem, fator_perda: r.fator_perda, linha: r.linha,
+        data_registro: r.data_registro, status: r.status,
+        material: r.material, matLabel: r.matLabel, detLabel: r.detLabel,
+        qtde_m2: r.qtde_m2, retalho_m2: r.retalho_m2,
+        qtde_kg: r.qtde_kg, retalho_kg: r.retalho_kg,
+      })),
+      {
+        solic_kg: metrics.totalSolic, desp_kg: metrics.totalDesperd,
+        proc_kg: metrics.totalProcessado, retalho_kg: metrics.totalRetalho,
+        solic_m2: metrics.totalSolic_m2, desp_m2: metrics.totalDesperd_m2,
+        proc_m2: metrics.totalProcessado_m2, retalho_m2: metrics.totalRetalho_m2,
+        mediaPerda: metrics.mediaPerda, itens: metrics.itens, fpps: metrics.totalFPP,
+        registros: filtered.length,
+      },
+      filtroResumo || "Sem filtros aplicados",
+    );
+  };
+
   return (
     <div className="p-3 md:p-6 space-y-4 md:space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -278,20 +318,23 @@ export function Dashboard() {
             <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
             <span className="hidden sm:inline">Atualizar</span>
           </button>
+          <button onClick={handleGeneratePDF} className="inline-flex items-center gap-2 rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:opacity-90">
+            <FileDown className="size-4" /> <span className="hidden sm:inline">Gerar Relatório PDF</span>
+          </button>
           <button onClick={handleExport} className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
-            <Download className="size-4" /> <span className="hidden sm:inline">Exportar</span>
+            <Download className="size-4" /> <span className="hidden sm:inline">Exportar XLSX</span>
           </button>
         </div>
       </header>
 
       {/* === MOBILE: pílulas grandes e visuais === */}
       <section className="md:hidden grid grid-cols-2 gap-3">
-        <BigKpi label="Solicitado" value={fmtNum(metrics.totalSolic)} unit="kg" color="primary" />
-        <BigKpi label="Processado" value={fmtNum(metrics.totalProcessado)} unit="kg" color="success" />
-        <BigKpi label="Desperdício" value={fmtNum(metrics.totalDesperd)} unit="kg" color="destructive" />
-        <BigKpi label="Média" value={fmtPct(metrics.mediaPerda)} unit={`meta ${META_PERDA}%`} color={metrics.mediaPerda > META_PERDA ? "destructive" : "success"} />
-        <BigKpi label="Itens" value={fmtInt(metrics.itens)} unit="únicos" color="accent" />
-        <BigKpi label="FPPs" value={fmtInt(metrics.totalFPP)} unit="ordens" color="primary" />
+        <BigKpi label="Solicitado" value={fmtNum(metrics.totalSolic)} unit="kg" color="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2 })} />
+        <BigKpi label="Processado" value={fmtNum(metrics.totalProcessado)} unit="kg" color="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2 })} />
+        <BigKpi label="Desperdício" value={fmtNum(metrics.totalDesperd)} unit="kg" color="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2 })} />
+        <BigKpi label="Média" value={fmtPct(metrics.mediaPerda)} unit={`meta ${META_PERDA}%`} color={metrics.mediaPerda > META_PERDA ? "destructive" : "success"} onClick={() => setKpiDetail({ title: "Média Ponderada de Perda", pct: metrics.mediaPerda, hint: `Meta: ${META_PERDA}%` })} />
+        <BigKpi label="Itens" value={fmtInt(metrics.itens)} unit="únicos" color="accent" onClick={() => setKpiDetail({ title: "Itens Únicos", count: metrics.itens, hint: "Códigos distintos no filtro" })} />
+        <BigKpi label="FPPs" value={fmtInt(metrics.totalFPP)} unit="ordens" color="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, hint: "Ordens do tipo FPP" })} />
       </section>
 
       {/* === DESKTOP/TV: filtros === */}
@@ -337,12 +380,12 @@ export function Dashboard() {
 
       {/* KPIs (desktop) */}
       <section className="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" />
-        <KpiCard label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} icon={CheckCircle2} accent="success" />
-        <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" />
-        <KpiCard label="Média Ponderada (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} />
-        <KpiCard label="Quantidade de Itens" value={fmtInt(metrics.itens)} icon={Package} accent="success" />
-        <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" />
+        <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2 })} />
+        <KpiCard label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} icon={CheckCircle2} accent="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2 })} />
+        <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2 })} />
+        <KpiCard label="Média Ponderada (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média Ponderada de Perda", pct: metrics.mediaPerda, hint: `Meta: ${META_PERDA}%` })} />
+        <KpiCard label="Quantidade de Itens" value={fmtInt(metrics.itens)} icon={Package} accent="success" onClick={() => setKpiDetail({ title: "Itens Únicos", count: metrics.itens, hint: "Códigos distintos no filtro" })} />
+        <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, hint: "Ordens do tipo FPP" })} />
       </section>
 
       {/* === MATRIZ MENSAL POR CATEGORIA (desktop/TV) === */}
@@ -596,6 +639,52 @@ export function Dashboard() {
           </div>
         )}
       </section>
+      <Dialog open={!!kpiDetail} onOpenChange={(o) => !o && setKpiDetail(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{kpiDetail?.title}</DialogTitle>
+            <DialogDescription>Conversão entre unidades e detalhes do indicador.</DialogDescription>
+          </DialogHeader>
+          {kpiDetail && (
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              {kpiDetail.kg !== undefined && (
+                <div className="rounded-lg border border-border bg-secondary/30 p-4">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Em quilos</div>
+                  <div className="mt-1 text-2xl font-extrabold text-foreground">{fmtNum(kpiDetail.kg)}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">kg</div>
+                </div>
+              )}
+              {kpiDetail.m2 !== undefined && (
+                <div className="rounded-lg border border-border bg-primary/10 p-4">
+                  <div className="text-[10px] uppercase tracking-wider text-primary font-semibold">Em metros²</div>
+                  <div className="mt-1 text-2xl font-extrabold text-foreground">{fmtNum(kpiDetail.m2)}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">m²</div>
+                </div>
+              )}
+              {kpiDetail.pct !== undefined && (
+                <div className="col-span-2 rounded-lg border border-border bg-warning/10 p-4">
+                  <div className="text-[10px] uppercase tracking-wider text-warning font-semibold">Percentual</div>
+                  <div className="mt-1 text-3xl font-extrabold text-foreground">{fmtPct(kpiDetail.pct)}</div>
+                  {kpiDetail.hint && <div className="text-xs text-muted-foreground mt-1">{kpiDetail.hint}</div>}
+                </div>
+              )}
+              {kpiDetail.count !== undefined && (
+                <div className="col-span-2 rounded-lg border border-border bg-accent/10 p-4">
+                  <div className="text-[10px] uppercase tracking-wider text-accent font-semibold">Quantidade</div>
+                  <div className="mt-1 text-3xl font-extrabold text-foreground">{fmtInt(kpiDetail.count)}</div>
+                  {kpiDetail.hint && <div className="text-xs text-muted-foreground mt-1">{kpiDetail.hint}</div>}
+                </div>
+              )}
+            </div>
+          )}
+          <button
+            onClick={handleGeneratePDF}
+            className="mt-2 inline-flex items-center justify-center gap-2 rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:opacity-90"
+          >
+            <FileDown className="size-4" /> Gerar Relatório PDF Completo
+          </button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -623,7 +712,7 @@ function Panel({ title, children, className = "", right }: { title: string; chil
   );
 }
 
-function BigKpi({ label, value, unit, color }: { label: string; value: string; unit: string; color: "primary" | "success" | "destructive" | "accent" }) {
+function BigKpi({ label, value, unit, color, onClick }: { label: string; value: string; unit: string; color: "primary" | "success" | "destructive" | "accent"; onClick?: () => void }) {
   const map = {
     primary: "from-primary/25 to-primary/5 text-primary",
     success: "from-success/25 to-success/5 text-success",
@@ -631,10 +720,15 @@ function BigKpi({ label, value, unit, color }: { label: string; value: string; u
     accent: "from-accent/25 to-accent/5 text-accent",
   };
   return (
-    <div className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${map[color]} p-4`}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${map[color]} p-4 text-left ${onClick ? "cursor-pointer active:scale-[0.98] transition-transform" : "cursor-default"}`}
+    >
       <div className="text-[10px] uppercase tracking-wider font-semibold opacity-80">{label}</div>
       <div className="mt-1 text-2xl font-extrabold text-foreground leading-tight">{value}</div>
       <div className="text-[10px] text-muted-foreground mt-0.5">{unit}</div>
-    </div>
+    </button>
   );
 }
