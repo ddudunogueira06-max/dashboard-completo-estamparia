@@ -473,8 +473,12 @@ export function Dashboard() {
                     fontSize={11}
                     fontWeight={600}
                     fill="oklch(0.95 0.01 240)"
-                    content={(props: { x?: number; y?: number; width?: number; height?: number; value?: number; index?: number }) => {
-                      const { x = 0, y = 0, width = 0, height = 0, index = 0 } = props;
+                    content={(props: Record<string, unknown>) => {
+                      const x = Number(props.x ?? 0);
+                      const y = Number(props.y ?? 0);
+                      const width = Number(props.width ?? 0);
+                      const height = Number(props.height ?? 0);
+                      const index = Number(props.index ?? 0);
                       const p = topMateriais[index];
                       if (!p) return null;
                       return (
