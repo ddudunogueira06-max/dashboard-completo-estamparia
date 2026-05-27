@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
-import { BarChart3, Upload, Boxes, Menu, X } from "lucide-react";
+import { BarChart3, Upload, Boxes, Menu, X, PanelLeft } from "lucide-react";
 
 export function AppLayout() {
   const { pathname } = useLocation();
