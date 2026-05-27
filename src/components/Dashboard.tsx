@@ -150,18 +150,24 @@ export function Dashboard() {
     return Array.from(agg.entries()).map(([name, value]) => ({ name, value: +value.toFixed(2) }));
   }, [filtered]);
 
-  // Top 10 materiais
+  // Top 10 materiais (com descrição)
   const topMateriais = useMemo(() => {
-    const agg = new Map<string, { sum: number; n: number }>();
+    const agg = new Map<string, { sum: number; n: number; descricao: string }>();
     filtered.forEach(r => {
       if (!r.codigo_item || r.fator_perda === null) return;
-      const e = agg.get(r.codigo_item) ?? { sum: 0, n: 0 };
+      const e = agg.get(r.codigo_item) ?? { sum: 0, n: 0, descricao: r.descricao ?? "" };
       e.sum += r.fator_perda ?? 0;
       e.n += 1;
+      if (!e.descricao && r.descricao) e.descricao = r.descricao;
       agg.set(r.codigo_item, e);
     });
     return Array.from(agg.entries())
-      .map(([codigo, v]) => ({ codigo, media: +(v.sum / v.n).toFixed(2) }))
+      .map(([codigo, v]) => ({
+        codigo,
+        descricao: v.descricao,
+        label: v.descricao ? `${codigo} — ${v.descricao}` : codigo,
+        media: +(v.sum / v.n).toFixed(2),
+      }))
       .sort((a, b) => b.media - a.media)
       .slice(0, 10);
   }, [filtered]);
