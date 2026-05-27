@@ -210,15 +210,8 @@ export function Dashboard() {
     });
   }, [matrix]);
 
-  const byTipo = useMemo(() => {
-    const agg = new Map<string, number>();
-    filtered.forEach(r => {
-      const k = r.tipo ?? "—";
-      const w = r.qtde_kg * ((r.fator_perda ?? 0) / 100);
-      agg.set(k, (agg.get(k) ?? 0) + w);
-    });
-    return Array.from(agg.entries()).map(([name, value]) => ({ name, value: +value.toFixed(2) }));
-  }, [filtered]);
+
+
 
   // Top 10 ponderado pelo VOLUME (kg desperdiçado absoluto)
   // % exibido = média ponderada = totalDespKg / totalQtdeKg
@@ -471,12 +464,29 @@ export function Dashboard() {
                     dataKey="desp"
                     position="right"
                     fontSize={11}
+                    fontWeight={600}
                     fill="oklch(0.95 0.01 240)"
-                    formatter={(_v: number, _name: string, props: { payload?: { desp: number; media: number } }) => {
-                      const p = props?.payload;
-                      if (!p) return "";
-                      return `${fmtNum(p.desp)} kg · ${fmtPct(p.media)}`;
-                    }}
+                    content={((props: Record<string, unknown>) => {
+                      const x = Number(props.x ?? 0);
+                      const y = Number(props.y ?? 0);
+                      const width = Number(props.width ?? 0);
+                      const height = Number(props.height ?? 0);
+                      const index = Number(props.index ?? 0);
+                      const p = topMateriais[index];
+                      if (!p) return null;
+                      return (
+                        <text
+                          x={x + width + 6}
+                          y={y + height / 2}
+                          fill="oklch(0.95 0.01 240)"
+                          fontSize={11}
+                          fontWeight={600}
+                          dominantBaseline="middle"
+                        >
+                          {`${fmtNum(p.desp)} kg · ${fmtPct(p.media)}`}
+                        </text>
+                      );
+                    }) as never}
                   />
                 </Bar>
               </BarChart>
@@ -511,29 +521,6 @@ export function Dashboard() {
         </Panel>
       </section>
 
-      {/* Desperdício por Tipo — secundário */}
-      <section className="hidden md:grid grid-cols-1 gap-4">
-        <Panel title="Desperdício por Tipo (kg) — visão complementar">
-          <div className="h-60">
-            {byTipo.length === 0 ? <EmptyChart /> : (
-            <ResponsiveContainer>
-              <BarChart data={byTipo} layout="vertical" margin={{ left: 8, right: 60 }}>
-                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${fmtNum(v, 0)}`} />
-                <YAxis type="category" dataKey="name" stroke="oklch(0.72 0.03 240)" fontSize={11} width={80} />
-                <Tooltip
-                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                  formatter={(v: number) => `${fmtNum(v)} kg`}
-                />
-                <Bar dataKey="value" fill={CHART_COLORS[2]} radius={[0, 4, 4, 0]}>
-                  <LabelList dataKey="value" position="right" fontSize={11} fill="oklch(0.9 0.01 240)" formatter={(v: number) => `${fmtNum(v)} kg`} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            )}
-          </div>
-        </Panel>
-      </section>
 
       {/* === MOBILE: top 5 visual === */}
       <section className="md:hidden">
