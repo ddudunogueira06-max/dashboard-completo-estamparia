@@ -403,7 +403,7 @@ export function Dashboard() {
           <table className="w-full text-sm">
             <thead className="bg-secondary/40 sticky top-0">
               <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                {["Tipo", "Nº", "Código", "Descrição", "Armazém", "Fator %", "Linha", "Qtde (m²)", "Data", "Retalho", "Status"].map(h => (
+                {["Tipo", "Nº", "Código", "Descrição", "Armazém", "Fator %", "Linha", "Qtde (kg)", "Data", "Retalho (kg)", "Status"].map(h => (
                   <th key={h} className="px-3 py-2 font-medium">{h}</th>
                 ))}
               </tr>
