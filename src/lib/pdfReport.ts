@@ -183,21 +183,21 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
   // ============================================================
   doc.addPage();
 
-  // Header escuro estilo dashboard
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, pageW, pageH, "F");
+  // Header claro
+  doc.setFillColor(245, 247, 250);
+  doc.rect(0, 0, pageW, 70, "F");
 
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(30, 30, 30);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.text("Painel de Desperdício — Visão por Material", margin, 50);
+  doc.setFontSize(18);
+  doc.text("Painel de Desperdício — Visão por Material", margin, 32);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.setTextColor(180, 190, 210);
-  doc.text(filtroResumo, margin, 68);
+  doc.setTextColor(80, 80, 80);
+  doc.text(filtroResumo, margin, 50);
 
   // KPIs grandes no topo (4 cartões)
-  const kpiY = 90;
+  const kpiY = 68;
   const kpiH = 78;
   const gap = 14;
   const kpiW = (pageW - margin * 2 - gap * 3) / 4;
@@ -209,22 +209,24 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
   ];
   kpis.forEach((k, i) => {
     const x = margin + i * (kpiW + gap);
-    doc.setFillColor(30, 41, 59);
+    doc.setFillColor(255, 255, 255);
     doc.roundedRect(x, kpiY, kpiW, kpiH, 8, 8, "F");
+    doc.setDrawColor(220, 225, 230);
+    doc.roundedRect(x, kpiY, kpiW, kpiH, 8, 8, "S");
     // accent bar
     doc.setFillColor(...k.color);
     doc.roundedRect(x, kpiY, 4, kpiH, 2, 2, "F");
-    doc.setTextColor(148, 163, 184);
+    doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.text(k.label.toUpperCase(), x + 14, kpiY + 18);
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(30, 30, 30);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
+    doc.setFontSize(18);
     doc.text(k.value, x + 14, kpiY + 44);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(148, 163, 184);
+    doc.setTextColor(100, 116, 139);
     doc.text(k.sub, x + 14, kpiY + 62);
   });
 
