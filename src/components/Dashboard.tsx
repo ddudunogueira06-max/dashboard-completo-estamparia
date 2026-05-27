@@ -483,3 +483,11 @@ function SummaryRow({ label, value, accent = "text-foreground" }: { label: strin
     </>
   );
 }
+
+function EmptyChart() {
+  return (
+    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+      Sem dados para exibir. Importe uma planilha para visualizar.
+    </div>
+  );
+}
