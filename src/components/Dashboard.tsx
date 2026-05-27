@@ -6,11 +6,11 @@ import { fmtInt, fmtNum, fmtPct, fmtDate } from "@/lib/format";
 import { exportToXLSX } from "@/lib/parseExcel";
 import {
   detectMaterial, detectThicknessMm, m2ToKg, detailedCategory, filterCategory,
-  MATERIAL_LABEL, MATERIAL_SHORT, type MaterialKind,
+  MATERIAL_LABEL, type MaterialKind,
 } from "@/lib/material";
 import {
   ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
-  BarChart, Bar, PieChart, Pie, Cell, Legend,
+  BarChart, Bar, PieChart, Pie, Cell, Legend, LineChart, Line, ReferenceLine,
 } from "recharts";
 import {
   ClipboardList, Percent, Trash2, Package, FileText, Download, RefreshCw, Search, CheckCircle2,
@@ -169,62 +169,46 @@ export function Dashboard() {
   const yearSel = matrixYear || availableYears[0] || String(new Date().getFullYear());
 
   const matrix = useMemo(() => {
-    // categorias detalhadas no ano
-    const catMap = new Map<string, { label: string; material: MaterialKind }>();
-    enriched.forEach(r => {
-      if (!r.detKey || !r.data_registro) return;
-      const y = String(new Date(r.data_registro).getFullYear());
-      if (y !== yearSel) return;
-      if (!catMap.has(r.detKey)) catMap.set(r.detKey, { label: r.detLabel, material: r.material });
-    });
-    // agrega kg solicitado e desperdiçado por categoria/mês
     type Cell = { qtde: number; desp: number };
-    const data = new Map<string, Cell[]>();
-    catMap.forEach((_v, k) => data.set(k, Array.from({ length: 12 }, () => ({ qtde: 0, desp: 0 }))));
-
-    // agregados por material (só inox, galv, alum)
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
     const matAgg = new Map<MaterialKind, Cell[]>();
     materials.forEach(m => matAgg.set(m, Array.from({ length: 12 }, () => ({ qtde: 0, desp: 0 }))));
 
     enriched.forEach(r => {
-      if (!r.data_registro) return;
+      if (!r.data_registro || !materials.includes(r.material)) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
       const m = d.getMonth();
-      const desp = r.qtde_kg * ((r.fator_perda ?? 0) / 100);
-      if (r.detKey) {
-        const cell = data.get(r.detKey);
-        if (cell) { cell[m].qtde += r.qtde_kg; cell[m].desp += desp; }
-      }
-      if (materials.includes(r.material)) {
-        const cell = matAgg.get(r.material)!;
-        cell[m].qtde += r.qtde_kg; cell[m].desp += desp;
-      }
+      const cell = matAgg.get(r.material)!;
+      cell[m].qtde += r.qtde_kg;
+      cell[m].desp += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
     });
 
-    const buildRow = (key: string, label: string, material: MaterialKind, cells: Cell[], isSummary = false) => {
+    return materials.map(mat => {
+      const cells = matAgg.get(mat)!;
       const monthly = cells.map(c => (c.qtde > 0 ? +(c.desp / c.qtde * 100).toFixed(2) : null));
       const totalQ = cells.reduce((a, c) => a + c.qtde, 0);
       const totalD = cells.reduce((a, c) => a + c.desp, 0);
       const acumulada = totalQ > 0 ? +(totalD / totalQ * 100).toFixed(2) : null;
-      return { key, label, material, monthly, acumulada, isSummary };
-    };
-
-    // linhas-resumo por material (no topo)
-    const summaryRows = materials
-      .map(m => ({ m, cells: matAgg.get(m)! }))
-      .filter(x => x.cells.some(c => c.qtde > 0))
-      .map(x => buildRow(`SUM-${x.m}`, `MÉDIA GERAL ${MATERIAL_SHORT[x.m]}`, x.m, x.cells, true));
-
-    // ordena: inox > galv > alum, por label
-    const order: Record<MaterialKind, number> = { inox: 0, galvanizado: 1, aluminio: 2, outro: 3 };
-    const detailRows = Array.from(catMap.entries())
-      .map(([key, v]) => buildRow(key, v.label, v.material, data.get(key)!))
-      .sort((a, b) => order[a.material] - order[b.material] || a.label.localeCompare(b.label, "pt-BR", { numeric: true }));
-
-    return [...summaryRows, ...detailRows];
+      return {
+        key: mat,
+        material: mat,
+        label: MATERIAL_LABEL[mat].toUpperCase(),
+        monthly,
+        acumulada,
+        isSummary: true,
+      };
+    }).filter(r => r.acumulada !== null);
   }, [enriched, yearSel]);
+
+  // Série mensal para o gráfico de linhas (a partir da matrix)
+  const matrixChart = useMemo(() => {
+    return MONTH_NAMES.map((m, i) => {
+      const row: Record<string, number | string | null> = { mes: m };
+      matrix.forEach(r => { row[MATERIAL_LABEL[r.material]] = r.monthly[i]; });
+      return row;
+    });
+  }, [matrix]);
 
   const byTipo = useMemo(() => {
     const agg = new Map<string, number>();
@@ -429,6 +413,36 @@ export function Dashboard() {
                 <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-success" /> abaixo da meta</span>
                 <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-destructive" /> acima da meta ({META_PERDA}%)</span>
               </div>
+            </div>
+          )}
+
+          {matrix.length > 0 && (
+            <div className="mt-6 h-[320px]">
+              <ResponsiveContainer>
+                <LineChart data={matrixChart} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" stroke="oklch(0.72 0.03 240)" fontSize={11} />
+                  <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip
+                    contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
+                    formatter={(v: number) => v === null || v === undefined ? "—" : `${fmtPct(v)}`}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12, color: "oklch(0.92 0.01 240)" }} />
+                  <ReferenceLine y={META_PERDA} stroke="oklch(0.7 0.18 25)" strokeDasharray="4 4" label={{ value: `Meta ${META_PERDA}%`, fill: "oklch(0.85 0.15 25)", fontSize: 11, position: "insideTopRight" }} />
+                  {matrix.map(r => (
+                    <Line
+                      key={r.key}
+                      type="monotone"
+                      dataKey={MATERIAL_LABEL[r.material]}
+                      stroke={MATERIAL_COLOR[r.material]}
+                      strokeWidth={2.5}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                      connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           )}
         </Panel>
