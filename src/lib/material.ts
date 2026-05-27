@@ -1,10 +1,13 @@
-// Detecta tipo de material e espessura a partir da descrição.
+// Detecta tipo de material, espessura, acabamento (BB/EB) e variantes (Branca).
 // Exemplos:
-//   "CH AISI304#1,5X3000X1240 BB/F1 9" -> inox, 1.5mm
+//   "CH AISI304#1,5X3000X1240 BB/F1 9" -> inox, 1.5mm, BB
+//   "CH AISI430 EB #1,2X..."           -> inox, 1.2mm, EB
+//   "CH GALV BRANCA #0,9X1200X3000"    -> galvanizado branca, 0.9mm
 //   "CH GALV#0,9X1200X3000"            -> galvanizado, 0.9mm
 //   "CH ALUM#2,0X1000X2000"            -> aluminio, 2.0mm
 
 export type MaterialKind = "inox" | "galvanizado" | "aluminio" | "outro";
+export type InoxFinish = "BB" | "EB" | null;
 
 export const DENSITY: Record<MaterialKind, number> = {
   inox: 7.9,
@@ -27,12 +30,10 @@ export const MATERIAL_SHORT: Record<MaterialKind, string> = {
   outro: "OUT",
 };
 
-// Formata espessura em mm: 1.5 -> "1,50" / 0.65 -> "0,65"
 export function fmtThickness(mm: number): string {
   return mm.toFixed(2).replace(".", ",");
 }
 
-// Chave estável "1,50-INOX" e label "1,50 INOX"
 export function materialThicknessKey(material: MaterialKind, mm: number): string {
   return `${fmtThickness(mm)}-${MATERIAL_SHORT[material]}`;
 }
@@ -49,16 +50,13 @@ export function detectMaterial(descricao: string | null | undefined): MaterialKi
   return "outro";
 }
 
-// Extrai a espessura (mm) — número após "#" ou primeiro número decimal antes de "X"
 export function detectThicknessMm(descricao: string | null | undefined): number | null {
   if (!descricao) return null;
-  // após #
   const m1 = descricao.match(/#\s*([\d]+[,.]?[\d]*)/);
   if (m1) {
     const v = parseFloat(m1[1].replace(",", "."));
     if (!isNaN(v) && v > 0 && v < 50) return v;
   }
-  // padrão "1,5X3000" ou "1.5X3000"
   const m2 = descricao.match(/(?:^|\s)([\d]+[,.][\d]+)\s*X/i);
   if (m2) {
     const v = parseFloat(m2[1].replace(",", "."));
@@ -67,7 +65,59 @@ export function detectThicknessMm(descricao: string | null | undefined): number 
   return null;
 }
 
-// Converte m² em kg usando densidade do material e espessura (mm).
+// Detecta acabamento BB/EB no inox
+export function detectInoxFinish(descricao: string | null | undefined): InoxFinish {
+  if (!descricao) return null;
+  const d = descricao.toUpperCase();
+  if (/\bBB\b|BB\//.test(d)) return "BB";
+  if (/\bEB\b|EB\//.test(d)) return "EB";
+  return null;
+}
+
+// Detecta se é "branca" (galvanizado pintado)
+export function detectIsBranca(descricao: string | null | undefined): boolean {
+  if (!descricao) return false;
+  return /BRANC[AO]/i.test(descricao);
+}
+
+// Categoria detalhada para a matriz de indicadores
+// Ex.: "INOX BB 1,50" | "INOX EB 1,20" | "INOX 1,50" | "GALV BRANCA 0,90" | "GALV 0,65" | "AL 1,00"
+export interface DetailedCategory {
+  key: string;
+  label: string;
+  material: MaterialKind;
+}
+export function detailedCategory(descricao: string | null | undefined): DetailedCategory | null {
+  const mat = detectMaterial(descricao);
+  const mm = detectThicknessMm(descricao);
+  if (mat === "outro" || !mm) return null;
+  const thick = fmtThickness(mm);
+
+  if (mat === "inox") {
+    const fin = detectInoxFinish(descricao);
+    const suffix = fin ? `${fin} ` : "";
+    return {
+      key: `INOX-${fin ?? "X"}-${thick}`,
+      label: `INOX ${suffix}${thick}`,
+      material: mat,
+    };
+  }
+  if (mat === "galvanizado") {
+    const isBr = detectIsBranca(descricao);
+    return {
+      key: `GALV-${isBr ? "BR" : "N"}-${thick}`,
+      label: `GALV ${isBr ? "BRANCA " : ""}${thick}`,
+      material: mat,
+    };
+  }
+  // aluminio
+  return {
+    key: `AL-${thick}`,
+    label: `AL ${thick}`,
+    material: mat,
+  };
+}
+
 // kg = m² × mm × densidade(g/cm³)
 export function m2ToKg(m2: number | null | undefined, descricao: string | null | undefined): number {
   if (!m2) return 0;
