@@ -327,16 +327,25 @@ export function Dashboard() {
       {/* Charts row 2 */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel title="Top 10 Materiais — Maior índice de desperdício (%)" className="lg:col-span-2">
-          <div className="h-72">
+          <div className="h-[420px]">
             {topMateriais.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
-              <BarChart data={topMateriais} layout="vertical" margin={{ left: 20 }}>
+              <BarChart data={topMateriais} layout="vertical" margin={{ left: 8, right: 24 }}>
                 <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${v}%`} />
-                <YAxis type="category" dataKey="codigo" stroke="oklch(0.72 0.03 240)" fontSize={11} width={130} />
+                <YAxis
+                  type="category"
+                  dataKey="label"
+                  stroke="oklch(0.72 0.03 240)"
+                  fontSize={10}
+                  width={300}
+                  interval={0}
+                  tick={{ fill: "oklch(0.85 0.02 240)" }}
+                />
                 <Tooltip
                   contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
                   formatter={(v: number) => [`${v}%`, "Média"]}
+                  labelFormatter={(l) => String(l)}
                 />
                 <Bar dataKey="media" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} />
               </BarChart>
