@@ -14,7 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      waste_imports: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          filename: string
+          id: string
+          inserted_rows: number
+          skipped_rows: number
+          status: string
+          total_rows: number
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          filename: string
+          id?: string
+          inserted_rows?: number
+          skipped_rows?: number
+          status?: string
+          total_rows?: number
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          filename?: string
+          id?: string
+          inserted_rows?: number
+          skipped_rows?: number
+          status?: string
+          total_rows?: number
+        }
+        Relationships: []
+      }
+      waste_records: {
+        Row: {
+          armazem: string | null
+          codigo_item: string | null
+          created_at: string
+          data_registro: string | null
+          descricao: string | null
+          fator_perda: number | null
+          id: string
+          import_id: string | null
+          linha: number | null
+          numero: number | null
+          qtde_solicitada: number | null
+          retalho: number | null
+          status: string | null
+          tipo: string | null
+        }
+        Insert: {
+          armazem?: string | null
+          codigo_item?: string | null
+          created_at?: string
+          data_registro?: string | null
+          descricao?: string | null
+          fator_perda?: number | null
+          id?: string
+          import_id?: string | null
+          linha?: number | null
+          numero?: number | null
+          qtde_solicitada?: number | null
+          retalho?: number | null
+          status?: string | null
+          tipo?: string | null
+        }
+        Update: {
+          armazem?: string | null
+          codigo_item?: string | null
+          created_at?: string
+          data_registro?: string | null
+          descricao?: string | null
+          fator_perda?: number | null
+          id?: string
+          import_id?: string | null
+          linha?: number | null
+          numero?: number | null
+          qtde_solicitada?: number | null
+          retalho?: number | null
+          status?: string | null
+          tipo?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
