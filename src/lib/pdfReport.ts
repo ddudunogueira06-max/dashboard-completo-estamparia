@@ -47,6 +47,12 @@ const MAT_COLOR: Record<MaterialKind, [number, number, number]> = {
   outro: [148, 163, 184],
 };
 
+const META: Record<Exclude<MaterialKind, "outro">, number> = {
+  galvanizado: 13,
+  aluminio: 24,
+  inox: 27,
+};
+
 export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, filtroResumo: string) {
   const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
   const pageW = doc.internal.pageSize.getWidth();
