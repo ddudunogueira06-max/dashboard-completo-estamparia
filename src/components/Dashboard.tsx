@@ -493,7 +493,7 @@ export function Dashboard() {
                           {`${fmtNum(p.desp)} kg · ${fmtPct(p.media)}`}
                         </text>
                       );
-                    }}
+                    }) as never}
                   />
                 </Bar>
               </BarChart>
