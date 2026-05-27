@@ -5,8 +5,8 @@ import { KpiCard } from "@/components/KpiCard";
 import { fmtInt, fmtNum, fmtPct, fmtDate } from "@/lib/format";
 import { exportToXLSX } from "@/lib/parseExcel";
 import {
-  detectMaterial, detectThicknessMm, m2ToKg, detailedCategory,
-  MATERIAL_LABEL, materialThicknessKey, materialThicknessLabel, type MaterialKind,
+  detectMaterial, detectThicknessMm, m2ToKg, detailedCategory, filterCategory,
+  MATERIAL_LABEL, MATERIAL_SHORT, type MaterialKind,
 } from "@/lib/material";
 import {
   ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
