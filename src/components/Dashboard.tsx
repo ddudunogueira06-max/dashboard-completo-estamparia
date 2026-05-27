@@ -292,6 +292,7 @@ export function Dashboard() {
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel title="Média de Desperdício (%) ao longo do tempo" className="lg:col-span-2">
           <div className="h-64">
+            {timeSeries.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
               <LineChart data={timeSeries}>
                 <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" />
@@ -304,11 +305,13 @@ export function Dashboard() {
                 <Line type="monotone" dataKey="media" stroke={CHART_COLORS[0]} strokeWidth={2.5} dot={{ r: 3, fill: CHART_COLORS[0] }} />
               </LineChart>
             </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
         <Panel title="Desperdício por Tipo">
           <div className="h-64">
+            {byTipo.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
               <PieChart>
                 <Pie data={byTipo} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
@@ -321,6 +324,7 @@ export function Dashboard() {
                 />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </div>
         </Panel>
       </section>
@@ -329,6 +333,7 @@ export function Dashboard() {
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel title="Top 10 Materiais — Maior índice de desperdício (%)" className="lg:col-span-2">
           <div className="h-72">
+            {topMateriais.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
               <BarChart data={topMateriais} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
@@ -341,11 +346,13 @@ export function Dashboard() {
                 <Bar dataKey="media" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
         <Panel title="Distribuição do Fator de Perda">
           <div className="h-72">
+            {filtered.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
               <PieChart>
                 <Pie data={distribuicao} dataKey="value" nameKey="name" outerRadius={90} label={(d) => `${d.pct}%`} labelLine={false}>
@@ -357,6 +364,7 @@ export function Dashboard() {
                 />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </div>
         </Panel>
       </section>
@@ -365,6 +373,7 @@ export function Dashboard() {
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Panel title="Desperdício por Setor (Armazém)">
           <div className="h-64">
+            {bySetor.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
               <BarChart data={bySetor}>
                 <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" />
@@ -377,6 +386,7 @@ export function Dashboard() {
                 <Bar dataKey="value" fill={CHART_COLORS[2]} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
