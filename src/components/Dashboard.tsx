@@ -318,8 +318,11 @@ export function Dashboard() {
             <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
             <span className="hidden sm:inline">Atualizar</span>
           </button>
+          <button onClick={handleGeneratePDF} className="inline-flex items-center gap-2 rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:opacity-90">
+            <FileDown className="size-4" /> <span className="hidden sm:inline">Gerar Relatório PDF</span>
+          </button>
           <button onClick={handleExport} className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
-            <Download className="size-4" /> <span className="hidden sm:inline">Exportar</span>
+            <Download className="size-4" /> <span className="hidden sm:inline">Exportar XLSX</span>
           </button>
         </div>
       </header>
