@@ -95,12 +95,13 @@ export function Dashboard() {
     const material = detectMaterial(r.descricao);
     const thickness = detectThicknessMm(r.descricao);
     const det = detailedCategory(r.descricao);
+    const fc = filterCategory(r.descricao);
     return {
       ...r,
       material,
       thickness,
-      matKey: thickness ? materialThicknessKey(material, thickness) : "",
-      matLabel: thickness ? materialThicknessLabel(material, thickness) : MATERIAL_LABEL[material],
+      matKey: fc?.key ?? "",
+      matLabel: fc?.label ?? MATERIAL_LABEL[material],
       detKey: det?.key ?? "",
       detLabel: det?.label ?? "",
       qtde_kg: m2ToKg(r.qtde_solicitada, r.descricao),
