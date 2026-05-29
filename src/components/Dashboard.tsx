@@ -123,7 +123,6 @@ export function Dashboard() {
     };
   }), [records]);
 
-  const tipos = useMemo(() => Array.from(new Set(enriched.map(r => r.tipo).filter(Boolean))) as string[], [enriched]);
   const statuses = useMemo(() => Array.from(new Set(enriched.map(r => r.status).filter(Boolean))) as string[], [enriched]);
 
   const materialThickOptions = useMemo(() => {
