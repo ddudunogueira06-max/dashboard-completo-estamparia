@@ -334,6 +334,33 @@ export function Dashboard() {
         </div>
       </header>
 
+      {/* === Filtro unificado FPP / FPG (afeta TODOS os gráficos e KPIs) === */}
+      <section className="flex items-center gap-2">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Tipo:</span>
+        <div className="inline-flex rounded-md border border-border bg-card p-0.5">
+          {[
+            { v: "", label: "Todos" },
+            { v: "FPP", label: "FPP" },
+            { v: "FPG", label: "FPG" },
+          ].map(opt => (
+            <button
+              key={opt.label}
+              onClick={() => setTipoFilter(opt.v)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
+                tipoFilter === opt.v
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-[11px] text-muted-foreground hidden sm:inline">
+          aplica-se a todos os indicadores e gráficos
+        </span>
+      </section>
+
       {/* === MOBILE: pílulas grandes e visuais === */}
       <section className="md:hidden grid grid-cols-2 gap-3">
         <BigKpi label="Solicitado" value={fmtNum(metrics.totalSolic)} unit="kg" color="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2 })} />
