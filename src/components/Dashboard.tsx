@@ -33,7 +33,7 @@ interface WasteRecord {
   status: string | null;
 }
 
-const META_PERDA = 15; // meta global (%)
+const META_PERDA = 13; // meta global (%)
 
 const META_POR_MATERIAL: Record<Exclude<MaterialKind, "outro">, number> = {
   galvanizado: 13,
@@ -193,6 +193,7 @@ export function Dashboard() {
 
     enriched.forEach(r => {
       if (!r.data_registro || !materials.includes(r.material)) return;
+      if (tipoFilter && r.tipo !== tipoFilter) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
       const m = d.getMonth();
@@ -216,7 +217,7 @@ export function Dashboard() {
         isSummary: true,
       };
     }).filter(r => r.acumulada !== null);
-  }, [enriched, yearSel]);
+  }, [enriched, yearSel, tipoFilter]);
 
   // Série mensal para o gráfico de linhas (a partir da matrix)
   const matrixChart = useMemo(() => {
