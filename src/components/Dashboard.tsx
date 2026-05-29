@@ -380,12 +380,6 @@ export function Dashboard() {
           <Field label="Data final">
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
           </Field>
-          <Field label="Tipo">
-            <select value={tipoFilter} onChange={(e) => setTipoFilter(e.target.value)} className={inputCls}>
-              <option value="">Todos</option>
-              {tipos.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </Field>
           <Field label="Material / Espessura">
             <select value={materialFilter} onChange={(e) => setMaterialFilter(e.target.value)} className={inputCls}>
               <option value="">Todos</option>
