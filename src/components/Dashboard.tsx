@@ -422,19 +422,9 @@ export function Dashboard() {
         </span>
       </section>
 
-      {/* === MOBILE: pílulas grandes e visuais === */}
-      <section className="md:hidden grid grid-cols-2 gap-3">
-        <BigKpi label="Solicitado" value={fmtNum(metrics.totalSolic)} unit="kg" color="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2 })} />
-        <BigKpi label="Processado" value={fmtNum(metrics.totalProcessado)} unit="kg" color="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2 })} />
-        <BigKpi label="Desperdício" value={fmtNum(metrics.totalDesperd)} unit="kg" color="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2 })} />
-        <BigKpi label="Média" value={fmtPct(metrics.mediaPerda)} unit={`meta ${META_PERDA}%`} color={metrics.mediaPerda > META_PERDA ? "destructive" : "success"} onClick={() => setKpiDetail({ title: "Média Ponderada de Perda", pct: metrics.mediaPerda, hint: `Meta: ${META_PERDA}%` })} />
-        <BigKpi label="Itens" value={fmtInt(metrics.itens)} unit="únicos" color="accent" onClick={() => setKpiDetail({ title: "Itens Únicos", count: metrics.itens, hint: "Códigos distintos no filtro" })} />
-        <BigKpi label="FPPs" value={fmtInt(metrics.totalFPP)} unit="ordens" color="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, hint: "Ordens do tipo FPP" })} />
-      </section>
-
-      {/* === DESKTOP/TV: filtros === */}
-      <section className="hidden md:block bg-card border border-border rounded-xl p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+      {/* === Filtros === */}
+      <section className="bg-card border border-border rounded-xl p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           <Field label="Data inicial">
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
           </Field>
@@ -453,13 +443,37 @@ export function Dashboard() {
               {statuses.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </Field>
-          <Field label="Busca (código, descrição, nº)">
+          <Field label="FPP / FPG (Enter p/ adicionar)">
             <div className="relative">
               <Search className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar…" className={`${inputCls} pl-8`} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNumeroFilter(); } }}
+                placeholder="Nº da FPP/FPG…"
+                className={`${inputCls} pl-8`}
+              />
             </div>
           </Field>
+          <Field label="Ação">
+            <button onClick={addNumeroFilter} type="button" className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
+              + Adicionar ao filtro
+            </button>
+          </Field>
         </div>
+        {numeroFilters.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold self-center">Filtrando FPP/FPG:</span>
+            {numeroFilters.map(n => (
+              <span key={n} className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-2.5 py-1 text-xs font-semibold">
+                {n}
+                <button type="button" onClick={() => removeNumeroFilter(n)} className="hover:bg-primary/25 rounded-full p-0.5">
+                  <X className="size-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="mt-3 flex justify-end">
           <button onClick={clearFilters} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">
             Limpar filtros
@@ -467,18 +481,18 @@ export function Dashboard() {
         </div>
       </section>
 
-      {/* KPIs (desktop) */}
-      <section className="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* KPIs */}
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2 })} />
         <KpiCard label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} icon={CheckCircle2} accent="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2 })} />
         <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2 })} />
         <KpiCard label="Média Ponderada (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média Ponderada de Perda", pct: metrics.mediaPerda, hint: `Meta: ${META_PERDA}%` })} />
-        <KpiCard label="Quantidade de Itens" value={fmtInt(metrics.itens)} icon={Package} accent="success" onClick={() => setKpiDetail({ title: "Itens Únicos", count: metrics.itens, hint: "Códigos distintos no filtro" })} />
-        <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, hint: "Ordens do tipo FPP" })} />
+        <KpiCard label="Qtd estoque BR0140 (kg)" value={fmtNum(metrics.estoqueBR0140_kg)} icon={Package} accent="success" onClick={() => setKpiDetail({ title: "Qtd estoque BR0140", kg: metrics.estoqueBR0140_kg, m2: metrics.estoqueBR0140_m2, hint: "Total de retalho enviado ao armazém BR0140 (conforme filtros)" })} />
+        <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, hint: "Ordens distintas do tipo FPP" })} />
       </section>
 
-      {/* === MATRIZ MENSAL POR CATEGORIA (desktop/TV) === */}
-      <section className="hidden md:block">
+      {/* === MATRIZ MENSAL POR CATEGORIA === */}
+      <section>
         <Panel
           title={`Média de Desperdício por Material — ${yearSel}`}
           right={
