@@ -670,37 +670,8 @@ export function Dashboard() {
       </section>
 
 
-      {/* === MOBILE: top 5 visual === */}
-      <section className="md:hidden">
-        <div className="bg-card border border-border rounded-xl p-4">
-          <h3 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Top 5 Maior Desperdício</h3>
-          {topMateriais.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Sem dados.</p>
-          ) : (
-            <ul className="space-y-3">
-              {topMateriais.slice(0, 5).map(m => {
-                const max = topMateriais[0].desp || 1;
-                const pct = (m.desp / max) * 100;
-                return (
-                  <li key={m.codigo} className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-mono truncate max-w-[60%]">{m.codigo}</span>
-                      <span className="text-destructive font-semibold">{fmtNum(m.desp)} kg</span>
-                    </div>
-                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full bg-destructive rounded-full" style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="text-[10px] text-muted-foreground truncate">{m.descricao} · {fmtPct(m.media)}</div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </section>
-
-      {/* Detail table (desktop only) */}
-      <section className="hidden md:block bg-card border border-border rounded-xl overflow-hidden">
+      {/* Detail table */}
+      <section className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
             Detalhamento das Solicitações
@@ -711,7 +682,7 @@ export function Dashboard() {
           <table className="w-full text-sm">
             <thead className="bg-secondary/40 sticky top-0">
               <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Qtde (kg)", "Data", "Retalho (kg)", "Status"].map(h => (
+                {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Qtde (kg)", "Data", "Status"].map(h => (
                   <th key={h} className="px-3 py-2 font-medium">{h}</th>
                 ))}
               </tr>
