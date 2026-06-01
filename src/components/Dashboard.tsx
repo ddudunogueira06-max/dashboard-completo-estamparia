@@ -365,7 +365,7 @@ export function Dashboard() {
         proc_kg: metrics.totalProcessado, retalho_kg: metrics.totalRetalho,
         solic_m2: metrics.totalSolic_m2, desp_m2: metrics.totalDesperd_m2,
         proc_m2: metrics.totalProcessado_m2, retalho_m2: metrics.totalRetalho_m2,
-        mediaPerda: metrics.mediaPerda, itens: metrics.itens, fpps: metrics.totalFPP,
+        mediaPerda: metrics.mediaPerda, itens: metrics.estoqueBR0140_kg, fpps: metrics.totalFPP,
         registros: filtered.length,
       },
       filtroResumo || "Sem filtros aplicados",
