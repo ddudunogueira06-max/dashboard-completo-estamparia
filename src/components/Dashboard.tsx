@@ -148,37 +148,72 @@ export function Dashboard() {
     const s = startDate ? new Date(startDate).getTime() : 0;
     const e = endDate ? new Date(endDate).getTime() + 86400000 : Infinity;
     const q = search.toLowerCase().trim();
+    const nums = numeroFilters.map(n => n.toLowerCase());
     return enriched.filter((r) => {
       const t = r.data_registro ? new Date(r.data_registro).getTime() : 0;
       if (t < s || t > e) return false;
       if (tipoFilter && r.tipo !== tipoFilter) return false;
       if (materialFilter && r.matKey !== materialFilter) return false;
       if (statusFilter && r.status !== statusFilter) return false;
+      if (nums.length > 0) {
+        const numStr = String(r.numero ?? "").toLowerCase();
+        if (!nums.some(n => numStr === n || numStr.includes(n))) return false;
+      }
       if (q) {
         const hay = `${r.codigo_item ?? ""} ${r.descricao ?? ""} ${r.numero ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [enriched, startDate, endDate, tipoFilter, materialFilter, statusFilter, search]);
+  }, [enriched, startDate, endDate, tipoFilter, materialFilter, statusFilter, search, numeroFilters]);
+
+  // Agrupa por (tipo+numero). Para perda usamos somente a 1ª linha (menor "linha"),
+  // mas os kg/m² somam todas as linhas do grupo.
+  const groups = useMemo(() => {
+    const map = new Map<string, typeof filtered>();
+    filtered.forEach(r => {
+      const key = r.numero !== null ? `${r.tipo ?? ""}#${r.numero}` : `__solo__${r.id}`;
+      const arr = map.get(key);
+      if (arr) arr.push(r); else map.set(key, [r]);
+    });
+    map.forEach(arr => arr.sort((a, b) => (a.linha ?? 1e9) - (b.linha ?? 1e9)));
+    return map;
+  }, [filtered]);
 
   const metrics = useMemo(() => {
-    const totalSolic = filtered.reduce((a, r) => a + r.qtde_kg, 0);
-    const totalRetalho = filtered.reduce((a, r) => a + r.retalho_kg, 0);
-    const totalDesperd = filtered.reduce((a, r) => a + r.qtde_kg * ((r.fator_perda ?? 0) / 100), 0);
+    let totalSolic = 0, totalSolic_m2 = 0, totalRetalho = 0, totalRetalho_m2 = 0;
+    let estoqueBR0140_kg = 0, estoqueBR0140_m2 = 0;
+    filtered.forEach(r => {
+      totalSolic += r.qtde_kg;
+      totalSolic_m2 += r.qtde_m2;
+      totalRetalho += r.retalho_kg;
+      totalRetalho_m2 += r.retalho_m2;
+      if ((r.armazem ?? "").toUpperCase().includes("BR0140")) {
+        estoqueBR0140_kg += r.retalho_kg;
+        estoqueBR0140_m2 += r.retalho_m2;
+      }
+    });
+    let totalDesperd = 0, totalDesperd_m2 = 0;
+    groups.forEach(rows => {
+      const first = rows[0];
+      const fator = (first.fator_perda ?? 0) / 100;
+      const gKg = rows.reduce((a, r) => a + r.qtde_kg, 0);
+      const gM2 = rows.reduce((a, r) => a + r.qtde_m2, 0);
+      totalDesperd += gKg * fator;
+      totalDesperd_m2 += gM2 * fator;
+    });
     const totalProcessado = totalSolic - totalDesperd;
-    const totalSolic_m2 = filtered.reduce((a, r) => a + r.qtde_m2, 0);
-    const totalRetalho_m2 = filtered.reduce((a, r) => a + r.retalho_m2, 0);
-    const totalDesperd_m2 = filtered.reduce((a, r) => a + r.qtde_m2 * ((r.fator_perda ?? 0) / 100), 0);
     const totalProcessado_m2 = totalSolic_m2 - totalDesperd_m2;
-    const validPerda = filtered.filter(r => r.fator_perda !== null);
     const mediaPerda = totalSolic > 0 ? (totalDesperd / totalSolic) * 100 : 0;
-    const itens = new Set(filtered.map(r => r.codigo_item)).size;
-    const totalFPP = filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").length;
-    const fatorMax = filtered.reduce((a, r) => Math.max(a, r.fator_perda ?? 0), 0);
-    const fatorMin = validPerda.length ? validPerda.reduce((a, r) => Math.min(a, r.fator_perda ?? 0), Infinity) : 0;
-    return { totalSolic, totalDesperd, totalProcessado, totalRetalho, totalSolic_m2, totalDesperd_m2, totalProcessado_m2, totalRetalho_m2, mediaPerda, itens, totalFPP, fatorMax, fatorMin };
-  }, [filtered]);
+    const totalFPP = new Set(
+      filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").map(r => r.numero).filter(n => n !== null)
+    ).size;
+    return {
+      totalSolic, totalDesperd, totalProcessado, totalRetalho,
+      totalSolic_m2, totalDesperd_m2, totalProcessado_m2, totalRetalho_m2,
+      mediaPerda, totalFPP, estoqueBR0140_kg, estoqueBR0140_m2,
+    };
+  }, [filtered, groups]);
 
   // === Matriz mensal — base = TODOS os registros (independe dos filtros do topo)
   const availableYears = useMemo(() => {
