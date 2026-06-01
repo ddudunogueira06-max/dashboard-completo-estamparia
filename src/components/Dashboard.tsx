@@ -292,13 +292,17 @@ export function Dashboard() {
   // % exibido = média ponderada = totalDespKg / totalQtdeKg
   const topMateriais = useMemo(() => {
     const agg = new Map<string, { qtde: number; desp: number; descricao: string }>();
-    filtered.forEach(r => {
-      if (!r.codigo_item || r.fator_perda === null || r.qtde_kg <= 0) return;
-      const e = agg.get(r.codigo_item) ?? { qtde: 0, desp: 0, descricao: r.descricao ?? "" };
-      e.qtde += r.qtde_kg;
-      e.desp += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
-      if (!e.descricao && r.descricao) e.descricao = r.descricao;
-      agg.set(r.codigo_item, e);
+    groups.forEach(rows => {
+      const first = rows[0];
+      const fator = (first.fator_perda ?? 0) / 100;
+      rows.forEach(r => {
+        if (!r.codigo_item || r.qtde_kg <= 0) return;
+        const e = agg.get(r.codigo_item) ?? { qtde: 0, desp: 0, descricao: r.descricao ?? "" };
+        e.qtde += r.qtde_kg;
+        e.desp += r.qtde_kg * fator;
+        if (!e.descricao && r.descricao) e.descricao = r.descricao;
+        agg.set(r.codigo_item, e);
+      });
     });
     return Array.from(agg.entries())
       .map(([codigo, v]) => ({
@@ -308,9 +312,9 @@ export function Dashboard() {
         desp: +v.desp.toFixed(2),
         media: v.qtde > 0 ? +(v.desp / v.qtde * 100).toFixed(2) : 0,
       }))
-      .sort((a, b) => b.desp - a.desp) // ordena por volume absoluto
+      .sort((a, b) => b.desp - a.desp)
       .slice(0, 10);
-  }, [filtered]);
+  }, [groups]);
 
   const distribuicao = useMemo(() => {
     const buckets = { "0% a 5%": 0, "5% a 10%": 0, "10% a 20%": 0, "Acima de 20%": 0 } as Record<string, number>;
