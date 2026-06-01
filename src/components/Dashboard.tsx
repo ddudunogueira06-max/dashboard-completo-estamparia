@@ -671,29 +671,26 @@ export function Dashboard() {
 
       {/* Charts row */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Panel title="Top 10 — Maior volume de desperdício (kg)" className="lg:col-span-2">
+        <Panel title="Top 10 — Materiais com maior frequência de saída" className="lg:col-span-2">
           <div className="h-[460px]">
             {topMateriais.length === 0 ? <EmptyChart /> : (
             <ResponsiveContainer>
-              <BarChart data={topMateriais} layout="vertical" margin={{ left: 8, right: 80 }}>
+              <BarChart data={topMateriais} layout="vertical" margin={{ left: 8, right: 110 }}>
                 <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${fmtNum(v, 0)}`} />
+                <XAxis type="number" stroke="oklch(0.72 0.03 240)" fontSize={11} allowDecimals={false} />
                 <YAxis type="category" dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={10} width={300} interval={0} tick={{ fill: "oklch(0.85 0.02 240)" }} />
                 <Tooltip
                   contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
                   formatter={(_v: number, _n, item) => {
-                    const p = item?.payload as { desp: number; media: number };
-                    return [`${fmtNum(p.desp)} kg · ${fmtPct(p.media)} médio`, "Desperdício"];
+                    const p = item?.payload as { freq: number; qtde: number; media: number };
+                    return [`${p.freq} ordens · ${fmtNum(p.qtde)} kg · ${fmtPct(p.media)} médio`, "Saídas"];
                   }}
                   labelFormatter={(l) => String(l)}
                 />
-                <Bar dataKey="desp" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]}>
+                <Bar dataKey="freq" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]}>
                   <LabelList
-                    dataKey="desp"
+                    dataKey="freq"
                     position="right"
-                    fontSize={11}
-                    fontWeight={600}
-                    fill="oklch(0.95 0.01 240)"
                     content={((props: Record<string, unknown>) => {
                       const x = Number(props.x ?? 0);
                       const y = Number(props.y ?? 0);
@@ -703,15 +700,8 @@ export function Dashboard() {
                       const p = topMateriais[index];
                       if (!p) return null;
                       return (
-                        <text
-                          x={x + width + 6}
-                          y={y + height / 2}
-                          fill="oklch(0.95 0.01 240)"
-                          fontSize={11}
-                          fontWeight={600}
-                          dominantBaseline="middle"
-                        >
-                          {`${fmtNum(p.desp)} kg · ${fmtPct(p.media)}`}
+                        <text x={x + width + 6} y={y + height / 2} fill="oklch(0.95 0.01 240)" fontSize={11} fontWeight={600} dominantBaseline="middle">
+                          {`${p.freq}× · ${fmtNum(p.qtde, 0)} kg`}
                         </text>
                       );
                     }) as never}
@@ -722,6 +712,7 @@ export function Dashboard() {
             )}
           </div>
         </Panel>
+
 
         <Panel title="Distribuição do Fator de Perda">
           <div className="h-[460px]">
