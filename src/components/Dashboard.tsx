@@ -787,23 +787,3 @@ function Panel({ title, children, className = "", right }: { title: string; chil
   );
 }
 
-function BigKpi({ label, value, unit, color, onClick }: { label: string; value: string; unit: string; color: "primary" | "success" | "destructive" | "accent"; onClick?: () => void }) {
-  const map = {
-    primary: "from-primary/25 to-primary/5 text-primary",
-    success: "from-success/25 to-success/5 text-success",
-    destructive: "from-destructive/25 to-destructive/5 text-destructive",
-    accent: "from-accent/25 to-accent/5 text-accent",
-  };
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${map[color]} p-4 text-left ${onClick ? "cursor-pointer active:scale-[0.98] transition-transform" : "cursor-default"}`}
-    >
-      <div className="text-[10px] uppercase tracking-wider font-semibold opacity-80">{label}</div>
-      <div className="mt-1 text-2xl font-extrabold text-foreground leading-tight">{value}</div>
-      <div className="text-[10px] text-muted-foreground mt-0.5">{unit}</div>
-    </button>
-  );
-}
