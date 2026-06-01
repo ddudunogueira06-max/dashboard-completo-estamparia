@@ -188,10 +188,8 @@ export function Dashboard() {
       totalSolic_m2 += r.qtde_m2;
       totalRetalho += r.retalho_kg;
       totalRetalho_m2 += r.retalho_m2;
-      if ((r.armazem ?? "").toUpperCase().includes("BR0140")) {
-        estoqueBR0140_kg += r.retalho_kg;
-        estoqueBR0140_m2 += r.retalho_m2;
-      }
+      estoqueBR0140_kg += r.retalho_kg;
+      estoqueBR0140_m2 += r.retalho_m2;
     });
     let totalDesperd = 0, totalDesperd_m2 = 0;
     groups.forEach(rows => {
