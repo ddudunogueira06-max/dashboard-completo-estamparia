@@ -10,7 +10,7 @@ import {
 } from "@/lib/material";
 import {
   ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
-  BarChart, Bar, PieChart, Pie, Cell, Legend, LineChart, Line, ReferenceLine, LabelList,
+  BarChart, Bar, PieChart, Pie, Cell, Legend, LabelList,
 } from "recharts";
 import {
   ClipboardList, Percent, Trash2, Package, FileText, Download, RefreshCw, Search, CheckCircle2, FileDown, X,
