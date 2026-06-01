@@ -97,9 +97,18 @@ export function Dashboard() {
   const [materialFilter, setMaterialFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [search, setSearch] = useState("");
-  const [matrixYear, setMatrixYear] = useState<string>(""); // ano para matriz mensal
+  const [numeroFilters, setNumeroFilters] = useState<string[]>([]);
+  const [matrixYear, setMatrixYear] = useState<string>("");
 
   const [kpiDetail, setKpiDetail] = useState<null | { title: string; kg?: number; m2?: number; pct?: number; count?: number; hint?: string }>(null);
+
+  const addNumeroFilter = () => {
+    const v = search.trim();
+    if (!v) return;
+    setNumeroFilters(prev => prev.includes(v) ? prev : [...prev, v]);
+    setSearch("");
+  };
+  const removeNumeroFilter = (v: string) => setNumeroFilters(prev => prev.filter(x => x !== v));
 
   const enriched = useMemo(() => records.map(r => {
     const material = detectMaterial(r.descricao);
