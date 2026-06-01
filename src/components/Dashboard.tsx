@@ -615,39 +615,59 @@ export function Dashboard() {
             </div>
           )}
 
-          {matrix.length > 0 && (
-            <div className="mt-6 h-[320px]">
-              <ResponsiveContainer>
-                <LineChart data={matrixChart} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" />
-                  <XAxis dataKey="mes" stroke="oklch(0.72 0.03 240)" fontSize={11} />
-                  <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip
-                    contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                    formatter={(v: number) => v === null || v === undefined ? "—" : `${fmtPct(v)}`}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12, color: "oklch(0.92 0.01 240)" }} />
-                  <ReferenceLine y={META_POR_MATERIAL.galvanizado} stroke={MATERIAL_COLOR.galvanizado} strokeDasharray="4 4" label={{ value: `Meta GALV ${META_POR_MATERIAL.galvanizado}%`, fill: MATERIAL_COLOR.galvanizado, fontSize: 10, position: "insideTopRight" }} />
-                  <ReferenceLine y={META_POR_MATERIAL.aluminio} stroke={MATERIAL_COLOR.aluminio} strokeDasharray="4 4" label={{ value: `Meta ALUM ${META_POR_MATERIAL.aluminio}%`, fill: MATERIAL_COLOR.aluminio, fontSize: 10, position: "insideTopRight" }} />
-                  <ReferenceLine y={META_POR_MATERIAL.inox} stroke={MATERIAL_COLOR.inox} strokeDasharray="4 4" label={{ value: `Meta INOX ${META_POR_MATERIAL.inox}%`, fill: MATERIAL_COLOR.inox, fontSize: 10, position: "insideTopRight" }} />
-                  {matrix.map(r => (
-                    <Line
-                      key={r.key}
-                      type="monotone"
-                      dataKey={MATERIAL_LABEL[r.material]}
-                      stroke={MATERIAL_COLOR[r.material]}
-                      strokeWidth={2.5}
-                      dot={{ r: 4 }}
-                      activeDot={{ r: 6 }}
-                      connectNulls
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
+        </Panel>
+      </section>
+
+      {/* === MATRIZ SEMANAL (Seg–Sex) === */}
+      <section>
+        <Panel title={`Média de Desperdício Semanal (Seg–Sex) — ${yearSel}`}>
+          {weeklyMatrix.rows.length === 0 || weeklyMatrix.weeks.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">Sem dados semanais para o ano selecionado.</div>
+          ) : (
+            <div className="overflow-auto">
+              <table className="text-sm border-separate border-spacing-0">
+                <thead>
+                  <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <th className="text-left px-3 py-2 bg-secondary/40 rounded-l-md sticky left-0 z-10">Indicador</th>
+                    <th className="px-2 py-2 bg-secondary/40">Meta</th>
+                    {weeklyMatrix.weeks.map(w => (
+                      <th key={w.key} className="px-2 py-2 bg-secondary/40 whitespace-nowrap">{w.label}</th>
+                    ))}
+                    <th className="px-2 py-2 bg-secondary/40 rounded-r-md">Acumulada</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {weeklyMatrix.rows.map(row => {
+                    const meta = META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">];
+                    return (
+                      <tr key={row.key} className="border-t border-border bg-secondary/30">
+                        <td className="px-3 py-2.5 whitespace-nowrap font-bold uppercase text-xs tracking-wider sticky left-0 bg-card z-10">
+                          <span className="inline-block size-2.5 rounded-full mr-2 align-middle" style={{ background: MATERIAL_COLOR[row.material] }} />
+                          {row.label}
+                        </td>
+                        <td className="px-2 py-2.5 text-center text-muted-foreground font-medium">{meta.toFixed(2)}%</td>
+                        {row.weekly.map((v, i) => (
+                          <td key={i} className="px-2 py-2.5 text-center font-mono">
+                            {v === null ? <span className="text-muted-foreground/50">—</span> : (
+                              <span className={v > meta ? "text-destructive font-semibold" : "text-success font-medium"}>{fmtPct(v)}</span>
+                            )}
+                          </td>
+                        ))}
+                        <td className="px-2 py-2.5 text-center font-mono font-bold">
+                          {row.acumulada === null ? "—" : (
+                            <span className={row.acumulada > meta ? "text-destructive" : "text-success"}>{fmtPct(row.acumulada)}</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </Panel>
       </section>
+
 
       {/* Charts row */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
