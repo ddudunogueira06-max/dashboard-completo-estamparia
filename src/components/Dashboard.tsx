@@ -589,8 +589,8 @@ export function Dashboard() {
         </Panel>
       </section>
 
-      {/* Charts row (desktop) */}
-      <section className="hidden md:grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Charts row */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel title="Top 10 — Maior volume de desperdício (kg)" className="lg:col-span-2">
           <div className="h-[460px]">
             {topMateriais.length === 0 ? <EmptyChart /> : (
