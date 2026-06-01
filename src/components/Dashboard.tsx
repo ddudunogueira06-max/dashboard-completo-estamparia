@@ -699,12 +699,11 @@ export function Dashboard() {
                   <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
                   <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
                   <td className="px-3 py-2 text-muted-foreground text-xs">{fmtDate(r.data_registro)}</td>
-                  <td className="px-3 py-2">{r.retalho_kg > 0 ? fmtNum(r.retalho_kg) : "—"}</td>
                   <td className="px-3 py-2"><span className="text-xs text-success">{r.status}</span></td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={11} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro. Importe uma planilha na aba "Importar Planilha".</td></tr>
+                <tr><td colSpan={10} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro. Importe uma planilha na aba "Importar Planilha".</td></tr>
               )}
             </tbody>
           </table>
