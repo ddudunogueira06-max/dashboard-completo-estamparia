@@ -99,6 +99,7 @@ export function Dashboard() {
   const [search, setSearch] = useState("");
   const [numeroFilters, setNumeroFilters] = useState<string[]>([]);
   const [matrixYear, setMatrixYear] = useState<string>("");
+  const [weekSel, setWeekSel] = useState<string>(""); // "" = semana atual
 
   const [kpiDetail, setKpiDetail] = useState<null | { title: string; kg?: number; m2?: number; pct?: number; count?: number; hint?: string }>(null);
 
@@ -618,55 +619,73 @@ export function Dashboard() {
         </Panel>
       </section>
 
-      {/* === MATRIZ SEMANAL (Seg–Sex) === */}
+      {/* === SEMANA ATUAL (Seg–Sex) === */}
       <section>
-        <Panel title={`Média de Desperdício Semanal (Seg–Sex) — ${yearSel}`}>
-          {weeklyMatrix.rows.length === 0 || weeklyMatrix.weeks.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Sem dados semanais para o ano selecionado.</div>
-          ) : (
-            <div className="overflow-auto">
-              <table className="text-sm border-separate border-spacing-0">
-                <thead>
-                  <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                    <th className="text-left px-3 py-2 bg-secondary/40 rounded-l-md sticky left-0 z-10">Indicador</th>
-                    <th className="px-2 py-2 bg-secondary/40">Meta</th>
-                    {weeklyMatrix.weeks.map(w => (
-                      <th key={w.key} className="px-2 py-2 bg-secondary/40 whitespace-nowrap">{w.label}</th>
-                    ))}
-                    <th className="px-2 py-2 bg-secondary/40 rounded-r-md">Acumulada</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {weeklyMatrix.rows.map(row => {
-                    const meta = META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">];
-                    return (
-                      <tr key={row.key} className="border-t border-border bg-secondary/30">
-                        <td className="px-3 py-2.5 whitespace-nowrap font-bold uppercase text-xs tracking-wider sticky left-0 bg-card z-10">
-                          <span className="inline-block size-2.5 rounded-full mr-2 align-middle" style={{ background: MATERIAL_COLOR[row.material] }} />
-                          {row.label}
-                        </td>
-                        <td className="px-2 py-2.5 text-center text-muted-foreground font-medium">{meta.toFixed(2)}%</td>
-                        {row.weekly.map((v, i) => (
-                          <td key={i} className="px-2 py-2.5 text-center font-mono">
-                            {v === null ? <span className="text-muted-foreground/50">—</span> : (
-                              <span className={v > meta ? "text-destructive font-semibold" : "text-success font-medium"}>{fmtPct(v)}</span>
-                            )}
-                          </td>
-                        ))}
-                        <td className="px-2 py-2.5 text-center font-mono font-bold">
-                          {row.acumulada === null ? "—" : (
-                            <span className={row.acumulada > meta ? "text-destructive" : "text-success"}>{fmtPct(row.acumulada)}</span>
-                          )}
-                        </td>
+        {(() => {
+          const weeks = weeklyMatrix.weeks;
+          // semana atual = mais recente com dados (default), ou semana selecionada
+          const defaultKey = weeks.length > 0 ? weeks[weeks.length - 1].key : "";
+          const activeKey = weekSel && weeks.some(w => w.key === weekSel) ? weekSel : defaultKey;
+          const idx = weeks.findIndex(w => w.key === activeKey);
+          const activeWeek = idx >= 0 ? weeks[idx] : null;
+          return (
+            <Panel
+              title={`Desperdício da Semana (Seg–Sex)${activeWeek ? ` — ${activeWeek.label}` : ""}`}
+              right={
+                <select
+                  value={activeKey}
+                  onChange={(e) => setWeekSel(e.target.value)}
+                  className={`${inputCls} max-w-[180px] py-1 text-xs`}
+                >
+                  {weeks.length === 0 && <option value="">Sem semanas</option>}
+                  {weeks.slice().reverse().map((w, i) => (
+                    <option key={w.key} value={w.key}>
+                      {i === 0 ? `${w.label} (atual)` : w.label}
+                    </option>
+                  ))}
+                </select>
+              }
+            >
+              {!activeWeek ? (
+                <div className="py-10 text-center text-sm text-muted-foreground">Sem dados semanais para o ano selecionado.</div>
+              ) : (
+                <div className="overflow-auto">
+                  <table className="w-full text-sm border-separate border-spacing-0">
+                    <thead>
+                      <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                        <th className="text-left px-3 py-2 bg-secondary/40 rounded-l-md">Indicador</th>
+                        <th className="px-2 py-2 bg-secondary/40">Meta</th>
+                        <th className="px-2 py-2 bg-secondary/40 rounded-r-md">Semana ({activeWeek.label})</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Panel>
+                    </thead>
+                    <tbody>
+                      {weeklyMatrix.rows.map(row => {
+                        const meta = META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">];
+                        const v = row.weekly[idx];
+                        return (
+                          <tr key={row.key} className="border-t border-border bg-secondary/30">
+                            <td className="px-3 py-2.5 whitespace-nowrap font-bold uppercase text-xs tracking-wider">
+                              <span className="inline-block size-2.5 rounded-full mr-2 align-middle" style={{ background: MATERIAL_COLOR[row.material] }} />
+                              {row.label}
+                            </td>
+                            <td className="px-2 py-2.5 text-center text-muted-foreground font-medium">{meta.toFixed(2)}%</td>
+                            <td className="px-2 py-2.5 text-center font-mono font-bold">
+                              {v === null || v === undefined ? <span className="text-muted-foreground/50">—</span> : (
+                                <span className={v > meta ? "text-destructive" : "text-success"}>{fmtPct(v)}</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+          );
+        })()}
       </section>
+
 
 
       {/* Charts row */}
