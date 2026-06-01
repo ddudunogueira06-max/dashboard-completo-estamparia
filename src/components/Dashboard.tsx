@@ -274,28 +274,88 @@ export function Dashboard() {
     }).filter(r => r.acumulada !== null);
   }, [enriched, yearSel, tipoFilter]);
 
-  // Série mensal para o gráfico de linhas (a partir da matrix)
-  const matrixChart = useMemo(() => {
-    return MONTH_NAMES.map((m, i) => {
-      const row: Record<string, number | string | null> = { mes: m };
-      matrix.forEach(r => { row[MATERIAL_LABEL[r.material]] = r.monthly[i]; });
-      return row;
+  // === MATRIZ SEMANAL (Segunda a Sexta) por material — base = TODOS os registros
+  const weeklyMatrix = useMemo(() => {
+    const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
+    const weekData = new Map<string, { start: Date; perMat: Map<MaterialKind, { qtde: number; desp: number }> }>();
+
+    const localGroups = new Map<string, typeof enriched>();
+    enriched.forEach(r => {
+      if (!r.data_registro || !materials.includes(r.material)) return;
+      if (tipoFilter && r.tipo !== tipoFilter) return;
+      const d = new Date(r.data_registro);
+      if (String(d.getFullYear()) !== yearSel) return;
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) return;
+      const key = r.numero !== null ? `${r.tipo ?? ""}#${r.numero}` : `__solo__${r.id}`;
+      const arr = localGroups.get(key);
+      if (arr) arr.push(r); else localGroups.set(key, [r]);
     });
-  }, [matrix]);
+    localGroups.forEach(arr => arr.sort((a, b) => (a.linha ?? 1e9) - (b.linha ?? 1e9)));
 
+    const getMonday = (d: Date) => {
+      const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const day = x.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      x.setDate(x.getDate() + diff);
+      return x;
+    };
 
-
-
-  // Top 10 ponderado pelo VOLUME (kg desperdiçado absoluto)
-  // % exibido = média ponderada = totalDespKg / totalQtdeKg
-  const topMateriais = useMemo(() => {
-    const agg = new Map<string, { qtde: number; desp: number; descricao: string }>();
-    groups.forEach(rows => {
+    localGroups.forEach(rows => {
       const first = rows[0];
       const fator = (first.fator_perda ?? 0) / 100;
       rows.forEach(r => {
-        if (!r.codigo_item || r.qtde_kg <= 0) return;
-        const e = agg.get(r.codigo_item) ?? { qtde: 0, desp: 0, descricao: r.descricao ?? "" };
+        const d = new Date(r.data_registro!);
+        const dow = d.getDay();
+        if (dow === 0 || dow === 6) return;
+        const mon = getMonday(d);
+        const wkKey = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, "0")}-${String(mon.getDate()).padStart(2, "0")}`;
+        let wk = weekData.get(wkKey);
+        if (!wk) {
+          wk = { start: mon, perMat: new Map() };
+          materials.forEach(m => wk!.perMat.set(m, { qtde: 0, desp: 0 }));
+          weekData.set(wkKey, wk);
+        }
+        const cell = wk.perMat.get(r.material)!;
+        cell.qtde += r.qtde_kg;
+        cell.desp += r.qtde_kg * fator;
+      });
+    });
+
+    const weeks = Array.from(weekData.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, w]) => {
+        const fri = new Date(w.start);
+        fri.setDate(fri.getDate() + 4);
+        const fmt = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+        return { key, label: `${fmt(w.start)}–${fmt(fri)}`, perMat: w.perMat };
+      });
+
+    const rows = materials.map(mat => {
+      const weekly = weeks.map(w => {
+        const c = w.perMat.get(mat)!;
+        return c.qtde > 0 ? +(c.desp / c.qtde * 100).toFixed(2) : null;
+      });
+      const totalQ = weeks.reduce((a, w) => a + w.perMat.get(mat)!.qtde, 0);
+      const totalD = weeks.reduce((a, w) => a + w.perMat.get(mat)!.desp, 0);
+      const acumulada = totalQ > 0 ? +(totalD / totalQ * 100).toFixed(2) : null;
+      return { key: mat, material: mat, label: MATERIAL_LABEL[mat].toUpperCase(), weekly, acumulada };
+    }).filter(r => r.acumulada !== null);
+
+    return { weeks, rows };
+  }, [enriched, yearSel, tipoFilter]);
+
+  // Top 10 — Materiais com MAIOR FREQUÊNCIA de saída
+  // (conta nº de ordens FPP/FPG distintas em que o código aparece)
+  const topMateriais = useMemo(() => {
+    const agg = new Map<string, { freq: Set<string>; qtde: number; desp: number; descricao: string }>();
+    groups.forEach((rows, gKey) => {
+      const first = rows[0];
+      const fator = (first.fator_perda ?? 0) / 100;
+      rows.forEach(r => {
+        if (!r.codigo_item) return;
+        const e = agg.get(r.codigo_item) ?? { freq: new Set<string>(), qtde: 0, desp: 0, descricao: r.descricao ?? "" };
+        e.freq.add(gKey);
         e.qtde += r.qtde_kg;
         e.desp += r.qtde_kg * fator;
         if (!e.descricao && r.descricao) e.descricao = r.descricao;
@@ -307,10 +367,12 @@ export function Dashboard() {
         codigo,
         descricao: v.descricao,
         label: v.descricao ? `${codigo} — ${v.descricao}` : codigo,
+        freq: v.freq.size,
         desp: +v.desp.toFixed(2),
+        qtde: +v.qtde.toFixed(2),
         media: v.qtde > 0 ? +(v.desp / v.qtde * 100).toFixed(2) : 0,
       }))
-      .sort((a, b) => b.desp - a.desp)
+      .sort((a, b) => b.freq - a.freq)
       .slice(0, 10);
   }, [groups]);
 
