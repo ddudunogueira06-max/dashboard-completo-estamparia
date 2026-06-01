@@ -234,15 +234,29 @@ export function Dashboard() {
     const matAgg = new Map<MaterialKind, Cell[]>();
     materials.forEach(m => matAgg.set(m, Array.from({ length: 12 }, () => ({ qtde: 0, desp: 0 }))));
 
+    // Agrupa por (tipo+numero) para usar fator só da 1ª linha
+    const localGroups = new Map<string, typeof enriched>();
     enriched.forEach(r => {
       if (!r.data_registro || !materials.includes(r.material)) return;
       if (tipoFilter && r.tipo !== tipoFilter) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
-      const m = d.getMonth();
-      const cell = matAgg.get(r.material)!;
-      cell[m].qtde += r.qtde_kg;
-      cell[m].desp += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
+      const key = r.numero !== null ? `${r.tipo ?? ""}#${r.numero}` : `__solo__${r.id}`;
+      const arr = localGroups.get(key);
+      if (arr) arr.push(r); else localGroups.set(key, [r]);
+    });
+    localGroups.forEach(arr => arr.sort((a, b) => (a.linha ?? 1e9) - (b.linha ?? 1e9)));
+
+    localGroups.forEach(rows => {
+      const first = rows[0];
+      const fator = (first.fator_perda ?? 0) / 100;
+      rows.forEach(r => {
+        const d = new Date(r.data_registro!);
+        const m = d.getMonth();
+        const cell = matAgg.get(r.material)!;
+        cell[m].qtde += r.qtde_kg;
+        cell[m].desp += r.qtde_kg * fator;
+      });
     });
 
     return materials.map(mat => {
