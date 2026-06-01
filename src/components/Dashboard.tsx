@@ -13,7 +13,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, Legend, LineChart, Line, ReferenceLine, LabelList,
 } from "recharts";
 import {
-  ClipboardList, Percent, Trash2, Package, FileText, Download, RefreshCw, Search, CheckCircle2, FileDown,
+  ClipboardList, Percent, Trash2, Package, FileText, Download, RefreshCw, Search, CheckCircle2, FileDown, X,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { generateWasteReportPDF } from "@/lib/pdfReport";
@@ -97,9 +97,18 @@ export function Dashboard() {
   const [materialFilter, setMaterialFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [search, setSearch] = useState("");
-  const [matrixYear, setMatrixYear] = useState<string>(""); // ano para matriz mensal
+  const [numeroFilters, setNumeroFilters] = useState<string[]>([]);
+  const [matrixYear, setMatrixYear] = useState<string>("");
 
   const [kpiDetail, setKpiDetail] = useState<null | { title: string; kg?: number; m2?: number; pct?: number; count?: number; hint?: string }>(null);
+
+  const addNumeroFilter = () => {
+    const v = search.trim();
+    if (!v) return;
+    setNumeroFilters(prev => prev.includes(v) ? prev : [...prev, v]);
+    setSearch("");
+  };
+  const removeNumeroFilter = (v: string) => setNumeroFilters(prev => prev.filter(x => x !== v));
 
   const enriched = useMemo(() => records.map(r => {
     const material = detectMaterial(r.descricao);
@@ -139,37 +148,72 @@ export function Dashboard() {
     const s = startDate ? new Date(startDate).getTime() : 0;
     const e = endDate ? new Date(endDate).getTime() + 86400000 : Infinity;
     const q = search.toLowerCase().trim();
+    const nums = numeroFilters.map(n => n.toLowerCase());
     return enriched.filter((r) => {
       const t = r.data_registro ? new Date(r.data_registro).getTime() : 0;
       if (t < s || t > e) return false;
       if (tipoFilter && r.tipo !== tipoFilter) return false;
       if (materialFilter && r.matKey !== materialFilter) return false;
       if (statusFilter && r.status !== statusFilter) return false;
+      if (nums.length > 0) {
+        const numStr = String(r.numero ?? "").toLowerCase();
+        if (!nums.some(n => numStr === n || numStr.includes(n))) return false;
+      }
       if (q) {
         const hay = `${r.codigo_item ?? ""} ${r.descricao ?? ""} ${r.numero ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [enriched, startDate, endDate, tipoFilter, materialFilter, statusFilter, search]);
+  }, [enriched, startDate, endDate, tipoFilter, materialFilter, statusFilter, search, numeroFilters]);
+
+  // Agrupa por (tipo+numero). Para perda usamos somente a 1ª linha (menor "linha"),
+  // mas os kg/m² somam todas as linhas do grupo.
+  const groups = useMemo(() => {
+    const map = new Map<string, typeof filtered>();
+    filtered.forEach(r => {
+      const key = r.numero !== null ? `${r.tipo ?? ""}#${r.numero}` : `__solo__${r.id}`;
+      const arr = map.get(key);
+      if (arr) arr.push(r); else map.set(key, [r]);
+    });
+    map.forEach(arr => arr.sort((a, b) => (a.linha ?? 1e9) - (b.linha ?? 1e9)));
+    return map;
+  }, [filtered]);
 
   const metrics = useMemo(() => {
-    const totalSolic = filtered.reduce((a, r) => a + r.qtde_kg, 0);
-    const totalRetalho = filtered.reduce((a, r) => a + r.retalho_kg, 0);
-    const totalDesperd = filtered.reduce((a, r) => a + r.qtde_kg * ((r.fator_perda ?? 0) / 100), 0);
+    let totalSolic = 0, totalSolic_m2 = 0, totalRetalho = 0, totalRetalho_m2 = 0;
+    let estoqueBR0140_kg = 0, estoqueBR0140_m2 = 0;
+    filtered.forEach(r => {
+      totalSolic += r.qtde_kg;
+      totalSolic_m2 += r.qtde_m2;
+      totalRetalho += r.retalho_kg;
+      totalRetalho_m2 += r.retalho_m2;
+      if ((r.armazem ?? "").toUpperCase().includes("BR0140")) {
+        estoqueBR0140_kg += r.retalho_kg;
+        estoqueBR0140_m2 += r.retalho_m2;
+      }
+    });
+    let totalDesperd = 0, totalDesperd_m2 = 0;
+    groups.forEach(rows => {
+      const first = rows[0];
+      const fator = (first.fator_perda ?? 0) / 100;
+      const gKg = rows.reduce((a, r) => a + r.qtde_kg, 0);
+      const gM2 = rows.reduce((a, r) => a + r.qtde_m2, 0);
+      totalDesperd += gKg * fator;
+      totalDesperd_m2 += gM2 * fator;
+    });
     const totalProcessado = totalSolic - totalDesperd;
-    const totalSolic_m2 = filtered.reduce((a, r) => a + r.qtde_m2, 0);
-    const totalRetalho_m2 = filtered.reduce((a, r) => a + r.retalho_m2, 0);
-    const totalDesperd_m2 = filtered.reduce((a, r) => a + r.qtde_m2 * ((r.fator_perda ?? 0) / 100), 0);
     const totalProcessado_m2 = totalSolic_m2 - totalDesperd_m2;
-    const validPerda = filtered.filter(r => r.fator_perda !== null);
     const mediaPerda = totalSolic > 0 ? (totalDesperd / totalSolic) * 100 : 0;
-    const itens = new Set(filtered.map(r => r.codigo_item)).size;
-    const totalFPP = filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").length;
-    const fatorMax = filtered.reduce((a, r) => Math.max(a, r.fator_perda ?? 0), 0);
-    const fatorMin = validPerda.length ? validPerda.reduce((a, r) => Math.min(a, r.fator_perda ?? 0), Infinity) : 0;
-    return { totalSolic, totalDesperd, totalProcessado, totalRetalho, totalSolic_m2, totalDesperd_m2, totalProcessado_m2, totalRetalho_m2, mediaPerda, itens, totalFPP, fatorMax, fatorMin };
-  }, [filtered]);
+    const totalFPP = new Set(
+      filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").map(r => r.numero).filter(n => n !== null)
+    ).size;
+    return {
+      totalSolic, totalDesperd, totalProcessado, totalRetalho,
+      totalSolic_m2, totalDesperd_m2, totalProcessado_m2, totalRetalho_m2,
+      mediaPerda, totalFPP, estoqueBR0140_kg, estoqueBR0140_m2,
+    };
+  }, [filtered, groups]);
 
   // === Matriz mensal — base = TODOS os registros (independe dos filtros do topo)
   const availableYears = useMemo(() => {
@@ -190,15 +234,29 @@ export function Dashboard() {
     const matAgg = new Map<MaterialKind, Cell[]>();
     materials.forEach(m => matAgg.set(m, Array.from({ length: 12 }, () => ({ qtde: 0, desp: 0 }))));
 
+    // Agrupa por (tipo+numero) para usar fator só da 1ª linha
+    const localGroups = new Map<string, typeof enriched>();
     enriched.forEach(r => {
       if (!r.data_registro || !materials.includes(r.material)) return;
       if (tipoFilter && r.tipo !== tipoFilter) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
-      const m = d.getMonth();
-      const cell = matAgg.get(r.material)!;
-      cell[m].qtde += r.qtde_kg;
-      cell[m].desp += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
+      const key = r.numero !== null ? `${r.tipo ?? ""}#${r.numero}` : `__solo__${r.id}`;
+      const arr = localGroups.get(key);
+      if (arr) arr.push(r); else localGroups.set(key, [r]);
+    });
+    localGroups.forEach(arr => arr.sort((a, b) => (a.linha ?? 1e9) - (b.linha ?? 1e9)));
+
+    localGroups.forEach(rows => {
+      const first = rows[0];
+      const fator = (first.fator_perda ?? 0) / 100;
+      rows.forEach(r => {
+        const d = new Date(r.data_registro!);
+        const m = d.getMonth();
+        const cell = matAgg.get(r.material)!;
+        cell[m].qtde += r.qtde_kg;
+        cell[m].desp += r.qtde_kg * fator;
+      });
     });
 
     return materials.map(mat => {
@@ -234,13 +292,17 @@ export function Dashboard() {
   // % exibido = média ponderada = totalDespKg / totalQtdeKg
   const topMateriais = useMemo(() => {
     const agg = new Map<string, { qtde: number; desp: number; descricao: string }>();
-    filtered.forEach(r => {
-      if (!r.codigo_item || r.fator_perda === null || r.qtde_kg <= 0) return;
-      const e = agg.get(r.codigo_item) ?? { qtde: 0, desp: 0, descricao: r.descricao ?? "" };
-      e.qtde += r.qtde_kg;
-      e.desp += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
-      if (!e.descricao && r.descricao) e.descricao = r.descricao;
-      agg.set(r.codigo_item, e);
+    groups.forEach(rows => {
+      const first = rows[0];
+      const fator = (first.fator_perda ?? 0) / 100;
+      rows.forEach(r => {
+        if (!r.codigo_item || r.qtde_kg <= 0) return;
+        const e = agg.get(r.codigo_item) ?? { qtde: 0, desp: 0, descricao: r.descricao ?? "" };
+        e.qtde += r.qtde_kg;
+        e.desp += r.qtde_kg * fator;
+        if (!e.descricao && r.descricao) e.descricao = r.descricao;
+        agg.set(r.codigo_item, e);
+      });
     });
     return Array.from(agg.entries())
       .map(([codigo, v]) => ({
@@ -250,9 +312,9 @@ export function Dashboard() {
         desp: +v.desp.toFixed(2),
         media: v.qtde > 0 ? +(v.desp / v.qtde * 100).toFixed(2) : 0,
       }))
-      .sort((a, b) => b.desp - a.desp) // ordena por volume absoluto
+      .sort((a, b) => b.desp - a.desp)
       .slice(0, 10);
-  }, [filtered]);
+  }, [groups]);
 
   const distribuicao = useMemo(() => {
     const buckets = { "0% a 5%": 0, "5% a 10%": 0, "10% a 20%": 0, "Acima de 20%": 0 } as Record<string, number>;
@@ -268,7 +330,7 @@ export function Dashboard() {
   }, [filtered]);
 
   const clearFilters = () => {
-    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setStatusFilter(""); setSearch("");
+    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setStatusFilter(""); setSearch(""); setNumeroFilters([]);
   };
 
   const handleExport = () => {
@@ -303,7 +365,7 @@ export function Dashboard() {
         proc_kg: metrics.totalProcessado, retalho_kg: metrics.totalRetalho,
         solic_m2: metrics.totalSolic_m2, desp_m2: metrics.totalDesperd_m2,
         proc_m2: metrics.totalProcessado_m2, retalho_m2: metrics.totalRetalho_m2,
-        mediaPerda: metrics.mediaPerda, itens: metrics.itens, fpps: metrics.totalFPP,
+        mediaPerda: metrics.mediaPerda, itens: metrics.estoqueBR0140_kg, fpps: metrics.totalFPP,
         registros: filtered.length,
       },
       filtroResumo || "Sem filtros aplicados",
@@ -360,19 +422,9 @@ export function Dashboard() {
         </span>
       </section>
 
-      {/* === MOBILE: pílulas grandes e visuais === */}
-      <section className="md:hidden grid grid-cols-2 gap-3">
-        <BigKpi label="Solicitado" value={fmtNum(metrics.totalSolic)} unit="kg" color="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2 })} />
-        <BigKpi label="Processado" value={fmtNum(metrics.totalProcessado)} unit="kg" color="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2 })} />
-        <BigKpi label="Desperdício" value={fmtNum(metrics.totalDesperd)} unit="kg" color="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2 })} />
-        <BigKpi label="Média" value={fmtPct(metrics.mediaPerda)} unit={`meta ${META_PERDA}%`} color={metrics.mediaPerda > META_PERDA ? "destructive" : "success"} onClick={() => setKpiDetail({ title: "Média Ponderada de Perda", pct: metrics.mediaPerda, hint: `Meta: ${META_PERDA}%` })} />
-        <BigKpi label="Itens" value={fmtInt(metrics.itens)} unit="únicos" color="accent" onClick={() => setKpiDetail({ title: "Itens Únicos", count: metrics.itens, hint: "Códigos distintos no filtro" })} />
-        <BigKpi label="FPPs" value={fmtInt(metrics.totalFPP)} unit="ordens" color="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, hint: "Ordens do tipo FPP" })} />
-      </section>
-
-      {/* === DESKTOP/TV: filtros === */}
-      <section className="hidden md:block bg-card border border-border rounded-xl p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+      {/* === Filtros === */}
+      <section className="bg-card border border-border rounded-xl p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           <Field label="Data inicial">
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
           </Field>
@@ -391,13 +443,37 @@ export function Dashboard() {
               {statuses.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </Field>
-          <Field label="Busca (código, descrição, nº)">
+          <Field label="FPP / FPG (Enter p/ adicionar)">
             <div className="relative">
               <Search className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar…" className={`${inputCls} pl-8`} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNumeroFilter(); } }}
+                placeholder="Nº da FPP/FPG…"
+                className={`${inputCls} pl-8`}
+              />
             </div>
           </Field>
+          <Field label="Ação">
+            <button onClick={addNumeroFilter} type="button" className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
+              + Adicionar ao filtro
+            </button>
+          </Field>
         </div>
+        {numeroFilters.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold self-center">Filtrando FPP/FPG:</span>
+            {numeroFilters.map(n => (
+              <span key={n} className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-2.5 py-1 text-xs font-semibold">
+                {n}
+                <button type="button" onClick={() => removeNumeroFilter(n)} className="hover:bg-primary/25 rounded-full p-0.5">
+                  <X className="size-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="mt-3 flex justify-end">
           <button onClick={clearFilters} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">
             Limpar filtros
@@ -405,18 +481,18 @@ export function Dashboard() {
         </div>
       </section>
 
-      {/* KPIs (desktop) */}
-      <section className="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* KPIs */}
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2 })} />
         <KpiCard label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} icon={CheckCircle2} accent="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2 })} />
         <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2 })} />
         <KpiCard label="Média Ponderada (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média Ponderada de Perda", pct: metrics.mediaPerda, hint: `Meta: ${META_PERDA}%` })} />
-        <KpiCard label="Quantidade de Itens" value={fmtInt(metrics.itens)} icon={Package} accent="success" onClick={() => setKpiDetail({ title: "Itens Únicos", count: metrics.itens, hint: "Códigos distintos no filtro" })} />
-        <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, hint: "Ordens do tipo FPP" })} />
+        <KpiCard label="Qtd estoque BR0140 (kg)" value={fmtNum(metrics.estoqueBR0140_kg)} icon={Package} accent="success" onClick={() => setKpiDetail({ title: "Qtd estoque BR0140", kg: metrics.estoqueBR0140_kg, m2: metrics.estoqueBR0140_m2, hint: "Total de retalho enviado ao armazém BR0140 (conforme filtros)" })} />
+        <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, hint: "Ordens distintas do tipo FPP" })} />
       </section>
 
-      {/* === MATRIZ MENSAL POR CATEGORIA (desktop/TV) === */}
-      <section className="hidden md:block">
+      {/* === MATRIZ MENSAL POR CATEGORIA === */}
+      <section>
         <Panel
           title={`Média de Desperdício por Material — ${yearSel}`}
           right={
@@ -513,8 +589,8 @@ export function Dashboard() {
         </Panel>
       </section>
 
-      {/* Charts row (desktop) */}
-      <section className="hidden md:grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Charts row */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Panel title="Top 10 — Maior volume de desperdício (kg)" className="lg:col-span-2">
           <div className="h-[460px]">
             {topMateriais.length === 0 ? <EmptyChart /> : (
@@ -594,37 +670,8 @@ export function Dashboard() {
       </section>
 
 
-      {/* === MOBILE: top 5 visual === */}
-      <section className="md:hidden">
-        <div className="bg-card border border-border rounded-xl p-4">
-          <h3 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Top 5 Maior Desperdício</h3>
-          {topMateriais.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Sem dados.</p>
-          ) : (
-            <ul className="space-y-3">
-              {topMateriais.slice(0, 5).map(m => {
-                const max = topMateriais[0].desp || 1;
-                const pct = (m.desp / max) * 100;
-                return (
-                  <li key={m.codigo} className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-mono truncate max-w-[60%]">{m.codigo}</span>
-                      <span className="text-destructive font-semibold">{fmtNum(m.desp)} kg</span>
-                    </div>
-                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full bg-destructive rounded-full" style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="text-[10px] text-muted-foreground truncate">{m.descricao} · {fmtPct(m.media)}</div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </section>
-
-      {/* Detail table (desktop only) */}
-      <section className="hidden md:block bg-card border border-border rounded-xl overflow-hidden">
+      {/* Detail table */}
+      <section className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
             Detalhamento das Solicitações
@@ -635,7 +682,7 @@ export function Dashboard() {
           <table className="w-full text-sm">
             <thead className="bg-secondary/40 sticky top-0">
               <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Qtde (kg)", "Data", "Retalho (kg)", "Status"].map(h => (
+                {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Qtde (kg)", "Data", "Status"].map(h => (
                   <th key={h} className="px-3 py-2 font-medium">{h}</th>
                 ))}
               </tr>
@@ -652,12 +699,11 @@ export function Dashboard() {
                   <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
                   <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
                   <td className="px-3 py-2 text-muted-foreground text-xs">{fmtDate(r.data_registro)}</td>
-                  <td className="px-3 py-2">{r.retalho_kg > 0 ? fmtNum(r.retalho_kg) : "—"}</td>
                   <td className="px-3 py-2"><span className="text-xs text-success">{r.status}</span></td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={11} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro. Importe uma planilha na aba "Importar Planilha".</td></tr>
+                <tr><td colSpan={10} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro. Importe uma planilha na aba "Importar Planilha".</td></tr>
               )}
             </tbody>
           </table>
@@ -741,23 +787,3 @@ function Panel({ title, children, className = "", right }: { title: string; chil
   );
 }
 
-function BigKpi({ label, value, unit, color, onClick }: { label: string; value: string; unit: string; color: "primary" | "success" | "destructive" | "accent"; onClick?: () => void }) {
-  const map = {
-    primary: "from-primary/25 to-primary/5 text-primary",
-    success: "from-success/25 to-success/5 text-success",
-    destructive: "from-destructive/25 to-destructive/5 text-destructive",
-    accent: "from-accent/25 to-accent/5 text-accent",
-  };
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${map[color]} p-4 text-left ${onClick ? "cursor-pointer active:scale-[0.98] transition-transform" : "cursor-default"}`}
-    >
-      <div className="text-[10px] uppercase tracking-wider font-semibold opacity-80">{label}</div>
-      <div className="mt-1 text-2xl font-extrabold text-foreground leading-tight">{value}</div>
-      <div className="text-[10px] text-muted-foreground mt-0.5">{unit}</div>
-    </button>
-  );
-}
