@@ -74,12 +74,10 @@ function sameMonth(a: Date, b: Date) { return a.getFullYear() === b.getFullYear(
 function sameYear(a: Date, b: Date) { return a.getFullYear() === b.getFullYear(); }
 function sameDay(a: Date, b: Date) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 
-/** Diferença em dias corridos entre data programação (B) e data fim programação (K), sempre positiva. */
-function atravessDias(dtProg: string, dtFimProg: string): number | null {
-  const a = new Date(dtProg).getTime();
-  const b = new Date(dtFimProg).getTime();
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-  return Math.abs(a - b) / 86400000;
+/** Dias de atravessamento já calculados pela planilha (coluna P = "tempo de execução", em dias úteis). */
+function atravessDias(colP: number | null): number | null {
+  if (colP === null || colP === undefined) return null;
+  return Math.abs(colP);
 }
 
 export function ProductionDashboard() {
