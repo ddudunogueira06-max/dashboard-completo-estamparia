@@ -250,12 +250,12 @@ export function ProductionDashboard() {
     });
   }, [inPeriod, machineFilter, capLimitHours]);
 
-  // Atravessamento: coluna P (dias úteis já calculados na planilha) ≤ 3 (no período)
+  // Atravessamento: dias úteis entre Data Prog. (B) e Data Fim Prog. (K) ≤ 3 (no período)
   const atravess = useMemo(() => {
     let dentro = 0, total = 0;
     const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_prog: string | null }[] = [];
     inPeriod.forEach(r => {
-      const dias = atravessDias(r.tempo_execucao_seg);
+      const dias = atravessDias(r.dt_prog, r.dt_fim_prog);
       if (dias === null) return;
       total++;
       const ok = dias <= ATRAVESSAMENTO_LIMITE_DIAS;
@@ -492,7 +492,7 @@ export function ProductionDashboard() {
 
       <div className="text-xs text-muted-foreground">
         * Capacidade considera o período selecionado e o campo TEMPO FPP da planilha (75h/semana por máquina).
-        Urgente = PRODUTO contém "URGENTE". Atravessamento = coluna P (TEMPO DE EXECUÇÃO), em dias úteis já calculados pela planilha; dentro do prazo quando ≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias.
+        Urgente = PRODUTO contém "URGENTE". Atravessamento = dias úteis entre Data Prog. (B) e Data Fim Prog. (K), descontando fins de semana, feriados de Curitiba e dias ponte; dentro do prazo quando ≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias.
         Período padrão "Ano" para mostrar as urgências de todas as máquinas (semana/mês mostram apenas o que foi programado naquele intervalo).
         Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
       </div>
