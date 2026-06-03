@@ -485,8 +485,46 @@ export function ProductionDashboard() {
       </section>
 
 
+      {/* Gráfico semanal de FPPs (destaque) */}
+      <section className="bg-card border border-border rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+          <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground inline-flex items-center gap-2">
+            <CalendarDays className="size-4" /> FPPs por semana · {rangeLabel}
+          </h3>
+          <span className="text-[11px] text-muted-foreground">
+            Média <span className="text-foreground font-semibold">{fmtNum(avgFppPerWeek, 1)}</span> FPPs/semana · <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)}</span> FPPs/dia
+          </span>
+        </div>
+        <div className="h-[360px]">
+          {weekly.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+              Sem dados no período selecionado.
+            </div>
+          ) : (
+            <ResponsiveContainer>
+              <BarChart data={weekly} margin={{ left: 8, right: 16, top: 20, bottom: 10 }}>
+                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={11} interval={0} angle={weekly.length > 8 ? -25 : 0} textAnchor={weekly.length > 8 ? "end" : "middle"} height={weekly.length > 8 ? 56 : 30} />
+                <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: "oklch(0.3 0.03 250 / 0.25)" }}
+                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
+                  formatter={(v: number, n) => [n === "horas" ? `${v.toFixed(1)}h` : `${v} FPPs`, n === "horas" ? "Horas" : "FPPs"]}
+                />
+                <ReferenceLine y={avgFppPerWeek} stroke="oklch(0.85 0.18 90)" strokeDasharray="5 4" strokeWidth={1.5}
+                  label={{ value: `méd ${avgFppPerWeek.toFixed(1)}`, position: "right", fill: "oklch(0.85 0.18 90)", fontSize: 11 }} />
+                <Bar dataKey="fpps" fill="oklch(0.72 0.15 215)" radius={[6, 6, 0, 0]} maxBarSize={64}>
+                  <LabelList dataKey="fpps" position="top" fill="oklch(0.95 0.01 240)" fontSize={12} fontWeight={700} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </section>
+
       {/* Capacidade por máquina + velocímetro */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
         <div className="lg:col-span-2 bg-card border border-border rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
