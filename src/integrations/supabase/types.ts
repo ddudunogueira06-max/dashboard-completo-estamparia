@@ -14,6 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
+      production_imports: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          filename: string
+          id: string
+          inserted_rows: number
+          skipped_rows: number
+          status: string
+          total_rows: number
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          filename: string
+          id?: string
+          inserted_rows?: number
+          skipped_rows?: number
+          status?: string
+          total_rows?: number
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          filename?: string
+          id?: string
+          inserted_rows?: number
+          skipped_rows?: number
+          status?: string
+          total_rows?: number
+        }
+        Relationships: []
+      }
+      production_records: {
+        Row: {
+          cliente: string | null
+          created_at: string
+          data_rg: string | null
+          dt_fim_agrup: string | null
+          dt_fim_estamparia: string | null
+          dt_fim_prog: string | null
+          dt_pacote: string | null
+          dt_prog: string | null
+          fpp: string | null
+          id: string
+          import_id: string | null
+          item: string | null
+          linha: string | null
+          maquina: number | null
+          produto: string | null
+          seq: number | null
+          tempo_execucao_seg: number | null
+          tempo_fpp_seg: number | null
+        }
+        Insert: {
+          cliente?: string | null
+          created_at?: string
+          data_rg?: string | null
+          dt_fim_agrup?: string | null
+          dt_fim_estamparia?: string | null
+          dt_fim_prog?: string | null
+          dt_pacote?: string | null
+          dt_prog?: string | null
+          fpp?: string | null
+          id?: string
+          import_id?: string | null
+          item?: string | null
+          linha?: string | null
+          maquina?: number | null
+          produto?: string | null
+          seq?: number | null
+          tempo_execucao_seg?: number | null
+          tempo_fpp_seg?: number | null
+        }
+        Update: {
+          cliente?: string | null
+          created_at?: string
+          data_rg?: string | null
+          dt_fim_agrup?: string | null
+          dt_fim_estamparia?: string | null
+          dt_fim_prog?: string | null
+          dt_pacote?: string | null
+          dt_prog?: string | null
+          fpp?: string | null
+          id?: string
+          import_id?: string | null
+          item?: string | null
+          linha?: string | null
+          maquina?: number | null
+          produto?: string | null
+          seq?: number | null
+          tempo_execucao_seg?: number | null
+          tempo_fpp_seg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_records_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "production_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       waste_imports: {
         Row: {
           created_at: string

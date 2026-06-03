@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
-import { BarChart3, Upload, Boxes, Menu, X, PanelLeft } from "lucide-react";
+import { BarChart3, Upload, Boxes, Menu, X, PanelLeft, Gauge, FileUp } from "lucide-react";
 
 export function AppLayout() {
   const { pathname } = useLocation();
@@ -8,8 +8,10 @@ export function AppLayout() {
   const [expanded, setExpanded] = useState(false); // desktop expand
 
   const navItems = [
-    { to: "/", label: "Dashboard", icon: BarChart3 },
-    { to: "/importar", label: "Importar Planilha", icon: Upload },
+    { to: "/", label: "Desperdícios", icon: BarChart3 },
+    { to: "/importar", label: "Importar Desperdício", icon: Upload },
+    { to: "/producao", label: "Produção", icon: Gauge },
+    { to: "/importar-producao", label: "Importar Produção", icon: FileUp },
   ];
 
   const desktopW = expanded ? "w-56" : "w-16";

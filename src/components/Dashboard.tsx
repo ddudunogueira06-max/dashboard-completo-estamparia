@@ -99,7 +99,7 @@ export function Dashboard() {
   const [search, setSearch] = useState("");
   const [numeroFilters, setNumeroFilters] = useState<string[]>([]);
   const [matrixYear, setMatrixYear] = useState<string>("");
-  const [weekSel, setWeekSel] = useState<string>(""); // "" = semana atual
+  const [monthSel, setMonthSel] = useState<string>(""); // "" = mês atual com dados (1-12)
 
   const [kpiDetail, setKpiDetail] = useState<null | { title: string; kg?: number; m2?: number; pct?: number; count?: number; hint?: string }>(null);
 
@@ -619,35 +619,39 @@ export function Dashboard() {
         </Panel>
       </section>
 
-      {/* === SEMANA ATUAL (Seg–Sex) === */}
+      {/* === DESPERDÍCIO POR SEMANA DENTRO DO MÊS (Seg–Sex) === */}
       <section>
         {(() => {
           const weeks = weeklyMatrix.weeks;
-          // semana atual = mais recente com dados (default), ou semana selecionada
-          const defaultKey = weeks.length > 0 ? weeks[weeks.length - 1].key : "";
-          const activeKey = weekSel && weeks.some(w => w.key === weekSel) ? weekSel : defaultKey;
-          const idx = weeks.findIndex(w => w.key === activeKey);
-          const activeWeek = idx >= 0 ? weeks[idx] : null;
+          // detecta meses disponíveis (a partir de uma data label dd/mm)
+          const monthsWithData = Array.from(new Set(weeks.map(w => {
+            const [, mm] = w.label.split("–")[0].split("/");
+            return mm;
+          }))).sort();
+          const defaultMonth = monthsWithData[monthsWithData.length - 1] ?? "";
+          const activeMonth = monthSel && monthsWithData.includes(monthSel) ? monthSel : defaultMonth;
+          const weekIdxOfMonth = weeks
+            .map((w, i) => ({ w, i }))
+            .filter(({ w }) => w.label.split("–")[0].split("/")[1] === activeMonth);
+          const monthLabel = activeMonth ? MONTH_NAMES[Number(activeMonth) - 1] : "—";
           return (
             <Panel
-              title={`Desperdício da Semana (Seg–Sex)${activeWeek ? ` — ${activeWeek.label}` : ""}`}
+              title={`Desperdício por Semana — ${monthLabel}/${yearSel}`}
               right={
                 <select
-                  value={activeKey}
-                  onChange={(e) => setWeekSel(e.target.value)}
-                  className={`${inputCls} max-w-[180px] py-1 text-xs`}
+                  value={activeMonth}
+                  onChange={(e) => setMonthSel(e.target.value)}
+                  className={`${inputCls} max-w-[140px] py-1 text-xs`}
                 >
-                  {weeks.length === 0 && <option value="">Sem semanas</option>}
-                  {weeks.slice().reverse().map((w, i) => (
-                    <option key={w.key} value={w.key}>
-                      {i === 0 ? `${w.label} (atual)` : w.label}
-                    </option>
+                  {monthsWithData.length === 0 && <option value="">Sem dados</option>}
+                  {monthsWithData.map(m => (
+                    <option key={m} value={m}>{MONTH_NAMES[Number(m) - 1]}</option>
                   ))}
                 </select>
               }
             >
-              {!activeWeek ? (
-                <div className="py-10 text-center text-sm text-muted-foreground">Sem dados semanais para o ano selecionado.</div>
+              {weekIdxOfMonth.length === 0 ? (
+                <div className="py-10 text-center text-sm text-muted-foreground">Sem dados semanais para o mês selecionado.</div>
               ) : (
                 <div className="overflow-auto">
                   <table className="w-full text-sm border-separate border-spacing-0">
@@ -655,13 +659,21 @@ export function Dashboard() {
                       <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
                         <th className="text-left px-3 py-2 bg-secondary/40 rounded-l-md">Indicador</th>
                         <th className="px-2 py-2 bg-secondary/40">Meta</th>
-                        <th className="px-2 py-2 bg-secondary/40 rounded-r-md">Semana ({activeWeek.label})</th>
+                        {weekIdxOfMonth.map(({ w }) => (
+                          <th key={w.key} className="px-2 py-2 bg-secondary/40 whitespace-nowrap">{w.label}</th>
+                        ))}
+                        <th className="px-2 py-2 bg-secondary/40 rounded-r-md">Média<br/>do Mês</th>
                       </tr>
                     </thead>
                     <tbody>
                       {weeklyMatrix.rows.map(row => {
                         const meta = META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">];
-                        const v = row.weekly[idx];
+                        const monthVals = weekIdxOfMonth
+                          .map(({ i }) => row.weekly[i])
+                          .filter((v): v is number => v !== null && v !== undefined);
+                        const mediaMes = monthVals.length > 0
+                          ? +(monthVals.reduce((a, b) => a + b, 0) / monthVals.length).toFixed(2)
+                          : null;
                         return (
                           <tr key={row.key} className="border-t border-border bg-secondary/30">
                             <td className="px-3 py-2.5 whitespace-nowrap font-bold uppercase text-xs tracking-wider">
@@ -669,9 +681,19 @@ export function Dashboard() {
                               {row.label}
                             </td>
                             <td className="px-2 py-2.5 text-center text-muted-foreground font-medium">{meta.toFixed(2)}%</td>
+                            {weekIdxOfMonth.map(({ w, i }) => {
+                              const v = row.weekly[i];
+                              return (
+                                <td key={w.key} className="px-2 py-2.5 text-center font-mono">
+                                  {v === null || v === undefined ? <span className="text-muted-foreground/50">—</span> : (
+                                    <span className={v > meta ? "text-destructive font-semibold" : "text-success font-medium"}>{fmtPct(v)}</span>
+                                  )}
+                                </td>
+                              );
+                            })}
                             <td className="px-2 py-2.5 text-center font-mono font-bold">
-                              {v === null || v === undefined ? <span className="text-muted-foreground/50">—</span> : (
-                                <span className={v > meta ? "text-destructive" : "text-success"}>{fmtPct(v)}</span>
+                              {mediaMes === null ? "—" : (
+                                <span className={mediaMes > meta ? "text-destructive" : "text-success"}>{fmtPct(mediaMes)}</span>
                               )}
                             </td>
                           </tr>
@@ -685,6 +707,7 @@ export function Dashboard() {
           );
         })()}
       </section>
+
 
 
 
