@@ -417,7 +417,7 @@ export function ProductionDashboard() {
         <div className="lg:col-span-2 bg-card border border-border rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-              Capacidade · {PERIOD_LABEL[period]} ({Math.round(capLimitHours)}h por máquina)
+              Capacidade · {rangeLabel} ({Math.round(capLimitHours)}h por máquina)
             </h3>
             <div className="flex items-center gap-3 text-[11px]">
               <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.62 0.23 25)" }} /> Urgente</span>
