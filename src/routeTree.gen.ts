@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppProducaoRouteImport } from './routes/_app.producao'
+import { Route as AppImportarProducaoRouteImport } from './routes/_app.importar-producao'
 import { Route as AppImportarRouteImport } from './routes/_app.importar'
 
 const AppRoute = AppRouteImport.update({
@@ -22,6 +24,16 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProducaoRoute = AppProducaoRouteImport.update({
+  id: '/producao',
+  path: '/producao',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppImportarProducaoRoute = AppImportarProducaoRouteImport.update({
+  id: '/importar-producao',
+  path: '/importar-producao',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppImportarRoute = AppImportarRouteImport.update({
   id: '/importar',
   path: '/importar',
@@ -31,23 +43,35 @@ const AppImportarRoute = AppImportarRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/importar': typeof AppImportarRoute
+  '/importar-producao': typeof AppImportarProducaoRoute
+  '/producao': typeof AppProducaoRoute
 }
 export interface FileRoutesByTo {
   '/importar': typeof AppImportarRoute
+  '/importar-producao': typeof AppImportarProducaoRoute
+  '/producao': typeof AppProducaoRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_app/importar': typeof AppImportarRoute
+  '/_app/importar-producao': typeof AppImportarProducaoRoute
+  '/_app/producao': typeof AppProducaoRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/importar'
+  fullPaths: '/' | '/importar' | '/importar-producao' | '/producao'
   fileRoutesByTo: FileRoutesByTo
-  to: '/importar' | '/'
-  id: '__root__' | '/_app' | '/_app/importar' | '/_app/'
+  to: '/importar' | '/importar-producao' | '/producao' | '/'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/_app/importar'
+    | '/_app/importar-producao'
+    | '/_app/producao'
+    | '/_app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -70,6 +94,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/producao': {
+      id: '/_app/producao'
+      path: '/producao'
+      fullPath: '/producao'
+      preLoaderRoute: typeof AppProducaoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/importar-producao': {
+      id: '/_app/importar-producao'
+      path: '/importar-producao'
+      fullPath: '/importar-producao'
+      preLoaderRoute: typeof AppImportarProducaoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/importar': {
       id: '/_app/importar'
       path: '/importar'
@@ -82,11 +120,15 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppImportarRoute: typeof AppImportarRoute
+  AppImportarProducaoRoute: typeof AppImportarProducaoRoute
+  AppProducaoRoute: typeof AppProducaoRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppImportarRoute: AppImportarRoute,
+  AppImportarProducaoRoute: AppImportarProducaoRoute,
+  AppProducaoRoute: AppProducaoRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
@@ -98,3 +140,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
