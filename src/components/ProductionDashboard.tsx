@@ -417,9 +417,11 @@ export function ProductionDashboard() {
 
       <div className="text-xs text-muted-foreground">
         * Capacidade considera o período selecionado e o campo TEMPO FPP da planilha (75h/semana por máquina).
-        Urgente = PRODUTO contém "URGENTE". Atravessamento = |DATA PROG (col. B) − DATA FIM PROG (col. K)| em dias corridos.
+        Urgente = PRODUTO contém "URGENTE". Atravessamento = coluna P (TEMPO DE EXECUÇÃO), em dias úteis já calculados pela planilha; dentro do prazo quando ≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias.
+        Período padrão "Ano" para mostrar as urgências de todas as máquinas (semana/mês mostram apenas o que foi programado naquele intervalo).
         Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
       </div>
+
 
       <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
         <DialogContent>
