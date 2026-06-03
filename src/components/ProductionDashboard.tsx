@@ -177,13 +177,8 @@ export function ProductionDashboard() {
     return "todo o período";
   }, [fromDate, toDate, dateFrom, dateTo]);
 
-  const setPreset = (days: number | "all" | "today") => {
-    if (days === "all") { setDateFrom(""); setDateTo(""); return; }
-    const end = new Date();
-    setDateTo(ymd(end));
-    if (days === "today") { setDateFrom(ymd(end)); return; }
-    setDateFrom(ymd(addDays(end, -(days - 1))));
-  };
+
+
 
   // Filtro base: máquina + urgência (intervalo de datas é aplicado em inPeriod)
   const filtered = useMemo(() => {
