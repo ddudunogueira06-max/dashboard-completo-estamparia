@@ -5,9 +5,9 @@ import { KpiCard } from "@/components/KpiCard";
 import { Gauge } from "@/components/Gauge";
 import { fmtInt, fmtNum, fmtDate } from "@/lib/format";
 import {
-  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, LabelList,
+  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, LabelList, ReferenceLine,
 } from "recharts";
-import { Zap, Clock, Gauge as GaugeIcon, Factory, RefreshCw, ListChecks, ChevronDown, ChevronUp, Scissors, LayoutGrid } from "lucide-react";
+import { Zap, Clock, Gauge as GaugeIcon, Factory, RefreshCw, ListChecks, ChevronDown, ChevronUp, Scissors, LayoutGrid, CalendarDays, TrendingUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface ProdRecord {
@@ -177,13 +177,8 @@ export function ProductionDashboard() {
     return "todo o período";
   }, [fromDate, toDate, dateFrom, dateTo]);
 
-  const setPreset = (days: number | "all" | "today") => {
-    if (days === "all") { setDateFrom(""); setDateTo(""); return; }
-    const end = new Date();
-    setDateTo(ymd(end));
-    if (days === "today") { setDateFrom(ymd(end)); return; }
-    setDateFrom(ymd(addDays(end, -(days - 1))));
-  };
+
+
 
   // Filtro base: máquina + urgência (intervalo de datas é aplicado em inPeriod)
   const filtered = useMemo(() => {
@@ -305,6 +300,63 @@ export function ProductionDashboard() {
   // Distintas no intervalo selecionado (para as pílulas)
   const fppPeriod = useMemo(() => new Set(inPeriod.map(r => r.fpp).filter(Boolean)).size, [inPeriod]);
 
+  // Média de FPPs concluídas por dia útil (capacidade média/dia) — total e por máquina
+  const perDay = useMemo(() => {
+    const byDay = new Map<string, Set<string>>();
+    const byMachineDay = new Map<number, Map<string, Set<string>>>();
+    inPeriod.forEach(r => {
+      const ref = parseLocalDate(r.dt_prog);
+      if (!ref || !isWorkingDay(ref) || !r.fpp) return;
+      const dk = ymd(ref);
+      let s = byDay.get(dk);
+      if (!s) { s = new Set(); byDay.set(dk, s); }
+      s.add(r.fpp);
+      const m = r.maquina ?? 0;
+      let mm = byMachineDay.get(m);
+      if (!mm) { mm = new Map(); byMachineDay.set(m, mm); }
+      let ms = mm.get(dk);
+      if (!ms) { ms = new Set(); mm.set(dk, ms); }
+      ms.add(r.fpp);
+    });
+    const days = byDay.size;
+    let total = 0;
+    byDay.forEach(s => { total += s.size; });
+    const perMachine = [...byMachineDay.entries()].map(([m, mm]) => {
+      let t = 0;
+      mm.forEach(s => { t += s.size; });
+      return { machine: m, avg: mm.size > 0 ? t / mm.size : 0, days: mm.size };
+    }).sort((a, b) => a.machine - b.machine);
+    return { avg: days > 0 ? total / days : 0, days, total, perMachine };
+  }, [inPeriod]);
+
+  // Agregação semanal (Seg–Sex) de FPPs distintas por Data Prog. dentro do intervalo
+  const weekly = useMemo(() => {
+    const map = new Map<string, { start: Date; fpps: Set<string>; horas: number }>();
+    inPeriod.forEach(r => {
+      const ref = parseLocalDate(r.dt_prog);
+      if (!ref) return;
+      const mon = startOfWeek(ref);
+      const key = ymd(mon);
+      let wk = map.get(key);
+      if (!wk) { wk = { start: mon, fpps: new Set(), horas: 0 }; map.set(key, wk); }
+      if (r.fpp) wk.fpps.add(r.fpp);
+      wk.horas += (r.tempo_fpp_seg ?? 0) / 3600;
+    });
+    const fmt = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, w]) => {
+        const fri = addDays(w.start, 4);
+        return { key, label: `${fmt(w.start)}–${fmt(fri)}`, fpps: w.fpps.size, horas: +w.horas.toFixed(1) };
+      });
+  }, [inPeriod]);
+
+  const avgFppPerWeek = useMemo(() => {
+    if (weekly.length === 0) return 0;
+    return weekly.reduce((a, w) => a + w.fpps, 0) / weekly.length;
+  }, [weekly]);
+
+
   const openTempoDetail = (kind: "urg" | "nor") => {
     const data = tempos[kind];
     setDetail({
@@ -351,54 +403,74 @@ export function ProductionDashboard() {
       </header>
 
       {/* Filtros */}
-      <section className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">De</label>
-          <input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)}
-            className="rounded-md border border-border bg-card px-3 py-2 text-sm" />
+      <section className="bg-card border border-border rounded-xl p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label className="block space-y-1">
+            <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Data inicial</span>
+            <input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} className={inputCls} />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Data final</span>
+            <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} className={inputCls} />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Máquina</span>
+            <select value={machineFilter} onChange={(e) => setMachineFilter(e.target.value)} className={inputCls}>
+              <option value="">Todas as máquinas</option>
+              {MACHINES.map(m => <option key={m} value={String(m)}>Máquina {m}</option>)}
+            </select>
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Urgência</span>
+            <select value={urgencyFilter} onChange={(e) => setUrgencyFilter(e.target.value)} className={inputCls}>
+              <option value="">Urgente + Normal</option>
+              <option value="urg">Somente urgentes</option>
+              <option value="nor">Somente normais</option>
+            </select>
+          </label>
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Até</label>
-          <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)}
-            className="rounded-md border border-border bg-card px-3 py-2 text-sm" />
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-[11px] text-muted-foreground">Período: <span className="text-foreground font-medium">{rangeLabel}</span></span>
+          <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">
+            Limpar datas
+          </button>
         </div>
-        <div className="inline-flex rounded-md border border-border bg-card p-1">
-          <button onClick={() => setPreset("today")} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">Hoje</button>
-          <button onClick={() => setPreset(7)} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">7 dias</button>
-          <button onClick={() => setPreset(30)} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">30 dias</button>
-          <button onClick={() => setPreset("all")} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">Tudo</button>
+      </section>
+
+
+      {/* Destaque — média de FPPs por dia (capacidade média) */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div className="lg:col-span-1 bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 rounded-xl p-4 flex items-center gap-4">
+          <div className="size-14 rounded-xl grid place-items-center bg-primary/20 text-primary shrink-0">
+            <TrendingUp className="size-7" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Média de FPPs por dia</div>
+            <div className="text-3xl font-extrabold leading-tight text-foreground">{fmtNum(perDay.avg, 1)}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{fmtInt(perDay.total)} FPPs em {fmtInt(perDay.days)} dias úteis</div>
+          </div>
         </div>
-        <select value={machineFilter} onChange={(e) => setMachineFilter(e.target.value)}
-          className="rounded-md border border-border bg-card px-3 py-2 text-sm">
-          <option value="">Todas as máquinas</option>
-          {MACHINES.map(m => <option key={m} value={String(m)}>Máquina {m}</option>)}
-        </select>
-        <select value={urgencyFilter} onChange={(e) => setUrgencyFilter(e.target.value)}
-          className="rounded-md border border-border bg-card px-3 py-2 text-sm">
-          <option value="">Urgente + Normal</option>
-          <option value="urg">Somente urgentes</option>
-          <option value="nor">Somente normais</option>
-        </select>
+        <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+          <KpiCard label="Programação Punch · méd/dia" value={fmtNum(perDay.avg, 1)} icon={Scissors} accent="warning"
+            hint={`${fmtInt(fppPeriod)} FPPs no período · base única`}
+            onClick={() => openFppDetail("Programação Punch (FPPs)")} />
+          <KpiCard label="Programação Nest · méd/dia" value={fmtNum(perDay.avg, 1)} icon={LayoutGrid} accent="accent"
+            hint={`${fmtInt(fppPeriod)} FPPs no período · base única`}
+            onClick={() => openFppDetail("Programação Nest (FPPs)")} />
+        </div>
       </section>
 
       {/* Pílulas principais */}
-      <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Tempo de Urgência" value={fmtHM(urgPeriod)} icon={Zap} accent="destructive"
           hint={`Mês ${fmtHM(tempos.urg.month)} · Ano ${fmtHM(tempos.urg.year)}`}
           onClick={() => openTempoDetail("urg")} />
         <KpiCard label="Horas Normais" value={fmtHM(norPeriod)} icon={Clock} accent="primary"
           hint={`Mês ${fmtHM(tempos.nor.month)} · Ano ${fmtHM(tempos.nor.year)}`}
           onClick={() => openTempoDetail("nor")} />
-        <KpiCard label="Programação Punch" value={fmtInt(fppPeriod)} icon={Scissors} accent="warning"
-          hint={`${fmtInt(fppPeriod)} FPPs · mesmo dado (sem separação ainda)`}
-          onClick={() => openFppDetail("Programação Punch (FPPs)")} />
-        <KpiCard label="Programação Nest" value={fmtInt(fppPeriod)} icon={LayoutGrid} accent="accent"
-          hint={`${fmtInt(fppPeriod)} FPPs · mesmo dado (sem separação ainda)`}
-          onClick={() => openFppDetail("Programação Nest (FPPs)")} />
-        <KpiCard label="FPPs" value={fmtInt(fppPeriod)} icon={Factory} accent="primary"
+        <KpiCard label="FPPs no período" value={fmtInt(fppPeriod)} icon={Factory} accent="primary"
           hint={`Hoje ${fmtInt(fppCounts.day)} · Total ${fmtInt(fppCounts.total)}`}
           onClick={() => openFppDetail("FPPs por período")} />
-
         <KpiCard label="Atravessamento ≤ 3 dias" value={`${atravess.pct.toFixed(1)}%`} icon={GaugeIcon} accent="success"
           hint={`${fmtInt(atravess.dentro)} de ${fmtInt(atravess.total)} FPPs`}
           onClick={() => setDetail({
@@ -412,8 +484,47 @@ export function ProductionDashboard() {
           })} />
       </section>
 
+
+      {/* Gráfico semanal de FPPs (destaque) */}
+      <section className="bg-card border border-border rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+          <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground inline-flex items-center gap-2">
+            <CalendarDays className="size-4" /> FPPs por semana · {rangeLabel}
+          </h3>
+          <span className="text-[11px] text-muted-foreground">
+            Média <span className="text-foreground font-semibold">{fmtNum(avgFppPerWeek, 1)}</span> FPPs/semana · <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)}</span> FPPs/dia
+          </span>
+        </div>
+        <div className="h-[360px]">
+          {weekly.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+              Sem dados no período selecionado.
+            </div>
+          ) : (
+            <ResponsiveContainer>
+              <BarChart data={weekly} margin={{ left: 8, right: 16, top: 20, bottom: 10 }}>
+                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={11} interval={0} angle={weekly.length > 8 ? -25 : 0} textAnchor={weekly.length > 8 ? "end" : "middle"} height={weekly.length > 8 ? 56 : 30} />
+                <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: "oklch(0.3 0.03 250 / 0.25)" }}
+                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
+                  formatter={(v: number, n) => [n === "horas" ? `${v.toFixed(1)}h` : `${v} FPPs`, n === "horas" ? "Horas" : "FPPs"]}
+                />
+                <ReferenceLine y={avgFppPerWeek} stroke="oklch(0.85 0.18 90)" strokeDasharray="5 4" strokeWidth={1.5}
+                  label={{ value: `méd ${avgFppPerWeek.toFixed(1)}`, position: "right", fill: "oklch(0.85 0.18 90)", fontSize: 11 }} />
+                <Bar dataKey="fpps" fill="oklch(0.72 0.15 215)" radius={[6, 6, 0, 0]} maxBarSize={64}>
+                  <LabelList dataKey="fpps" position="top" fill="oklch(0.95 0.01 240)" fontSize={12} fontWeight={700} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </section>
+
       {/* Capacidade por máquina + velocímetro */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
         <div className="lg:col-span-2 bg-card border border-border rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
@@ -549,6 +660,8 @@ export function ProductionDashboard() {
     </div>
   );
 }
+
+const inputCls = "w-full rounded-md border border-input bg-input/40 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring/50";
 
 // Silence eslint: fmtNum used elsewhere
 void fmtNum;
