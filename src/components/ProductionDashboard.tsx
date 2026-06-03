@@ -74,12 +74,10 @@ function sameMonth(a: Date, b: Date) { return a.getFullYear() === b.getFullYear(
 function sameYear(a: Date, b: Date) { return a.getFullYear() === b.getFullYear(); }
 function sameDay(a: Date, b: Date) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 
-/** Diferença em dias corridos entre data programação (B) e data fim programação (K), sempre positiva. */
-function atravessDias(dtProg: string, dtFimProg: string): number | null {
-  const a = new Date(dtProg).getTime();
-  const b = new Date(dtFimProg).getTime();
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-  return Math.abs(a - b) / 86400000;
+/** Dias de atravessamento já calculados pela planilha (coluna P = "tempo de execução", em dias úteis). */
+function atravessDias(colP: number | null): number | null {
+  if (colP === null || colP === undefined) return null;
+  return Math.abs(colP);
 }
 
 export function ProductionDashboard() {
@@ -88,7 +86,7 @@ export function ProductionDashboard() {
   });
 
   const [machineFilter, setMachineFilter] = useState<string>(""); // "" all, or "2000"
-  const [period, setPeriod] = useState<Period>("week");
+  const [period, setPeriod] = useState<Period>("year");
   const [urgencyFilter, setUrgencyFilter] = useState<string>(""); // "", "urg", "nor"
   const [showTable, setShowTable] = useState(false);
   const [detail, setDetail] = useState<null | { title: string; rows: { label: string; value: string }[] }>(null);
@@ -177,18 +175,17 @@ export function ProductionDashboard() {
     });
   }, [inPeriod, machineFilter, capLimitHours]);
 
-  // Atravessamento: |DT PROG (B) − DT FIM PROG (K)| em dias corridos ≤ 3 (no período)
+  // Atravessamento: coluna P (dias úteis já calculados na planilha) ≤ 3 (no período)
   const atravess = useMemo(() => {
     let dentro = 0, total = 0;
     const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_prog: string | null }[] = [];
     inPeriod.forEach(r => {
-      if (!r.dt_prog || !r.dt_fim_prog) return;
-      const dias = atravessDias(r.dt_prog, r.dt_fim_prog);
+      const dias = atravessDias(r.tempo_execucao_seg);
       if (dias === null) return;
       total++;
       const ok = dias <= ATRAVESSAMENTO_LIMITE_DIAS;
       if (ok) dentro++;
-      detalhes.push({ fpp: r.fpp, dias: +dias.toFixed(2), dentro: ok, dt_prog: r.dt_prog, dt_fim_prog: r.dt_fim_prog });
+      detalhes.push({ fpp: r.fpp, dias: +dias.toFixed(0), dentro: ok, dt_prog: r.dt_prog, dt_fim_prog: r.dt_fim_prog });
     });
     return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, detalhes: detalhes.sort((a, b) => b.dias - a.dias) };
   }, [inPeriod]);
@@ -420,9 +417,11 @@ export function ProductionDashboard() {
 
       <div className="text-xs text-muted-foreground">
         * Capacidade considera o período selecionado e o campo TEMPO FPP da planilha (75h/semana por máquina).
-        Urgente = PRODUTO contém "URGENTE". Atravessamento = |DATA PROG (col. B) − DATA FIM PROG (col. K)| em dias corridos.
+        Urgente = PRODUTO contém "URGENTE". Atravessamento = coluna P (TEMPO DE EXECUÇÃO), em dias úteis já calculados pela planilha; dentro do prazo quando ≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias.
+        Período padrão "Ano" para mostrar as urgências de todas as máquinas (semana/mês mostram apenas o que foi programado naquele intervalo).
         Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
       </div>
+
 
       <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
         <DialogContent>
