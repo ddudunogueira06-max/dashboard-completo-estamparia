@@ -1,65 +1,76 @@
 interface Props {
-  value: number; // 0..100
+  value: number;
   label?: string;
-  goal?: number; // threshold for green
+  goal?: number;
   size?: number;
 }
 
-const polar = (cx: number, cy: number, r: number, pct: number) => {
-  const a = Math.PI * (1 - pct / 100);
-  return { x: cx + r * Math.cos(a), y: cy - r * Math.sin(a) };
-};
+const clamp = (n: number, min = 0, max = 100) => Math.min(max, Math.max(min, n));
 
-/** Speedometer-style gauge (semicircle) with a large centered % readout. */
-export function Gauge({ value, label, goal = 90, size = 240 }: Props) {
-  const pct = Math.max(0, Math.min(100, value));
-
-  const w = size;
-  const stroke = size * 0.11;
-  const cx = w / 2;
-  const r = (w - stroke) / 2 - 6;
-  const cy = stroke / 2 + r + 6;
-  const h = cy + size * 0.16;
-
-  const red = "oklch(0.62 0.23 25)";
-  const yellow = "oklch(0.85 0.18 90)";
-  const green = "oklch(0.65 0.18 145)";
-  const t1 = Math.max(0, goal - 20);
-  const t2 = goal;
-  const color = pct >= t2 ? green : pct >= t1 ? yellow : red;
-
-  const arc = (from: number, to: number, c: string) => {
-    const p0 = polar(cx, cy, r, from);
-    const p1 = polar(cx, cy, r, to);
-    const large = to - from > 50 ? 1 : 0;
-    return <path d={`M ${p0.x} ${p0.y} A ${r} ${r} 0 ${large} 1 ${p1.x} ${p1.y}`} stroke={c} strokeWidth={stroke} fill="none" strokeLinecap="round" />;
+function markerPoint(percent: number) {
+  const cx = 160;
+  const cy = 154;
+  const r = 112;
+  const angle = Math.PI * (1 - clamp(percent) / 100);
+  return {
+    x: cx + r * Math.cos(angle),
+    y: cy - r * Math.sin(angle),
   };
+}
 
-  const needle = polar(cx, cy, r - stroke * 0.7, pct);
-  const goalMark = polar(cx, cy, r, goal);
-  const goalInner = polar(cx, cy, r - stroke, goal);
+/** Clean semicircle gauge with one progress arc and no overlapping labels. */
+export function Gauge({ value, label, goal = 90, size = 280 }: Props) {
+  const pct = clamp(value);
+  const statusColor = pct >= goal ? "var(--success)" : pct >= goal - 15 ? "var(--warning)" : "var(--destructive)";
+  const goalPoint = markerPoint(goal);
+  const goalLabelX = Math.min(292, Math.max(28, goalPoint.x));
 
   return (
-    <div className="flex flex-col items-center">
-      {label && <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">{label}</div>}
-      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-        {/* track */}
-        {arc(0, 100, "oklch(0.3 0.02 250)")}
-        {/* zones */}
-        {arc(0, t1, red)}
-        {arc(t1, t2, yellow)}
-        {arc(t2, 100, green)}
-        {/* goal marker */}
-        <line x1={goalInner.x} y1={goalInner.y} x2={goalMark.x} y2={goalMark.y} stroke="oklch(0.99 0 0)" strokeWidth={2} />
-        {/* needle */}
-        <line x1={cx} y1={cy} x2={needle.x} y2={needle.y} stroke="oklch(0.95 0.01 240)" strokeWidth={size * 0.02} strokeLinecap="round" />
-        <circle cx={cx} cy={cy} r={size * 0.05} fill="oklch(0.95 0.01 240)" />
-        <circle cx={cx} cy={cy} r={size * 0.024} fill={color} />
-        {/* big centered value */}
-        <text x={cx} y={cy - size * 0.16} textAnchor="middle" fontSize={size * 0.2} fontWeight={800} fill={color}>{pct.toFixed(1)}%</text>
-        {/* min/max labels */}
-        <text x={polar(cx, cy, r, 0).x} y={cy + size * 0.1} textAnchor="middle" fontSize={size * 0.05} fill="oklch(0.7 0.02 240)">0%</text>
-        <text x={polar(cx, cy, r, 100).x} y={cy + size * 0.1} textAnchor="middle" fontSize={size * 0.05} fill="oklch(0.7 0.02 240)">100%</text>
+    <div className="w-full flex flex-col items-center">
+      {label && <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">{label}</div>}
+      <svg
+        width="100%"
+        height={Math.round(size * 0.74)}
+        viewBox="0 0 320 220"
+        role="img"
+        aria-label={`Atravessamento ${pct.toFixed(1)} por cento`}
+        className="max-w-[320px] overflow-visible"
+      >
+        <path
+          d="M 48 154 A 112 112 0 0 1 272 154"
+          pathLength={100}
+          fill="none"
+          stroke="var(--muted)"
+          strokeWidth={28}
+          strokeLinecap="round"
+        />
+        <path
+          d="M 48 154 A 112 112 0 0 1 272 154"
+          pathLength={100}
+          fill="none"
+          stroke={statusColor}
+          strokeWidth={28}
+          strokeLinecap="round"
+          strokeDasharray={`${pct} 100`}
+        />
+        <line
+          x1={goalPoint.x}
+          y1={goalPoint.y - 17}
+          x2={goalPoint.x}
+          y2={goalPoint.y + 17}
+          stroke="var(--foreground)"
+          strokeWidth={3}
+          strokeLinecap="round"
+          opacity={0.9}
+        />
+        <text x="160" y="130" textAnchor="middle" fontSize="46" fontWeight={800} fill={statusColor}>
+          {pct.toFixed(1)}%
+        </text>
+        <text x="48" y="190" textAnchor="middle" fontSize="12" fill="var(--muted-foreground)">0%</text>
+        <text x="272" y="190" textAnchor="middle" fontSize="12" fill="var(--muted-foreground)">100%</text>
+        <text x={goalLabelX} y="35" textAnchor="middle" fontSize="12" fontWeight={700} fill="var(--foreground)">
+          Meta {goal}%
+        </text>
       </svg>
     </div>
   );
