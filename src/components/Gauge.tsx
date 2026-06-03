@@ -74,7 +74,7 @@ export function Gauge({ value, label, goal = 90, size = 280 }: Props) {
         <text x="42" y="204" textAnchor="middle" fontSize="12" fill="var(--muted-foreground)">0%</text>
         <text x="160" y="216" textAnchor="middle" fontSize="12" fill="var(--muted-foreground)">{RED_END}%</text>
         <text x="278" y="204" textAnchor="middle" fontSize="12" fill="var(--muted-foreground)">100%</text>
-        <text x="246" y="66" textAnchor="middle" fontSize="12" fontWeight={700} fill="var(--foreground)">Meta {goal}%</text>
+        
       </svg>
     </div>
   );
