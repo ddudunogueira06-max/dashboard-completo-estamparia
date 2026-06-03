@@ -160,27 +160,37 @@ export function ProductionDashboard() {
   });
 
   const [machineFilter, setMachineFilter] = useState<string>(""); // "" all, or "2000"
-  const [period, setPeriod] = useState<Period>("year");
   const [urgencyFilter, setUrgencyFilter] = useState<string>(""); // "", "urg", "nor"
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
   const [showTable, setShowTable] = useState(false);
   const [detail, setDetail] = useState<null | { title: string; rows: { label: string; value: string }[] }>(null);
 
   const now = useMemo(() => new Date(), []);
+  const fromDate = useMemo(() => parseLocalDate(dateFrom), [dateFrom]);
+  const toDate = useMemo(() => parseLocalDate(dateTo), [dateTo]);
 
-  const matchesPeriod = useMemo(() => {
-    return (ref: Date) => {
-      if (period === "week") return sameWeek(ref, now);
-      if (period === "month") return sameMonth(ref, now);
-      return sameYear(ref, now);
-    };
-  }, [period, now]);
+  const rangeLabel = useMemo(() => {
+    if (fromDate && toDate) return `${fmtDate(dateFrom)} – ${fmtDate(dateTo)}`;
+    if (fromDate) return `desde ${fmtDate(dateFrom)}`;
+    if (toDate) return `até ${fmtDate(dateTo)}`;
+    return "todo o período";
+  }, [fromDate, toDate, dateFrom, dateTo]);
 
-  // Filtro base: máquina + urgência (período é aplicado por cálculo)
+  const setPreset = (days: number | "all" | "today") => {
+    if (days === "all") { setDateFrom(""); setDateTo(""); return; }
+    const end = new Date();
+    setDateTo(ymd(end));
+    if (days === "today") { setDateFrom(ymd(end)); return; }
+    setDateFrom(ymd(addDays(end, -(days - 1))));
+  };
+
+  // Filtro base: máquina + urgência (intervalo de datas é aplicado em inPeriod)
   const filtered = useMemo(() => {
     return records.filter(r => {
       if (machineFilter && String(r.maquina ?? "") !== machineFilter) return false;
       if (urgencyFilter) {
-        const isUrg = (r.produto ?? "").toUpperCase().includes("URGENTE");
+        const isUrg = isUrgente(r);
         if (urgencyFilter === "urg" && !isUrg) return false;
         if (urgencyFilter === "nor" && isUrg) return false;
       }
@@ -188,15 +198,18 @@ export function ProductionDashboard() {
     });
   }, [records, machineFilter, urgencyFilter]);
 
-  // Registros dentro do período selecionado
+  // Registros dentro do intervalo de datas selecionado (por Data Prog. / dt_prog)
   const inPeriod = useMemo(() => {
     return filtered.filter(r => {
-      const ref = r.dt_prog ? new Date(r.dt_prog) : null;
-      return ref ? matchesPeriod(ref) : false;
+      const ref = parseLocalDate(r.dt_prog);
+      if (!ref) return false;
+      if (fromDate && ref < fromDate) return false;
+      if (toDate && ref > toDate) return false;
+      return true;
     });
-  }, [filtered, matchesPeriod]);
+  }, [filtered, fromDate, toDate]);
 
-  // Tempos urgentes vs normais (em segundos) por período, usando dt_prog
+  // Tempos urgentes vs normais (em segundos) por bucket — usado nos diálogos de detalhe
   const tempos = useMemo(() => {
     const acc = {
       urg: { day: 0, week: 0, month: 0, year: 0, total: 0 },
@@ -205,10 +218,9 @@ export function ProductionDashboard() {
     filtered.forEach(r => {
       const seg = r.tempo_fpp_seg ?? 0;
       if (seg <= 0) return;
-      const ref = r.dt_prog ? new Date(r.dt_prog) : null;
+      const ref = parseLocalDate(r.dt_prog);
       if (!ref) return;
-      const isUrg = (r.produto ?? "").toUpperCase().includes("URGENTE");
-      const tgt = isUrg ? acc.urg : acc.nor;
+      const tgt = isUrgente(r) ? acc.urg : acc.nor;
       tgt.total += seg;
       if (sameDay(ref, now)) tgt.day += seg;
       if (sameWeek(ref, now)) tgt.week += seg;
@@ -218,12 +230,21 @@ export function ProductionDashboard() {
     return acc;
   }, [filtered, now]);
 
-  const urgPeriod = tempos.urg[period];
-  const norPeriod = tempos.nor[period];
+  // Somas do intervalo selecionado (para as pílulas)
+  const urgPeriod = useMemo(() => inPeriod.filter(isUrgente).reduce((s, r) => s + (r.tempo_fpp_seg ?? 0), 0), [inPeriod]);
+  const norPeriod = useMemo(() => inPeriod.filter(r => !isUrgente(r)).reduce((s, r) => s + (r.tempo_fpp_seg ?? 0), 0), [inPeriod]);
 
-  const capLimitHours = WEEKLY_CAPACITY_HOURS * PERIOD_WEEKS[period];
+  // Capacidade dimensionada pela quantidade de semanas dentro do intervalo
+  const rangeWeeks = useMemo(() => {
+    if (fromDate && toDate) {
+      const days = Math.max(1, Math.round((toDate.getTime() - fromDate.getTime()) / 86400000) + 1);
+      return Math.max(1, days / 7);
+    }
+    return 52;
+  }, [fromDate, toDate]);
+  const capLimitHours = WEEKLY_CAPACITY_HOURS * rangeWeeks;
 
-  // Capacidade por máquina (no período selecionado)
+  // Capacidade por máquina (no intervalo selecionado)
   const capacityByMachine = useMemo(() => {
     const list = machineFilter ? [Number(machineFilter)] : [...MACHINES];
     return list.map(m => {
@@ -232,8 +253,7 @@ export function ProductionDashboard() {
         if ((r.maquina ?? 0) !== m) return;
         const seg = r.tempo_fpp_seg ?? 0;
         if (seg <= 0) return;
-        const isUrg = (r.produto ?? "").toUpperCase().includes("URGENTE");
-        if (isUrg) urg += seg; else nor += seg;
+        if (isUrgente(r)) urg += seg; else nor += seg;
       });
       const used = urg + nor;
       const free = Math.max(0, capLimitHours * 3600 - used);
@@ -249,7 +269,7 @@ export function ProductionDashboard() {
     });
   }, [inPeriod, machineFilter, capLimitHours]);
 
-  // Atravessamento: dias úteis entre Data Prog. (B) e Data Fim Prog. (K) ≤ 3 (no período)
+  // Atravessamento: dias úteis entre Data Prog. (B) e Data Fim Prog. (K) ≤ 3 (no intervalo)
   const atravess = useMemo(() => {
     let dentro = 0, total = 0;
     const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_prog: string | null }[] = [];
@@ -264,14 +284,14 @@ export function ProductionDashboard() {
     return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, detalhes: detalhes.sort((a, b) => b.dias - a.dias) };
   }, [inPeriod]);
 
-  // Contagem de FPPs (distintas) por período — usando dt_prog
+  // Contagem de FPPs (distintas) por bucket — usado nos diálogos
   const fppCounts = useMemo(() => {
     const sets = {
       day: new Set<string>(), week: new Set<string>(), month: new Set<string>(), year: new Set<string>(), total: new Set<string>(),
     };
     filtered.forEach(r => {
       if (!r.fpp) return;
-      const ref = r.dt_prog ? new Date(r.dt_prog) : null;
+      const ref = parseLocalDate(r.dt_prog);
       if (!ref) return;
       sets.total.add(r.fpp);
       if (sameDay(ref, now)) sets.day.add(r.fpp);
@@ -282,13 +302,15 @@ export function ProductionDashboard() {
     return { day: sets.day.size, week: sets.week.size, month: sets.month.size, year: sets.year.size, total: sets.total.size };
   }, [filtered, now]);
 
-  const fppPeriod = fppCounts[period];
+  // Distintas no intervalo selecionado (para as pílulas)
+  const fppPeriod = useMemo(() => new Set(inPeriod.map(r => r.fpp).filter(Boolean)).size, [inPeriod]);
 
   const openTempoDetail = (kind: "urg" | "nor") => {
     const data = tempos[kind];
     setDetail({
       title: kind === "urg" ? "Tempo de Urgência" : "Horas Normais",
       rows: [
+        { label: "Intervalo selecionado", value: fmtHM(kind === "urg" ? urgPeriod : norPeriod) },
         { label: "Hoje", value: fmtHM(data.day) },
         { label: "Semana atual", value: fmtHM(data.week) },
         { label: "Mês atual", value: fmtHM(data.month) },
@@ -302,6 +324,7 @@ export function ProductionDashboard() {
     setDetail({
       title,
       rows: [
+        { label: "Intervalo selecionado", value: fmtInt(fppPeriod) },
         { label: "Hoje", value: fmtInt(fppCounts.day) },
         { label: "Semana", value: fmtInt(fppCounts.week) },
         { label: "Mês", value: fmtInt(fppCounts.month) },
@@ -310,6 +333,7 @@ export function ProductionDashboard() {
       ],
     });
   };
+
 
   return (
     <div className="p-3 md:p-6 space-y-4 md:space-y-6">
