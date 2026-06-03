@@ -403,35 +403,40 @@ export function ProductionDashboard() {
       </header>
 
       {/* Filtros */}
-      <section className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">De</label>
-          <input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)}
-            className="rounded-md border border-border bg-card px-3 py-2 text-sm" />
+      <section className="bg-card border border-border rounded-xl p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label className="block space-y-1">
+            <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Data inicial</span>
+            <input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} className={inputCls} />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Data final</span>
+            <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} className={inputCls} />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Máquina</span>
+            <select value={machineFilter} onChange={(e) => setMachineFilter(e.target.value)} className={inputCls}>
+              <option value="">Todas as máquinas</option>
+              {MACHINES.map(m => <option key={m} value={String(m)}>Máquina {m}</option>)}
+            </select>
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Urgência</span>
+            <select value={urgencyFilter} onChange={(e) => setUrgencyFilter(e.target.value)} className={inputCls}>
+              <option value="">Urgente + Normal</option>
+              <option value="urg">Somente urgentes</option>
+              <option value="nor">Somente normais</option>
+            </select>
+          </label>
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Até</label>
-          <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)}
-            className="rounded-md border border-border bg-card px-3 py-2 text-sm" />
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-[11px] text-muted-foreground">Período: <span className="text-foreground font-medium">{rangeLabel}</span></span>
+          <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">
+            Limpar datas
+          </button>
         </div>
-        <div className="inline-flex rounded-md border border-border bg-card p-1">
-          <button onClick={() => setPreset("today")} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">Hoje</button>
-          <button onClick={() => setPreset(7)} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">7 dias</button>
-          <button onClick={() => setPreset(30)} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">30 dias</button>
-          <button onClick={() => setPreset("all")} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">Tudo</button>
-        </div>
-        <select value={machineFilter} onChange={(e) => setMachineFilter(e.target.value)}
-          className="rounded-md border border-border bg-card px-3 py-2 text-sm">
-          <option value="">Todas as máquinas</option>
-          {MACHINES.map(m => <option key={m} value={String(m)}>Máquina {m}</option>)}
-        </select>
-        <select value={urgencyFilter} onChange={(e) => setUrgencyFilter(e.target.value)}
-          className="rounded-md border border-border bg-card px-3 py-2 text-sm">
-          <option value="">Urgente + Normal</option>
-          <option value="urg">Somente urgentes</option>
-          <option value="nor">Somente normais</option>
-        </select>
       </section>
+
 
       {/* Pílulas principais */}
       <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
