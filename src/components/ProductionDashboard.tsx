@@ -34,10 +34,9 @@ const WEEKLY_CAPACITY_HOURS = 75; // h por máquina por semana
 const ATRAVESSAMENTO_LIMITE_DIAS = 3;
 const META_ATRAVESSAMENTO = 90; // %
 
-type Period = "week" | "month" | "year";
-const PERIOD_LABEL: Record<Period, string> = { week: "Semana", month: "Mês", year: "Ano" };
-// Quantas "semanas" de capacidade existem em cada período (para escalar o limite de 75h)
-const PERIOD_WEEKS: Record<Period, number> = { week: 1, month: 4.345, year: 52 };
+function isUrgente(r: ProdRecord) {
+  return (r.produto ?? "").toUpperCase().includes("URGENTE");
+}
 
 async function fetchAllProduction(): Promise<ProdRecord[]> {
   const pageSize = 1000;
