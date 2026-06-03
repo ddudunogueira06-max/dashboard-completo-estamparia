@@ -438,24 +438,39 @@ export function ProductionDashboard() {
       </section>
 
 
+      {/* Destaque — média de FPPs por dia (capacidade média) */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div className="lg:col-span-1 bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 rounded-xl p-4 flex items-center gap-4">
+          <div className="size-14 rounded-xl grid place-items-center bg-primary/20 text-primary shrink-0">
+            <TrendingUp className="size-7" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Média de FPPs por dia</div>
+            <div className="text-3xl font-extrabold leading-tight text-foreground">{fmtNum(perDay.avg, 1)}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{fmtInt(perDay.total)} FPPs em {fmtInt(perDay.days)} dias úteis</div>
+          </div>
+        </div>
+        <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+          <KpiCard label="Programação Punch · méd/dia" value={fmtNum(perDay.avg, 1)} icon={Scissors} accent="warning"
+            hint={`${fmtInt(fppPeriod)} FPPs no período · base única`}
+            onClick={() => openFppDetail("Programação Punch (FPPs)")} />
+          <KpiCard label="Programação Nest · méd/dia" value={fmtNum(perDay.avg, 1)} icon={LayoutGrid} accent="accent"
+            hint={`${fmtInt(fppPeriod)} FPPs no período · base única`}
+            onClick={() => openFppDetail("Programação Nest (FPPs)")} />
+        </div>
+      </section>
+
       {/* Pílulas principais */}
-      <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Tempo de Urgência" value={fmtHM(urgPeriod)} icon={Zap} accent="destructive"
           hint={`Mês ${fmtHM(tempos.urg.month)} · Ano ${fmtHM(tempos.urg.year)}`}
           onClick={() => openTempoDetail("urg")} />
         <KpiCard label="Horas Normais" value={fmtHM(norPeriod)} icon={Clock} accent="primary"
           hint={`Mês ${fmtHM(tempos.nor.month)} · Ano ${fmtHM(tempos.nor.year)}`}
           onClick={() => openTempoDetail("nor")} />
-        <KpiCard label="Programação Punch" value={fmtInt(fppPeriod)} icon={Scissors} accent="warning"
-          hint={`${fmtInt(fppPeriod)} FPPs · mesmo dado (sem separação ainda)`}
-          onClick={() => openFppDetail("Programação Punch (FPPs)")} />
-        <KpiCard label="Programação Nest" value={fmtInt(fppPeriod)} icon={LayoutGrid} accent="accent"
-          hint={`${fmtInt(fppPeriod)} FPPs · mesmo dado (sem separação ainda)`}
-          onClick={() => openFppDetail("Programação Nest (FPPs)")} />
-        <KpiCard label="FPPs" value={fmtInt(fppPeriod)} icon={Factory} accent="primary"
+        <KpiCard label="FPPs no período" value={fmtInt(fppPeriod)} icon={Factory} accent="primary"
           hint={`Hoje ${fmtInt(fppCounts.day)} · Total ${fmtInt(fppCounts.total)}`}
           onClick={() => openFppDetail("FPPs por período")} />
-
         <KpiCard label="Atravessamento ≤ 3 dias" value={`${atravess.pct.toFixed(1)}%`} icon={GaugeIcon} accent="success"
           hint={`${fmtInt(atravess.dentro)} de ${fmtInt(atravess.total)} FPPs`}
           onClick={() => setDetail({
@@ -468,6 +483,7 @@ export function ProductionDashboard() {
             ],
           })} />
       </section>
+
 
       {/* Capacidade por máquina + velocímetro */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
