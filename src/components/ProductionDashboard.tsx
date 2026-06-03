@@ -74,10 +74,85 @@ function sameMonth(a: Date, b: Date) { return a.getFullYear() === b.getFullYear(
 function sameYear(a: Date, b: Date) { return a.getFullYear() === b.getFullYear(); }
 function sameDay(a: Date, b: Date) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 
-/** Dias de atravessamento já calculados pela planilha (coluna P = "tempo de execução", em dias úteis). */
-function atravessDias(colP: number | null): number | null {
-  if (colP === null || colP === undefined) return null;
-  return Math.abs(colP);
+const CURITIBA_FIXED_HOLIDAYS = new Set(["01-01", "03-29", "04-21", "05-01", "09-07", "09-08", "10-12", "11-02", "11-15", "11-20", "12-19", "12-25"]);
+
+function ymd(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function md(date: Date) { return ymd(date).slice(5); }
+
+function parseLocalDate(value: string | null): Date | null {
+  if (!value) return null;
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function easterDate(year: number) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+function holidaySetForYear(year: number) {
+  const easter = easterDate(year);
+  const dates = new Set<string>();
+  CURITIBA_FIXED_HOLIDAYS.forEach((day) => dates.add(`${year}-${day}`));
+  [-48, -47, -46, -2, 60].forEach((offset) => dates.add(ymd(addDays(easter, offset))));
+
+  Array.from(dates).forEach((day) => {
+    const [y, m, d] = day.split("-").map(Number);
+    const holiday = new Date(y, m - 1, d);
+    if (holiday.getDay() === 2) dates.add(ymd(addDays(holiday, -1))); // feriado na terça: emenda segunda
+    if (holiday.getDay() === 4) dates.add(ymd(addDays(holiday, 1))); // feriado na quinta: emenda sexta
+  });
+
+  return dates;
+}
+
+function isWorkingDay(date: Date) {
+  const day = date.getDay();
+  if (day === 0 || day === 6) return false;
+  return !holidaySetForYear(date.getFullYear()).has(ymd(date));
+}
+
+/** Atravessamento calculado entre Data Prog. (B) e Data Fim Prog. (K), descontando fins de semana, feriados de Curitiba e dias ponte. */
+function atravessDias(dtProg: string | null, dtFimProg: string | null): number | null {
+  const start = parseLocalDate(dtProg);
+  const end = parseLocalDate(dtFimProg);
+  if (!start || !end) return null;
+  const forward = end.getTime() >= start.getTime();
+  let cursor = new Date(start);
+  let days = 0;
+
+  while (forward ? cursor < end : cursor > end) {
+    cursor = addDays(cursor, forward ? 1 : -1);
+    if (isWorkingDay(cursor)) days += 1;
+  }
+
+  return days;
 }
 
 export function ProductionDashboard() {
