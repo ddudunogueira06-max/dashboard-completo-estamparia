@@ -351,14 +351,22 @@ export function ProductionDashboard() {
       </header>
 
       {/* Filtros */}
-      <section className="flex flex-wrap items-center gap-2">
+      <section className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">De</label>
+          <input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)}
+            className="rounded-md border border-border bg-card px-3 py-2 text-sm" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Até</label>
+          <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)}
+            className="rounded-md border border-border bg-card px-3 py-2 text-sm" />
+        </div>
         <div className="inline-flex rounded-md border border-border bg-card p-1">
-          {(["week", "month", "year"] as Period[]).map(p => (
-            <button key={p} onClick={() => setPeriod(p)}
-              className={`px-3 py-1.5 text-sm rounded ${period === p ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}>
-              {PERIOD_LABEL[p]}
-            </button>
-          ))}
+          <button onClick={() => setPreset("today")} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">Hoje</button>
+          <button onClick={() => setPreset(7)} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">7 dias</button>
+          <button onClick={() => setPreset(30)} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">30 dias</button>
+          <button onClick={() => setPreset("all")} className="px-3 py-1.5 text-sm rounded text-muted-foreground hover:text-foreground">Tudo</button>
         </div>
         <select value={machineFilter} onChange={(e) => setMachineFilter(e.target.value)}
           className="rounded-md border border-border bg-card px-3 py-2 text-sm">
@@ -375,21 +383,22 @@ export function ProductionDashboard() {
 
       {/* Pílulas principais */}
       <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        <KpiCard label={`Tempo de Urgência (${PERIOD_LABEL[period].toLowerCase()})`} value={fmtHM(urgPeriod)} icon={Zap} accent="destructive"
+        <KpiCard label="Tempo de Urgência" value={fmtHM(urgPeriod)} icon={Zap} accent="destructive"
           hint={`Mês ${fmtHM(tempos.urg.month)} · Ano ${fmtHM(tempos.urg.year)}`}
           onClick={() => openTempoDetail("urg")} />
-        <KpiCard label={`Horas Normais (${PERIOD_LABEL[period].toLowerCase()})`} value={fmtHM(norPeriod)} icon={Clock} accent="primary"
+        <KpiCard label="Horas Normais" value={fmtHM(norPeriod)} icon={Clock} accent="primary"
           hint={`Mês ${fmtHM(tempos.nor.month)} · Ano ${fmtHM(tempos.nor.year)}`}
           onClick={() => openTempoDetail("nor")} />
-        <KpiCard label={`Programação Punch (${PERIOD_LABEL[period].toLowerCase()})`} value={fmtInt(fppPeriod)} icon={Scissors} accent="warning"
+        <KpiCard label="Programação Punch" value={fmtInt(fppPeriod)} icon={Scissors} accent="warning"
           hint={`${fmtInt(fppPeriod)} FPPs · mesmo dado (sem separação ainda)`}
           onClick={() => openFppDetail("Programação Punch (FPPs)")} />
-        <KpiCard label={`Programação Nest (${PERIOD_LABEL[period].toLowerCase()})`} value={fmtInt(fppPeriod)} icon={LayoutGrid} accent="accent"
+        <KpiCard label="Programação Nest" value={fmtInt(fppPeriod)} icon={LayoutGrid} accent="accent"
           hint={`${fmtInt(fppPeriod)} FPPs · mesmo dado (sem separação ainda)`}
           onClick={() => openFppDetail("Programação Nest (FPPs)")} />
-        <KpiCard label={`FPPs (${PERIOD_LABEL[period].toLowerCase()})`} value={fmtInt(fppPeriod)} icon={Factory} accent="primary"
+        <KpiCard label="FPPs" value={fmtInt(fppPeriod)} icon={Factory} accent="primary"
           hint={`Hoje ${fmtInt(fppCounts.day)} · Total ${fmtInt(fppCounts.total)}`}
           onClick={() => openFppDetail("FPPs por período")} />
+
         <KpiCard label="Atravessamento ≤ 3 dias" value={`${atravess.pct.toFixed(1)}%`} icon={GaugeIcon} accent="success"
           hint={`${fmtInt(atravess.dentro)} de ${fmtInt(atravess.total)} FPPs`}
           onClick={() => setDetail({
