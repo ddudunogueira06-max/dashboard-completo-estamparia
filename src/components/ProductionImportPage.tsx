@@ -71,7 +71,15 @@ export function ProductionImportPage() {
       qc.invalidateQueries({ queryKey: ["production_records"] });
       qc.invalidateQueries({ queryKey: ["production_imports"] });
     } catch (e) {
-      setFeedback({ type: "error", msg: `Erro: ${e instanceof Error ? e.message : String(e)}` });
+      const msg =
+        e instanceof Error
+          ? e.message
+          : e && typeof e === "object"
+            ? (e as { message?: string; details?: string; hint?: string }).message ??
+              (e as { details?: string }).details ??
+              JSON.stringify(e)
+            : String(e);
+      setFeedback({ type: "error", msg: `Erro: ${msg}` });
     } finally { setBusy(false); setProgress(""); }
   }
 
