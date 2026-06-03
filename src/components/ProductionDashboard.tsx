@@ -5,9 +5,9 @@ import { KpiCard } from "@/components/KpiCard";
 import { Gauge } from "@/components/Gauge";
 import { fmtInt, fmtNum, fmtDate } from "@/lib/format";
 import {
-  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, Cell, LabelList,
+  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, LabelList,
 } from "recharts";
-import { Zap, Clock, Gauge as GaugeIcon, Factory, RefreshCw, ListChecks, ChevronDown, ChevronUp } from "lucide-react";
+import { Zap, Clock, Gauge as GaugeIcon, Factory, RefreshCw, ListChecks, ChevronDown, ChevronUp, Scissors, LayoutGrid } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface ProdRecord {
@@ -30,9 +30,14 @@ interface ProdRecord {
 }
 
 const MACHINES = [2000, 3000, 5000] as const;
-const WEEKLY_CAPACITY_SEC = 75 * 3600; // 75h por máquina
+const WEEKLY_CAPACITY_HOURS = 75; // h por máquina por semana
 const ATRAVESSAMENTO_LIMITE_DIAS = 3;
 const META_ATRAVESSAMENTO = 90; // %
+
+type Period = "week" | "month" | "year";
+const PERIOD_LABEL: Record<Period, string> = { week: "Semana", month: "Mês", year: "Ano" };
+// Quantas "semanas" de capacidade existem em cada período (para escalar o limite de 75h)
+const PERIOD_WEEKS: Record<Period, number> = { week: 1, month: 4.345, year: 52 };
 
 async function fetchAllProduction(): Promise<ProdRecord[]> {
   const pageSize = 1000;
@@ -69,23 +74,55 @@ function sameMonth(a: Date, b: Date) { return a.getFullYear() === b.getFullYear(
 function sameYear(a: Date, b: Date) { return a.getFullYear() === b.getFullYear(); }
 function sameDay(a: Date, b: Date) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 
+/** Diferença em dias corridos entre data programação (B) e data fim programação (K), sempre positiva. */
+function atravessDias(dtProg: string, dtFimProg: string): number | null {
+  const a = new Date(dtProg).getTime();
+  const b = new Date(dtFimProg).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return Math.abs(a - b) / 86400000;
+}
+
 export function ProductionDashboard() {
   const { data: records = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["production_records"], queryFn: fetchAllProduction,
   });
 
   const [machineFilter, setMachineFilter] = useState<string>(""); // "" all, or "2000"
+  const [period, setPeriod] = useState<Period>("week");
+  const [urgencyFilter, setUrgencyFilter] = useState<string>(""); // "", "urg", "nor"
   const [showTable, setShowTable] = useState(false);
   const [detail, setDetail] = useState<null | { title: string; rows: { label: string; value: string }[] }>(null);
 
   const now = useMemo(() => new Date(), []);
 
+  const matchesPeriod = useMemo(() => {
+    return (ref: Date) => {
+      if (period === "week") return sameWeek(ref, now);
+      if (period === "month") return sameMonth(ref, now);
+      return sameYear(ref, now);
+    };
+  }, [period, now]);
+
+  // Filtro base: máquina + urgência (período é aplicado por cálculo)
   const filtered = useMemo(() => {
     return records.filter(r => {
       if (machineFilter && String(r.maquina ?? "") !== machineFilter) return false;
+      if (urgencyFilter) {
+        const isUrg = (r.produto ?? "").toUpperCase().includes("URGENTE");
+        if (urgencyFilter === "urg" && !isUrg) return false;
+        if (urgencyFilter === "nor" && isUrg) return false;
+      }
       return true;
     });
-  }, [records, machineFilter]);
+  }, [records, machineFilter, urgencyFilter]);
+
+  // Registros dentro do período selecionado
+  const inPeriod = useMemo(() => {
+    return filtered.filter(r => {
+      const ref = r.dt_prog ? new Date(r.dt_prog) : null;
+      return ref ? matchesPeriod(ref) : false;
+    });
+  }, [filtered, matchesPeriod]);
 
   // Tempos urgentes vs normais (em segundos) por período, usando dt_prog
   const tempos = useMemo(() => {
@@ -109,22 +146,26 @@ export function ProductionDashboard() {
     return acc;
   }, [filtered, now]);
 
-  // Capacidade por máquina (semana atual)
+  const urgPeriod = tempos.urg[period];
+  const norPeriod = tempos.nor[period];
+
+  const capLimitHours = WEEKLY_CAPACITY_HOURS * PERIOD_WEEKS[period];
+
+  // Capacidade por máquina (no período selecionado)
   const capacityByMachine = useMemo(() => {
-    return MACHINES.map(m => {
+    const list = machineFilter ? [Number(machineFilter)] : [...MACHINES];
+    return list.map(m => {
       let urg = 0, nor = 0;
-      filtered.forEach(r => {
+      inPeriod.forEach(r => {
         if ((r.maquina ?? 0) !== m) return;
-        const ref = r.dt_prog ? new Date(r.dt_prog) : null;
-        if (!ref || !sameWeek(ref, now)) return;
         const seg = r.tempo_fpp_seg ?? 0;
         if (seg <= 0) return;
         const isUrg = (r.produto ?? "").toUpperCase().includes("URGENTE");
         if (isUrg) urg += seg; else nor += seg;
       });
       const used = urg + nor;
-      const free = Math.max(0, WEEKLY_CAPACITY_SEC - used);
-      const occ = (used / WEEKLY_CAPACITY_SEC) * 100;
+      const free = Math.max(0, capLimitHours * 3600 - used);
+      const occ = capLimitHours > 0 ? (used / (capLimitHours * 3600)) * 100 : 0;
       return {
         machine: `Máq ${m}`,
         Urgente: +(urg / 3600).toFixed(2),
@@ -134,25 +175,23 @@ export function ProductionDashboard() {
         used: +(used / 3600).toFixed(2),
       };
     });
-  }, [filtered, now]);
+  }, [inPeriod, machineFilter, capLimitHours]);
 
-  // Atravessamento: dt_fim_prog - dt_prog em dias úteis ≤ 3
+  // Atravessamento: |DT PROG (B) − DT FIM PROG (K)| em dias corridos ≤ 3 (no período)
   const atravess = useMemo(() => {
     let dentro = 0, total = 0;
     const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_prog: string | null }[] = [];
-    filtered.forEach(r => {
+    inPeriod.forEach(r => {
       if (!r.dt_prog || !r.dt_fim_prog) return;
-      const a = new Date(r.dt_prog).getTime();
-      const b = new Date(r.dt_fim_prog).getTime();
-      if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return;
-      const dias = (b - a) / 86400000;
+      const dias = atravessDias(r.dt_prog, r.dt_fim_prog);
+      if (dias === null) return;
       total++;
       const ok = dias <= ATRAVESSAMENTO_LIMITE_DIAS;
       if (ok) dentro++;
       detalhes.push({ fpp: r.fpp, dias: +dias.toFixed(2), dentro: ok, dt_prog: r.dt_prog, dt_fim_prog: r.dt_fim_prog });
     });
-    return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, detalhes: detalhes.sort((a,b)=>b.dias-a.dias) };
-  }, [filtered]);
+    return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, detalhes: detalhes.sort((a, b) => b.dias - a.dias) };
+  }, [inPeriod]);
 
   // Contagem de FPPs (distintas) por período — usando dt_prog
   const fppCounts = useMemo(() => {
@@ -172,6 +211,8 @@ export function ProductionDashboard() {
     return { day: sets.day.size, week: sets.week.size, month: sets.month.size, year: sets.year.size, total: sets.total.size };
   }, [filtered, now]);
 
+  const fppPeriod = fppCounts[period];
+
   const openTempoDetail = (kind: "urg" | "nor") => {
     const data = tempos[kind];
     setDetail({
@@ -186,9 +227,9 @@ export function ProductionDashboard() {
     });
   };
 
-  const openFppDetail = () => {
+  const openFppDetail = (title: string) => {
     setDetail({
-      title: "FPPs por período",
+      title,
       rows: [
         { label: "Hoje", value: fmtInt(fppCounts.day) },
         { label: "Semana", value: fmtInt(fppCounts.week) },
@@ -208,30 +249,52 @@ export function ProductionDashboard() {
             {isLoading ? "Carregando…" : `${fmtInt(records.length)} registros de produção`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <select value={machineFilter} onChange={(e) => setMachineFilter(e.target.value)}
-            className="rounded-md border border-border bg-card px-3 py-2 text-sm">
-            <option value="">Todas as máquinas</option>
-            {MACHINES.map(m => <option key={m} value={String(m)}>Máquina {m}</option>)}
-          </select>
-          <button onClick={() => refetch()} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-secondary">
-            <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">Atualizar</span>
-          </button>
-        </div>
+        <button onClick={() => refetch()} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-secondary">
+          <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
+          <span className="hidden sm:inline">Atualizar</span>
+        </button>
       </header>
 
+      {/* Filtros */}
+      <section className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-md border border-border bg-card p-1">
+          {(["week", "month", "year"] as Period[]).map(p => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={`px-3 py-1.5 text-sm rounded ${period === p ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}>
+              {PERIOD_LABEL[p]}
+            </button>
+          ))}
+        </div>
+        <select value={machineFilter} onChange={(e) => setMachineFilter(e.target.value)}
+          className="rounded-md border border-border bg-card px-3 py-2 text-sm">
+          <option value="">Todas as máquinas</option>
+          {MACHINES.map(m => <option key={m} value={String(m)}>Máquina {m}</option>)}
+        </select>
+        <select value={urgencyFilter} onChange={(e) => setUrgencyFilter(e.target.value)}
+          className="rounded-md border border-border bg-card px-3 py-2 text-sm">
+          <option value="">Urgente + Normal</option>
+          <option value="urg">Somente urgentes</option>
+          <option value="nor">Somente normais</option>
+        </select>
+      </section>
+
       {/* Pílulas principais */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label="Tempo de Urgência (semana)" value={fmtHM(tempos.urg.week)} icon={Zap} accent="destructive"
+      <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <KpiCard label={`Tempo de Urgência (${PERIOD_LABEL[period].toLowerCase()})`} value={fmtHM(urgPeriod)} icon={Zap} accent="destructive"
           hint={`Mês ${fmtHM(tempos.urg.month)} · Ano ${fmtHM(tempos.urg.year)}`}
           onClick={() => openTempoDetail("urg")} />
-        <KpiCard label="Horas Normais (semana)" value={fmtHM(tempos.nor.week)} icon={Clock} accent="primary"
+        <KpiCard label={`Horas Normais (${PERIOD_LABEL[period].toLowerCase()})`} value={fmtHM(norPeriod)} icon={Clock} accent="primary"
           hint={`Mês ${fmtHM(tempos.nor.month)} · Ano ${fmtHM(tempos.nor.year)}`}
           onClick={() => openTempoDetail("nor")} />
-        <KpiCard label="FPPs na semana" value={fmtInt(fppCounts.week)} icon={Factory} accent="accent"
-          hint={`Hoje ${fmtInt(fppCounts.day)} · Mês ${fmtInt(fppCounts.month)}`}
-          onClick={openFppDetail} />
+        <KpiCard label={`Programação Punch (${PERIOD_LABEL[period].toLowerCase()})`} value={fmtInt(fppPeriod)} icon={Scissors} accent="warning"
+          hint={`${fmtInt(fppPeriod)} FPPs · mesmo dado (sem separação ainda)`}
+          onClick={() => openFppDetail("Programação Punch (FPPs)")} />
+        <KpiCard label={`Programação Nest (${PERIOD_LABEL[period].toLowerCase()})`} value={fmtInt(fppPeriod)} icon={LayoutGrid} accent="accent"
+          hint={`${fmtInt(fppPeriod)} FPPs · mesmo dado (sem separação ainda)`}
+          onClick={() => openFppDetail("Programação Nest (FPPs)")} />
+        <KpiCard label={`FPPs (${PERIOD_LABEL[period].toLowerCase()})`} value={fmtInt(fppPeriod)} icon={Factory} accent="primary"
+          hint={`Hoje ${fmtInt(fppCounts.day)} · Total ${fmtInt(fppCounts.total)}`}
+          onClick={() => openFppDetail("FPPs por período")} />
         <KpiCard label="Atravessamento ≤ 3 dias" value={`${atravess.pct.toFixed(1)}%`} icon={GaugeIcon} accent="success"
           hint={`${fmtInt(atravess.dentro)} de ${fmtInt(atravess.total)} FPPs`}
           onClick={() => setDetail({
@@ -249,7 +312,9 @@ export function ProductionDashboard() {
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-card border border-border rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Capacidade da Semana (75h por máquina)</h3>
+            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+              Capacidade · {PERIOD_LABEL[period]} ({Math.round(capLimitHours)}h por máquina)
+            </h3>
             <div className="flex items-center gap-3 text-[11px]">
               <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.62 0.23 25)" }} /> Urgente</span>
               <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Normal</span>
@@ -260,7 +325,7 @@ export function ProductionDashboard() {
             <ResponsiveContainer>
               <BarChart data={capacityByMachine} layout="vertical" margin={{ left: 30, right: 80, top: 10, bottom: 10 }}>
                 <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" domain={[0, 75]} tickFormatter={(v) => `${v}h`} stroke="oklch(0.72 0.03 240)" fontSize={11} />
+                <XAxis type="number" domain={[0, Math.round(capLimitHours)]} tickFormatter={(v) => `${v}h`} stroke="oklch(0.72 0.03 240)" fontSize={11} />
                 <YAxis type="category" dataKey="machine" stroke="oklch(0.85 0.02 240)" fontSize={12} width={80} />
                 <Tooltip
                   contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
@@ -301,7 +366,7 @@ export function ProductionDashboard() {
         <div className="bg-card border border-border rounded-xl p-4">
           <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3">Atravessamento (≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias)</h3>
           <div className="flex flex-col items-center justify-center h-[320px]">
-            <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={260} />
+            <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={240} />
             <div className="mt-2 text-xs text-muted-foreground text-center">
               {fmtInt(atravess.dentro)} de {fmtInt(atravess.total)} FPPs no prazo
               <br />
@@ -324,8 +389,8 @@ export function ProductionDashboard() {
               <thead className="bg-secondary/40 sticky top-0">
                 <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                   <th className="px-3 py-2">FPP</th>
-                  <th className="px-3 py-2">Início Prog.</th>
-                  <th className="px-3 py-2">Fim Prog.</th>
+                  <th className="px-3 py-2">Data Prog. (B)</th>
+                  <th className="px-3 py-2">Data Fim Prog. (K)</th>
                   <th className="px-3 py-2 text-right">Dias</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>
@@ -354,9 +419,9 @@ export function ProductionDashboard() {
       </section>
 
       <div className="text-xs text-muted-foreground">
-        * Cálculo de capacidade considera a semana atual (Seg–Dom) e o campo TEMPO FPP da planilha.
-        Urgente = PRODUTO contém "URGENTE". Atravessamento = DT FIM PROG − DT PROG, em dias corridos.
-        Nest/Punch ainda não separados (mesmo dado em ambos os indicadores até a planilha trazer essa coluna).
+        * Capacidade considera o período selecionado e o campo TEMPO FPP da planilha (75h/semana por máquina).
+        Urgente = PRODUTO contém "URGENTE". Atravessamento = |DATA PROG (col. B) − DATA FIM PROG (col. K)| em dias corridos.
+        Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
       </div>
 
       <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
