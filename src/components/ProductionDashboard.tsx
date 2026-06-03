@@ -300,6 +300,63 @@ export function ProductionDashboard() {
   // Distintas no intervalo selecionado (para as pílulas)
   const fppPeriod = useMemo(() => new Set(inPeriod.map(r => r.fpp).filter(Boolean)).size, [inPeriod]);
 
+  // Média de FPPs concluídas por dia útil (capacidade média/dia) — total e por máquina
+  const perDay = useMemo(() => {
+    const byDay = new Map<string, Set<string>>();
+    const byMachineDay = new Map<number, Map<string, Set<string>>>();
+    inPeriod.forEach(r => {
+      const ref = parseLocalDate(r.dt_prog);
+      if (!ref || !isWorkingDay(ref) || !r.fpp) return;
+      const dk = ymd(ref);
+      let s = byDay.get(dk);
+      if (!s) { s = new Set(); byDay.set(dk, s); }
+      s.add(r.fpp);
+      const m = r.maquina ?? 0;
+      let mm = byMachineDay.get(m);
+      if (!mm) { mm = new Map(); byMachineDay.set(m, mm); }
+      let ms = mm.get(dk);
+      if (!ms) { ms = new Set(); mm.set(dk, ms); }
+      ms.add(r.fpp);
+    });
+    const days = byDay.size;
+    let total = 0;
+    byDay.forEach(s => { total += s.size; });
+    const perMachine = [...byMachineDay.entries()].map(([m, mm]) => {
+      let t = 0;
+      mm.forEach(s => { t += s.size; });
+      return { machine: m, avg: mm.size > 0 ? t / mm.size : 0, days: mm.size };
+    }).sort((a, b) => a.machine - b.machine);
+    return { avg: days > 0 ? total / days : 0, days, total, perMachine };
+  }, [inPeriod]);
+
+  // Agregação semanal (Seg–Sex) de FPPs distintas por Data Prog. dentro do intervalo
+  const weekly = useMemo(() => {
+    const map = new Map<string, { start: Date; fpps: Set<string>; horas: number }>();
+    inPeriod.forEach(r => {
+      const ref = parseLocalDate(r.dt_prog);
+      if (!ref) return;
+      const mon = startOfWeek(ref);
+      const key = ymd(mon);
+      let wk = map.get(key);
+      if (!wk) { wk = { start: mon, fpps: new Set(), horas: 0 }; map.set(key, wk); }
+      if (r.fpp) wk.fpps.add(r.fpp);
+      wk.horas += (r.tempo_fpp_seg ?? 0) / 3600;
+    });
+    const fmt = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, w]) => {
+        const fri = addDays(w.start, 4);
+        return { key, label: `${fmt(w.start)}–${fmt(fri)}`, fpps: w.fpps.size, horas: +w.horas.toFixed(1) };
+      });
+  }, [inPeriod]);
+
+  const avgFppPerWeek = useMemo(() => {
+    if (weekly.length === 0) return 0;
+    return weekly.reduce((a, w) => a + w.fpps, 0) / weekly.length;
+  }, [weekly]);
+
+
   const openTempoDetail = (kind: "urg" | "nor") => {
     const data = tempos[kind];
     setDetail({
