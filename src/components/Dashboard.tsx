@@ -99,7 +99,7 @@ export function Dashboard() {
   const [search, setSearch] = useState("");
   const [numeroFilters, setNumeroFilters] = useState<string[]>([]);
   const [matrixYear, setMatrixYear] = useState<string>("");
-  const [weekSel, setWeekSel] = useState<string>(""); // "" = semana atual
+  const [monthSel, setMonthSel] = useState<string>(""); // "" = mês atual com dados (1-12)
 
   const [kpiDetail, setKpiDetail] = useState<null | { title: string; kg?: number; m2?: number; pct?: number; count?: number; hint?: string }>(null);
 
