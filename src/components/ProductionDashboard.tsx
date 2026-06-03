@@ -88,7 +88,7 @@ export function ProductionDashboard() {
   });
 
   const [machineFilter, setMachineFilter] = useState<string>(""); // "" all, or "2000"
-  const [period, setPeriod] = useState<Period>("week");
+  const [period, setPeriod] = useState<Period>("year");
   const [urgencyFilter, setUrgencyFilter] = useState<string>(""); // "", "urg", "nor"
   const [showTable, setShowTable] = useState(false);
   const [detail, setDetail] = useState<null | { title: string; rows: { label: string; value: string }[] }>(null);
