@@ -175,18 +175,17 @@ export function ProductionDashboard() {
     });
   }, [inPeriod, machineFilter, capLimitHours]);
 
-  // Atravessamento: |DT PROG (B) − DT FIM PROG (K)| em dias corridos ≤ 3 (no período)
+  // Atravessamento: coluna P (dias úteis já calculados na planilha) ≤ 3 (no período)
   const atravess = useMemo(() => {
     let dentro = 0, total = 0;
     const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_prog: string | null }[] = [];
     inPeriod.forEach(r => {
-      if (!r.dt_prog || !r.dt_fim_prog) return;
-      const dias = atravessDias(r.dt_prog, r.dt_fim_prog);
+      const dias = atravessDias(r.tempo_execucao_seg);
       if (dias === null) return;
       total++;
       const ok = dias <= ATRAVESSAMENTO_LIMITE_DIAS;
       if (ok) dentro++;
-      detalhes.push({ fpp: r.fpp, dias: +dias.toFixed(2), dentro: ok, dt_prog: r.dt_prog, dt_fim_prog: r.dt_fim_prog });
+      detalhes.push({ fpp: r.fpp, dias: +dias.toFixed(0), dentro: ok, dt_prog: r.dt_prog, dt_fim_prog: r.dt_fim_prog });
     });
     return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, detalhes: detalhes.sort((a, b) => b.dias - a.dias) };
   }, [inPeriod]);
