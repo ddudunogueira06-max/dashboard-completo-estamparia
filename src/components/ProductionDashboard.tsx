@@ -523,9 +523,9 @@ export function ProductionDashboard() {
       </section>
 
       <div className="text-xs text-muted-foreground">
-        * Capacidade considera o período selecionado e o campo TEMPO FPP da planilha (75h/semana por máquina).
+        * Capacidade considera o intervalo de datas selecionado (por Data Prog.) e o campo TEMPO FPP da planilha (75h/semana por máquina).
         Urgente = PRODUTO contém "URGENTE". Atravessamento = dias úteis entre Data Prog. (B) e Data Fim Prog. (K), descontando fins de semana, feriados de Curitiba e dias ponte; dentro do prazo quando ≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias.
-        Período padrão "Ano" para mostrar as urgências de todas as máquinas (semana/mês mostram apenas o que foi programado naquele intervalo).
+        Sem datas selecionadas, mostra todo o período disponível.
         Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
       </div>
 
