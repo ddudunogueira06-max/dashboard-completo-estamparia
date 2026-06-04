@@ -461,111 +461,95 @@ export function ProductionDashboard() {
       </section>
 
 
-      {/* Gráfico semanal de FPPs (destaque) */}
-      <section className="bg-card border border-border rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-          <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground inline-flex items-center gap-2">
-            <CalendarDays className="size-4" /> FPPs por semana · {rangeLabel}
-          </h3>
-          <span className="text-[11px] text-muted-foreground">
-            Média <span className="text-foreground font-semibold">{fmtNum(avgFppPerWeek, 1)}</span> FPPs/semana · <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)}</span> FPPs/dia
-          </span>
-        </div>
-        <div className="h-[360px]">
-          {weekly.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-              Sem dados no período selecionado.
-            </div>
-          ) : (
-            <ResponsiveContainer>
-              <BarChart data={weekly} margin={{ left: 8, right: 16, top: 20, bottom: 10 }}>
-                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={11} interval={0} angle={weekly.length > 8 ? -25 : 0} textAnchor={weekly.length > 8 ? "end" : "middle"} height={weekly.length > 8 ? 56 : 30} />
-                <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} allowDecimals={false} />
-                <Tooltip
-                  cursor={{ fill: "oklch(0.3 0.03 250 / 0.25)" }}
-                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                  formatter={(v: number, n) => [n === "horas" ? `${v.toFixed(1)}h` : `${v} FPPs`, n === "horas" ? "Horas" : "FPPs"]}
-                />
-                <ReferenceLine y={avgFppPerWeek} stroke="oklch(0.85 0.18 90)" strokeDasharray="5 4" strokeWidth={1.5}
-                  label={{ value: `méd ${avgFppPerWeek.toFixed(1)}`, position: "right", fill: "oklch(0.85 0.18 90)", fontSize: 11 }} />
-                <Bar dataKey="fpps" fill="oklch(0.72 0.15 215)" radius={[6, 6, 0, 0]} maxBarSize={64}>
-                  <LabelList dataKey="fpps" position="top" fill="oklch(0.95 0.01 240)" fontSize={12} fontWeight={700} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </section>
+      {/* DESTAQUE: Velocímetro + Capacidade */}
+      <section className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-      {/* Capacidade por máquina + velocímetro */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-              Capacidade · {rangeLabel} ({Math.round(capLimitHours)}h por máquina)
+        {/* Velocímetro — atravessamento */}
+        <div className="lg:col-span-2 bg-gradient-to-br from-card to-secondary/20 border border-border rounded-2xl p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-base uppercase tracking-wider text-foreground inline-flex items-center gap-2">
+              <GaugeIcon className="size-5 text-primary" /> Atravessamento
             </h3>
-            <div className="flex items-center gap-3 text-[11px]">
-              <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.62 0.23 25)" }} /> Urgente</span>
-              <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Normal</span>
-              <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.45 0.02 240)" }} /> Livre</span>
+            <span className="text-xs text-muted-foreground">≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias úteis</span>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={320} />
+            <div className="mt-3 grid grid-cols-2 gap-3 w-full max-w-[300px]">
+              <div className="rounded-xl bg-success/10 border border-success/30 px-3 py-2 text-center">
+                <div className="text-2xl font-extrabold text-success leading-none">{fmtInt(atravess.dentro)}</div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">No prazo</div>
+              </div>
+              <div className="rounded-xl bg-muted/30 border border-border px-3 py-2 text-center">
+                <div className="text-2xl font-extrabold text-foreground leading-none">{fmtInt(atravess.total)}</div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">Avaliados</div>
+              </div>
             </div>
           </div>
-          <div className="h-[320px]">
+        </div>
+
+        {/* Capacidade por máquina — barras verticais */}
+        <div className="lg:col-span-3 bg-card border border-border rounded-2xl p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+            <h3 className="font-bold text-base uppercase tracking-wider text-foreground inline-flex items-center gap-2">
+              <Factory className="size-5 text-primary" /> Capacidade por máquina
+            </h3>
+            <div className="flex items-center gap-4 text-xs">
+              <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-sm" style={{ background: "oklch(0.62 0.23 25)" }} /> Urgente</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Normal</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-sm" style={{ background: "oklch(0.45 0.02 240)" }} /> Livre</span>
+            </div>
+          </div>
+          <div className="h-[420px]">
             <ResponsiveContainer>
-              <BarChart data={capacityByMachine} layout="vertical" margin={{ left: 30, right: 80, top: 10, bottom: 10 }}>
-                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" domain={[0, Math.round(capLimitHours)]} tickFormatter={(v) => `${v}h`} stroke="oklch(0.72 0.03 240)" fontSize={11} />
-                <YAxis type="category" dataKey="machine" stroke="oklch(0.85 0.02 240)" fontSize={12} width={80} />
+              <BarChart data={capacityByMachine} margin={{ left: 8, right: 16, top: 24, bottom: 8 }}>
+                <defs>
+                  <linearGradient id="capUrg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.68 0.23 25)" />
+                    <stop offset="100%" stopColor="oklch(0.55 0.22 25)" />
+                  </linearGradient>
+                  <linearGradient id="capNor" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.78 0.15 215)" />
+                    <stop offset="100%" stopColor="oklch(0.64 0.16 215)" />
+                  </linearGradient>
+                  <linearGradient id="capLiv" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.5 0.02 240)" />
+                    <stop offset="100%" stopColor="oklch(0.4 0.02 240)" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="machine" stroke="oklch(0.88 0.02 240)" fontSize={15} fontWeight={600} tickLine={false} axisLine={false} />
+                <YAxis type="number" domain={[0, Math.round(capLimitHours)]} tickFormatter={(v) => `${v}h`} stroke="oklch(0.72 0.03 240)" fontSize={13} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
+                  cursor={{ fill: "oklch(0.3 0.03 250 / 0.2)" }}
+                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)", fontSize: 13 }}
                   formatter={(v: number, n) => [`${v.toFixed(1)}h`, n]}
                 />
-                <Bar dataKey="Urgente" stackId="a" fill="oklch(0.62 0.23 25)" />
-                <Bar dataKey="Normal" stackId="a" fill="oklch(0.72 0.15 215)" />
-                <Bar dataKey="Livre" stackId="a" fill="oklch(0.45 0.02 240)">
+                <Bar dataKey="Urgente" stackId="a" fill="url(#capUrg)" maxBarSize={130} />
+                <Bar dataKey="Normal" stackId="a" fill="url(#capNor)" maxBarSize={130} />
+                <Bar dataKey="Livre" stackId="a" fill="url(#capLiv)" radius={[10, 10, 0, 0]} maxBarSize={130}>
                   <LabelList
-                    dataKey="occ"
-                    position="right"
-                    content={((props: Record<string, unknown>) => {
-                      const x = Number(props.x ?? 0);
-                      const y = Number(props.y ?? 0);
-                      const width = Number(props.width ?? 0);
-                      const height = Number(props.height ?? 0);
-                      const idx = Number(props.index ?? 0);
-                      const d = capacityByMachine[idx];
-                      if (!d) return null;
-                      const pct = d.occ;
-                      const color = pct >= 90 ? "oklch(0.62 0.23 25)" : pct >= 70 ? "oklch(0.85 0.18 90)" : "oklch(0.65 0.18 145)";
-                      return (
-                        <g>
-                          <rect x={x + width + 6} y={y + height / 2 - 11} rx={4} width={62} height={22} fill={color} />
-                          <text x={x + width + 6 + 31} y={y + height / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="oklch(0.99 0 0)">
-                            {`${pct.toFixed(0)}%`}
-                          </text>
-                        </g>
-                      );
-                    }) as never}
+                    dataKey="used"
+                    position="top"
+                    formatter={(v: number) => `${fmtNum(v, 0)}h`}
+                    fill="oklch(0.95 0.01 240)"
+                    fontSize={15}
+                    fontWeight={700}
                   />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-4">
-          <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3">Atravessamento (≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias)</h3>
-          <div className="flex flex-col items-center justify-center h-[320px]">
-            <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={240} />
-            <div className="mt-2 text-xs text-muted-foreground text-center">
-              {fmtInt(atravess.dentro)} de {fmtInt(atravess.total)} FPPs no prazo
-              <br />
-              <span className="text-[11px]">Meta {META_ATRAVESSAMENTO}%</span>
-            </div>
+          <div className="mt-3 grid grid-cols-3 gap-3">
+            {capacityByMachine.map((d) => (
+              <div key={d.machine} className="rounded-xl bg-secondary/30 border border-border px-3 py-2 text-center">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{d.machine}</div>
+                <div className="text-lg font-bold text-foreground leading-tight">{fmtNum(d.used, 0)}h <span className="text-xs font-normal text-muted-foreground">/ {Math.round(capLimitHours)}h</span></div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
+
 
       {/* Tabela escondida */}
       <section className="bg-card border border-border rounded-xl">
