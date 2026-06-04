@@ -137,10 +137,10 @@ function isWorkingDay(date: Date) {
   return !holidaySetForYear(date.getFullYear()).has(ymd(date));
 }
 
-/** Atravessamento calculado entre Data Prog. (B) e Data Fim Prog. (K), descontando fins de semana, feriados de Curitiba e dias ponte. */
-function atravessDias(dtProg: string | null, dtFimProg: string | null): number | null {
+/** Atravessamento: dias úteis entre a Data Prog. (data atual da programação) e a Data Fim Estamparia (data em que deveria terminar), descontando fins de semana, feriados de Curitiba e dias ponte. */
+function atravessDias(dtProg: string | null, dtFimEst: string | null): number | null {
   const start = parseLocalDate(dtProg);
-  const end = parseLocalDate(dtFimProg);
+  const end = parseLocalDate(dtFimEst);
   if (!start || !end) return null;
   const forward = end.getTime() >= start.getTime();
   let cursor = new Date(start);
@@ -264,17 +264,17 @@ export function ProductionDashboard() {
     });
   }, [inPeriod, machineFilter, capLimitHours]);
 
-  // Atravessamento: dias úteis entre Data Prog. (B) e Data Fim Prog. (K) ≤ 3 (no intervalo)
+  // Atravessamento: dias úteis entre Data Prog. e Data Fim Estamparia ≤ 3 (no intervalo)
   const atravess = useMemo(() => {
     let dentro = 0, total = 0;
-    const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_prog: string | null }[] = [];
+    const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_est: string | null }[] = [];
     inPeriod.forEach(r => {
-      const dias = atravessDias(r.dt_prog, r.dt_fim_prog);
+      const dias = atravessDias(r.dt_prog, r.dt_fim_estamparia);
       if (dias === null) return;
       total++;
       const ok = dias <= ATRAVESSAMENTO_LIMITE_DIAS;
       if (ok) dentro++;
-      detalhes.push({ fpp: r.fpp, dias: +dias.toFixed(0), dentro: ok, dt_prog: r.dt_prog, dt_fim_prog: r.dt_fim_prog });
+      detalhes.push({ fpp: r.fpp, dias: +dias.toFixed(0), dentro: ok, dt_prog: r.dt_prog, dt_fim_est: r.dt_fim_estamparia });
     });
     return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, detalhes: detalhes.sort((a, b) => b.dias - a.dias) };
   }, [inPeriod]);
