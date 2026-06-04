@@ -5,9 +5,9 @@ import { KpiCard } from "@/components/KpiCard";
 import { Gauge } from "@/components/Gauge";
 import { fmtInt, fmtNum, fmtDate } from "@/lib/format";
 import {
-  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, LabelList, ReferenceLine,
+  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, LabelList,
 } from "recharts";
-import { Zap, Clock, Gauge as GaugeIcon, Factory, RefreshCw, ListChecks, ChevronDown, ChevronUp, Scissors, LayoutGrid, CalendarDays, TrendingUp } from "lucide-react";
+import { Zap, Clock, Gauge as GaugeIcon, Factory, RefreshCw, ListChecks, ChevronDown, ChevronUp, Scissors, LayoutGrid, TrendingUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface ProdRecord {
@@ -137,10 +137,10 @@ function isWorkingDay(date: Date) {
   return !holidaySetForYear(date.getFullYear()).has(ymd(date));
 }
 
-/** Atravessamento calculado entre Data Prog. (B) e Data Fim Prog. (K), descontando fins de semana, feriados de Curitiba e dias ponte. */
-function atravessDias(dtProg: string | null, dtFimProg: string | null): number | null {
+/** Atravessamento: dias úteis entre a Data Prog. (data atual da programação) e a Data Fim Estamparia (data em que deveria terminar), descontando fins de semana, feriados de Curitiba e dias ponte. */
+function atravessDias(dtProg: string | null, dtFimEst: string | null): number | null {
   const start = parseLocalDate(dtProg);
-  const end = parseLocalDate(dtFimProg);
+  const end = parseLocalDate(dtFimEst);
   if (!start || !end) return null;
   const forward = end.getTime() >= start.getTime();
   let cursor = new Date(start);
@@ -264,17 +264,17 @@ export function ProductionDashboard() {
     });
   }, [inPeriod, machineFilter, capLimitHours]);
 
-  // Atravessamento: dias úteis entre Data Prog. (B) e Data Fim Prog. (K) ≤ 3 (no intervalo)
+  // Atravessamento: dias úteis entre Data Prog. e Data Fim Estamparia ≤ 3 (no intervalo)
   const atravess = useMemo(() => {
     let dentro = 0, total = 0;
-    const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_prog: string | null }[] = [];
+    const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_est: string | null }[] = [];
     inPeriod.forEach(r => {
-      const dias = atravessDias(r.dt_prog, r.dt_fim_prog);
+      const dias = atravessDias(r.dt_prog, r.dt_fim_estamparia);
       if (dias === null) return;
       total++;
       const ok = dias <= ATRAVESSAMENTO_LIMITE_DIAS;
       if (ok) dentro++;
-      detalhes.push({ fpp: r.fpp, dias: +dias.toFixed(0), dentro: ok, dt_prog: r.dt_prog, dt_fim_prog: r.dt_fim_prog });
+      detalhes.push({ fpp: r.fpp, dias: +dias.toFixed(0), dentro: ok, dt_prog: r.dt_prog, dt_fim_est: r.dt_fim_estamparia });
     });
     return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, detalhes: detalhes.sort((a, b) => b.dias - a.dias) };
   }, [inPeriod]);
@@ -329,32 +329,8 @@ export function ProductionDashboard() {
     return { avg: days > 0 ? total / days : 0, days, total, perMachine };
   }, [inPeriod]);
 
-  // Agregação semanal (Seg–Sex) de FPPs distintas por Data Prog. dentro do intervalo
-  const weekly = useMemo(() => {
-    const map = new Map<string, { start: Date; fpps: Set<string>; horas: number }>();
-    inPeriod.forEach(r => {
-      const ref = parseLocalDate(r.dt_prog);
-      if (!ref) return;
-      const mon = startOfWeek(ref);
-      const key = ymd(mon);
-      let wk = map.get(key);
-      if (!wk) { wk = { start: mon, fpps: new Set(), horas: 0 }; map.set(key, wk); }
-      if (r.fpp) wk.fpps.add(r.fpp);
-      wk.horas += (r.tempo_fpp_seg ?? 0) / 3600;
-    });
-    const fmt = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-    return Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([key, w]) => {
-        const fri = addDays(w.start, 4);
-        return { key, label: `${fmt(w.start)}–${fmt(fri)}`, fpps: w.fpps.size, horas: +w.horas.toFixed(1) };
-      });
-  }, [inPeriod]);
 
-  const avgFppPerWeek = useMemo(() => {
-    if (weekly.length === 0) return 0;
-    return weekly.reduce((a, w) => a + w.fpps, 0) / weekly.length;
-  }, [weekly]);
+
 
 
   const openTempoDetail = (kind: "urg" | "nor") => {
@@ -485,111 +461,95 @@ export function ProductionDashboard() {
       </section>
 
 
-      {/* Gráfico semanal de FPPs (destaque) */}
-      <section className="bg-card border border-border rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-          <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground inline-flex items-center gap-2">
-            <CalendarDays className="size-4" /> FPPs por semana · {rangeLabel}
-          </h3>
-          <span className="text-[11px] text-muted-foreground">
-            Média <span className="text-foreground font-semibold">{fmtNum(avgFppPerWeek, 1)}</span> FPPs/semana · <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)}</span> FPPs/dia
-          </span>
-        </div>
-        <div className="h-[360px]">
-          {weekly.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-              Sem dados no período selecionado.
-            </div>
-          ) : (
-            <ResponsiveContainer>
-              <BarChart data={weekly} margin={{ left: 8, right: 16, top: 20, bottom: 10 }}>
-                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={11} interval={0} angle={weekly.length > 8 ? -25 : 0} textAnchor={weekly.length > 8 ? "end" : "middle"} height={weekly.length > 8 ? 56 : 30} />
-                <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} allowDecimals={false} />
-                <Tooltip
-                  cursor={{ fill: "oklch(0.3 0.03 250 / 0.25)" }}
-                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                  formatter={(v: number, n) => [n === "horas" ? `${v.toFixed(1)}h` : `${v} FPPs`, n === "horas" ? "Horas" : "FPPs"]}
-                />
-                <ReferenceLine y={avgFppPerWeek} stroke="oklch(0.85 0.18 90)" strokeDasharray="5 4" strokeWidth={1.5}
-                  label={{ value: `méd ${avgFppPerWeek.toFixed(1)}`, position: "right", fill: "oklch(0.85 0.18 90)", fontSize: 11 }} />
-                <Bar dataKey="fpps" fill="oklch(0.72 0.15 215)" radius={[6, 6, 0, 0]} maxBarSize={64}>
-                  <LabelList dataKey="fpps" position="top" fill="oklch(0.95 0.01 240)" fontSize={12} fontWeight={700} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </section>
+      {/* DESTAQUE: Velocímetro + Capacidade */}
+      <section className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-      {/* Capacidade por máquina + velocímetro */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-              Capacidade · {rangeLabel} ({Math.round(capLimitHours)}h por máquina)
+        {/* Velocímetro — atravessamento */}
+        <div className="lg:col-span-2 bg-gradient-to-br from-card to-secondary/20 border border-border rounded-2xl p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-base uppercase tracking-wider text-foreground inline-flex items-center gap-2">
+              <GaugeIcon className="size-5 text-primary" /> Atravessamento
             </h3>
-            <div className="flex items-center gap-3 text-[11px]">
-              <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.62 0.23 25)" }} /> Urgente</span>
-              <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Normal</span>
-              <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.45 0.02 240)" }} /> Livre</span>
+            <span className="text-xs text-muted-foreground">≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias úteis</span>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={320} />
+            <div className="mt-3 grid grid-cols-2 gap-3 w-full max-w-[300px]">
+              <div className="rounded-xl bg-success/10 border border-success/30 px-3 py-2 text-center">
+                <div className="text-2xl font-extrabold text-success leading-none">{fmtInt(atravess.dentro)}</div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">No prazo</div>
+              </div>
+              <div className="rounded-xl bg-muted/30 border border-border px-3 py-2 text-center">
+                <div className="text-2xl font-extrabold text-foreground leading-none">{fmtInt(atravess.total)}</div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">Avaliados</div>
+              </div>
             </div>
           </div>
-          <div className="h-[320px]">
+        </div>
+
+        {/* Capacidade por máquina — barras verticais */}
+        <div className="lg:col-span-3 bg-card border border-border rounded-2xl p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+            <h3 className="font-bold text-base uppercase tracking-wider text-foreground inline-flex items-center gap-2">
+              <Factory className="size-5 text-primary" /> Capacidade por máquina
+            </h3>
+            <div className="flex items-center gap-4 text-xs">
+              <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-sm" style={{ background: "oklch(0.62 0.23 25)" }} /> Urgente</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Normal</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-sm" style={{ background: "oklch(0.45 0.02 240)" }} /> Livre</span>
+            </div>
+          </div>
+          <div className="h-[420px]">
             <ResponsiveContainer>
-              <BarChart data={capacityByMachine} layout="vertical" margin={{ left: 30, right: 80, top: 10, bottom: 10 }}>
-                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" domain={[0, Math.round(capLimitHours)]} tickFormatter={(v) => `${v}h`} stroke="oklch(0.72 0.03 240)" fontSize={11} />
-                <YAxis type="category" dataKey="machine" stroke="oklch(0.85 0.02 240)" fontSize={12} width={80} />
+              <BarChart data={capacityByMachine} margin={{ left: 8, right: 16, top: 24, bottom: 8 }}>
+                <defs>
+                  <linearGradient id="capUrg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.68 0.23 25)" />
+                    <stop offset="100%" stopColor="oklch(0.55 0.22 25)" />
+                  </linearGradient>
+                  <linearGradient id="capNor" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.78 0.15 215)" />
+                    <stop offset="100%" stopColor="oklch(0.64 0.16 215)" />
+                  </linearGradient>
+                  <linearGradient id="capLiv" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.5 0.02 240)" />
+                    <stop offset="100%" stopColor="oklch(0.4 0.02 240)" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="machine" stroke="oklch(0.88 0.02 240)" fontSize={15} fontWeight={600} tickLine={false} axisLine={false} />
+                <YAxis type="number" domain={[0, Math.round(capLimitHours)]} tickFormatter={(v) => `${v}h`} stroke="oklch(0.72 0.03 240)" fontSize={13} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
+                  cursor={{ fill: "oklch(0.3 0.03 250 / 0.2)" }}
+                  contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)", fontSize: 13 }}
                   formatter={(v: number, n) => [`${v.toFixed(1)}h`, n]}
                 />
-                <Bar dataKey="Urgente" stackId="a" fill="oklch(0.62 0.23 25)" />
-                <Bar dataKey="Normal" stackId="a" fill="oklch(0.72 0.15 215)" />
-                <Bar dataKey="Livre" stackId="a" fill="oklch(0.45 0.02 240)">
+                <Bar dataKey="Urgente" stackId="a" fill="url(#capUrg)" maxBarSize={130} />
+                <Bar dataKey="Normal" stackId="a" fill="url(#capNor)" maxBarSize={130} />
+                <Bar dataKey="Livre" stackId="a" fill="url(#capLiv)" radius={[10, 10, 0, 0]} maxBarSize={130}>
                   <LabelList
-                    dataKey="occ"
-                    position="right"
-                    content={((props: Record<string, unknown>) => {
-                      const x = Number(props.x ?? 0);
-                      const y = Number(props.y ?? 0);
-                      const width = Number(props.width ?? 0);
-                      const height = Number(props.height ?? 0);
-                      const idx = Number(props.index ?? 0);
-                      const d = capacityByMachine[idx];
-                      if (!d) return null;
-                      const pct = d.occ;
-                      const color = pct >= 90 ? "oklch(0.62 0.23 25)" : pct >= 70 ? "oklch(0.85 0.18 90)" : "oklch(0.65 0.18 145)";
-                      return (
-                        <g>
-                          <rect x={x + width + 6} y={y + height / 2 - 11} rx={4} width={62} height={22} fill={color} />
-                          <text x={x + width + 6 + 31} y={y + height / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="oklch(0.99 0 0)">
-                            {`${pct.toFixed(0)}%`}
-                          </text>
-                        </g>
-                      );
-                    }) as never}
+                    dataKey="used"
+                    position="top"
+                    formatter={(v: number) => `${fmtNum(v, 0)}h`}
+                    fill="oklch(0.95 0.01 240)"
+                    fontSize={15}
+                    fontWeight={700}
                   />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-4">
-          <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3">Atravessamento (≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias)</h3>
-          <div className="flex flex-col items-center justify-center h-[320px]">
-            <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={240} />
-            <div className="mt-2 text-xs text-muted-foreground text-center">
-              {fmtInt(atravess.dentro)} de {fmtInt(atravess.total)} FPPs no prazo
-              <br />
-              <span className="text-[11px]">Meta {META_ATRAVESSAMENTO}%</span>
-            </div>
+          <div className="mt-3 grid grid-cols-3 gap-3">
+            {capacityByMachine.map((d) => (
+              <div key={d.machine} className="rounded-xl bg-secondary/30 border border-border px-3 py-2 text-center">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{d.machine}</div>
+                <div className="text-lg font-bold text-foreground leading-tight">{fmtNum(d.used, 0)}h <span className="text-xs font-normal text-muted-foreground">/ {Math.round(capLimitHours)}h</span></div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
+
 
       {/* Tabela escondida */}
       <section className="bg-card border border-border rounded-xl">
@@ -604,8 +564,8 @@ export function ProductionDashboard() {
               <thead className="bg-secondary/40 sticky top-0">
                 <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                   <th className="px-3 py-2">FPP</th>
-                  <th className="px-3 py-2">Data Prog. (B)</th>
-                  <th className="px-3 py-2">Data Fim Prog. (K)</th>
+                  <th className="px-3 py-2">Data Prog.</th>
+                  <th className="px-3 py-2">Data Fim Estamparia</th>
                   <th className="px-3 py-2 text-right">Dias</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>
@@ -615,7 +575,7 @@ export function ProductionDashboard() {
                   <tr key={i} className="border-t border-border hover:bg-secondary/30">
                     <td className="px-3 py-2 font-mono text-xs">{d.fpp}</td>
                     <td className="px-3 py-2 text-xs">{fmtDate(d.dt_prog)}</td>
-                    <td className="px-3 py-2 text-xs">{fmtDate(d.dt_fim_prog)}</td>
+                    <td className="px-3 py-2 text-xs">{fmtDate(d.dt_fim_est)}</td>
                     <td className="px-3 py-2 text-right font-mono">{d.dias.toFixed(1)}</td>
                     <td className="px-3 py-2">
                       <span className={`text-xs font-semibold ${d.dentro ? "text-success" : "text-destructive"}`}>
@@ -635,7 +595,7 @@ export function ProductionDashboard() {
 
       <div className="text-xs text-muted-foreground">
         * Capacidade considera o intervalo de datas selecionado (por Data Prog.) e o campo TEMPO FPP da planilha (75h/semana por máquina).
-        Urgente = PRODUTO contém "URGENTE". Atravessamento = dias úteis entre Data Prog. (B) e Data Fim Prog. (K), descontando fins de semana, feriados de Curitiba e dias ponte; dentro do prazo quando ≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias.
+        Urgente = PRODUTO contém "URGENTE". Atravessamento = dias úteis entre a Data Prog. (data atual da programação) e a Data Fim Estamparia (data em que deveria terminar), descontando fins de semana, feriados de Curitiba e dias ponte; dentro do prazo quando ≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias.
         Sem datas selecionadas, mostra todo o período disponível.
         Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
       </div>

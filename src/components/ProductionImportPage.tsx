@@ -56,7 +56,7 @@ export function ProductionImportPage() {
         setProgress(`Importando ${i + batch.length} de ${rows.length}…`);
         const { error, count } = await supabase
           .from("production_records")
-          .upsert(batch, { onConflict: "fpp,seq,dt_prog", ignoreDuplicates: true, count: "exact" });
+          .upsert(batch, { onConflict: "fpp,seq,dt_prog,maquina,item,produto", ignoreDuplicates: true, count: "exact" });
         if (error) throw error;
         const ins = count ?? 0;
         inserted += ins; skipped += batch.length - ins;
