@@ -564,8 +564,8 @@ export function ProductionDashboard() {
               <thead className="bg-secondary/40 sticky top-0">
                 <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                   <th className="px-3 py-2">FPP</th>
-                  <th className="px-3 py-2">Data Prog. (B)</th>
-                  <th className="px-3 py-2">Data Fim Prog. (K)</th>
+                  <th className="px-3 py-2">Data Prog.</th>
+                  <th className="px-3 py-2">Data Fim Estamparia</th>
                   <th className="px-3 py-2 text-right">Dias</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>
@@ -575,7 +575,7 @@ export function ProductionDashboard() {
                   <tr key={i} className="border-t border-border hover:bg-secondary/30">
                     <td className="px-3 py-2 font-mono text-xs">{d.fpp}</td>
                     <td className="px-3 py-2 text-xs">{fmtDate(d.dt_prog)}</td>
-                    <td className="px-3 py-2 text-xs">{fmtDate(d.dt_fim_prog)}</td>
+                    <td className="px-3 py-2 text-xs">{fmtDate(d.dt_fim_est)}</td>
                     <td className="px-3 py-2 text-right font-mono">{d.dias.toFixed(1)}</td>
                     <td className="px-3 py-2">
                       <span className={`text-xs font-semibold ${d.dentro ? "text-success" : "text-destructive"}`}>
@@ -595,7 +595,7 @@ export function ProductionDashboard() {
 
       <div className="text-xs text-muted-foreground">
         * Capacidade considera o intervalo de datas selecionado (por Data Prog.) e o campo TEMPO FPP da planilha (75h/semana por máquina).
-        Urgente = PRODUTO contém "URGENTE". Atravessamento = dias úteis entre Data Prog. (B) e Data Fim Prog. (K), descontando fins de semana, feriados de Curitiba e dias ponte; dentro do prazo quando ≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias.
+        Urgente = PRODUTO contém "URGENTE". Atravessamento = dias úteis entre a Data Prog. (data atual da programação) e a Data Fim Estamparia (data em que deveria terminar), descontando fins de semana, feriados de Curitiba e dias ponte; dentro do prazo quando ≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias.
         Sem datas selecionadas, mostra todo o período disponível.
         Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
       </div>
