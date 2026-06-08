@@ -481,18 +481,22 @@ export function ProductionDashboard() {
             <h3 className="font-bold text-base uppercase tracking-wider text-foreground inline-flex items-center gap-2">
               <GaugeIcon className="size-5 text-primary" /> Atravessamento
             </h3>
-            <span className="text-xs text-muted-foreground">≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias úteis</span>
+            <span className="text-xs text-muted-foreground">Meta: {ATRAVESSAMENTO_META_DIAS} dias úteis</span>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center">
             <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={320} />
-            <div className="mt-3 grid grid-cols-2 gap-3 w-full max-w-[300px]">
-              <div className="rounded-xl bg-success/10 border border-success/30 px-3 py-2 text-center">
-                <div className="text-2xl font-extrabold text-success leading-none">{fmtInt(atravess.dentro)}</div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">No prazo</div>
+            <div className="mt-3 grid grid-cols-3 gap-2 w-full max-w-[320px]">
+              <div className="rounded-xl bg-success/10 border border-success/30 px-2 py-2 text-center">
+                <div className="text-xl font-extrabold text-success leading-none">{fmtInt(atravess.dentro)}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">No prazo</div>
               </div>
-              <div className="rounded-xl bg-muted/30 border border-border px-3 py-2 text-center">
-                <div className="text-2xl font-extrabold text-foreground leading-none">{fmtInt(atravess.total)}</div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">Avaliados</div>
+              <div className="rounded-xl bg-destructive/10 border border-destructive/30 px-2 py-2 text-center">
+                <div className="text-xl font-extrabold text-destructive leading-none">{fmtInt(atravess.total - atravess.dentro)}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Atrasados</div>
+              </div>
+              <div className="rounded-xl bg-muted/30 border border-border px-2 py-2 text-center">
+                <div className={`text-xl font-extrabold leading-none ${atravess.media >= 0 ? "text-success" : "text-destructive"}`}>{atravess.media >= 0 ? "+" : ""}{fmtNum(atravess.media, 1)}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Média (d)</div>
               </div>
             </div>
           </div>
