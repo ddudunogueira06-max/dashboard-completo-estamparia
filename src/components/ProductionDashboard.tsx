@@ -271,19 +271,20 @@ export function ProductionDashboard() {
     });
   }, [inPeriod, machineFilter, capLimitHours]);
 
-  // Atravessamento: dias úteis entre Data Prog. e Data Fim Estamparia ≤ 3 (no intervalo)
+  // Atravessamento: dias úteis (com sinal) entre Data Prog. e Data Fim Estamparia (no intervalo)
   const atravess = useMemo(() => {
-    let dentro = 0, total = 0;
-    const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_est: string | null }[] = [];
+    let dentro = 0, total = 0, soma = 0;
+    const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_est: string | null; tempo: number | null; maquina: number | null }[] = [];
     inPeriod.forEach(r => {
       const dias = atravessDias(r.dt_prog, r.dt_fim_estamparia);
       if (dias === null) return;
       total++;
-      const ok = dias <= ATRAVESSAMENTO_LIMITE_DIAS;
+      soma += dias;
+      const ok = dias >= 0; // no prazo ou adiantado
       if (ok) dentro++;
-      detalhes.push({ fpp: r.fpp, dias: +dias.toFixed(0), dentro: ok, dt_prog: r.dt_prog, dt_fim_est: r.dt_fim_estamparia });
+      detalhes.push({ fpp: r.fpp, dias, dentro: ok, dt_prog: r.dt_prog, dt_fim_est: r.dt_fim_estamparia, tempo: r.tempo_fpp_seg, maquina: r.maquina });
     });
-    return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, detalhes: detalhes.sort((a, b) => b.dias - a.dias) };
+    return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, media: total > 0 ? soma / total : 0, detalhes: detalhes.sort((a, b) => a.dias - b.dias) };
   }, [inPeriod]);
 
   // Contagem de FPPs (distintas) por bucket — usado nos diálogos
