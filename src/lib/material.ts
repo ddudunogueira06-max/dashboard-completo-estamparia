@@ -67,18 +67,27 @@ export function detectMaterial(descricao: string | null | undefined): MaterialKi
   if (!descricao) return "outro";
   const d = descricao.toUpperCase();
   if (/AISI|INOX|\b304\b|\b316\b|\b430\b/.test(d)) return "inox";
+  // Alumínio: aceita variações ALUMINIO / ALUM / ALU / AL (palavra isolada)
+  if (/ALUM[IÍ]?N?I?O?|\bALU\b|\bAL\b/.test(d)) return "aluminio";
   if (/GALV|\bGI\b|ZINC|BRANC[AO]|\bBR\b/.test(d)) return "galvanizado";
-  if (/ALUM|\bAL\b/.test(d)) return "aluminio";
   return "outro";
 }
 
 export function detectThicknessMm(descricao: string | null | undefined): number | null {
   if (!descricao) return null;
+  // 1) Espessura após "#"  →  "#1,5" / "#0,60"
   const m1 = descricao.match(/#\s*([\d]+[,.]?[\d]*)/);
   if (m1) {
     const v = parseFloat(m1[1].replace(",", "."));
     if (!isNaN(v) && v > 0 && v < 50) return v;
   }
+  // 2) Espessura antes de "MM"  →  "1,0MM" / "0,8 MM" / "1,5 mm"
+  const m3 = descricao.match(/([\d]+[,.]?[\d]*)\s*MM\b/i);
+  if (m3) {
+    const v = parseFloat(m3[1].replace(",", "."));
+    if (!isNaN(v) && v > 0 && v < 50) return v;
+  }
+  // 3) Espessura antes da dimensão  →  "1,50X3000"
   const m2 = descricao.match(/(?:^|\s)([\d]+[,.][\d]+)\s*X/i);
   if (m2) {
     const v = parseFloat(m2[1].replace(",", "."));

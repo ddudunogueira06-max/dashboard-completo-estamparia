@@ -31,7 +31,7 @@ interface ProdRecord {
 
 const MACHINES = [2000, 3000, 5000] as const;
 const WEEKLY_CAPACITY_HOURS = 75; // h por máquina por semana
-const ATRAVESSAMENTO_LIMITE_DIAS = 3;
+const ATRAVESSAMENTO_META_DIAS = 2; // dias úteis de antecedência considerados ideais
 const META_ATRAVESSAMENTO = 90; // %
 
 function isUrgente(r: ProdRecord) {
@@ -137,7 +137,13 @@ function isWorkingDay(date: Date) {
   return !holidaySetForYear(date.getFullYear()).has(ymd(date));
 }
 
-/** Atravessamento: dias úteis entre a Data Prog. (data atual da programação) e a Data Fim Estamparia (data em que deveria terminar), descontando fins de semana, feriados de Curitiba e dias ponte. */
+/**
+ * Atravessamento (em dias úteis) = Data Fim Estamparia (col. K, prazo) − Data Prog. (col. B, data atual).
+ * Resultado POSITIVO  → termina antes do prazo (adiantado).
+ * Resultado NEGATIVO  → atrasado.
+ * Resultado ZERO      → no prazo (Ok).
+ * Desconta fins de semana, feriados de Curitiba e dias ponte.
+ */
 function atravessDias(dtProg: string | null, dtFimEst: string | null): number | null {
   const start = parseLocalDate(dtProg);
   const end = parseLocalDate(dtFimEst);
@@ -151,7 +157,8 @@ function atravessDias(dtProg: string | null, dtFimEst: string | null): number | 
     if (isWorkingDay(cursor)) days += 1;
   }
 
-  return days;
+  // Sinal: positivo quando o prazo (fim) está à frente da data atual (prog).
+  return forward ? days : -days;
 }
 
 export function ProductionDashboard() {
@@ -264,19 +271,20 @@ export function ProductionDashboard() {
     });
   }, [inPeriod, machineFilter, capLimitHours]);
 
-  // Atravessamento: dias úteis entre Data Prog. e Data Fim Estamparia ≤ 3 (no intervalo)
+  // Atravessamento: dias úteis (com sinal) entre Data Prog. e Data Fim Estamparia (no intervalo)
   const atravess = useMemo(() => {
-    let dentro = 0, total = 0;
-    const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_est: string | null }[] = [];
+    let dentro = 0, total = 0, soma = 0;
+    const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_est: string | null; tempo: number | null; maquina: number | null }[] = [];
     inPeriod.forEach(r => {
       const dias = atravessDias(r.dt_prog, r.dt_fim_estamparia);
       if (dias === null) return;
       total++;
-      const ok = dias <= ATRAVESSAMENTO_LIMITE_DIAS;
+      soma += dias;
+      const ok = dias >= 0; // no prazo ou adiantado
       if (ok) dentro++;
-      detalhes.push({ fpp: r.fpp, dias: +dias.toFixed(0), dentro: ok, dt_prog: r.dt_prog, dt_fim_est: r.dt_fim_estamparia });
+      detalhes.push({ fpp: r.fpp, dias, dentro: ok, dt_prog: r.dt_prog, dt_fim_est: r.dt_fim_estamparia, tempo: r.tempo_fpp_seg, maquina: r.maquina });
     });
-    return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, detalhes: detalhes.sort((a, b) => b.dias - a.dias) };
+    return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, media: total > 0 ? soma / total : 0, detalhes: detalhes.sort((a, b) => a.dias - b.dias) };
   }, [inPeriod]);
 
   // Contagem de FPPs (distintas) por bucket — usado nos diálogos
@@ -436,26 +444,29 @@ export function ProductionDashboard() {
         </div>
       </section>
 
-      {/* Pílulas principais */}
+      {/* Pílulas principais — todas refletem o intervalo/máquina/urgência filtrados */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Tempo de Urgência" value={fmtHM(urgPeriod)} icon={Zap} accent="destructive"
-          hint={`Mês ${fmtHM(tempos.urg.month)} · Ano ${fmtHM(tempos.urg.year)}`}
+          hint={`${rangeLabel} · ${fmtInt(inPeriod.filter(isUrgente).length)} registros`}
           onClick={() => openTempoDetail("urg")} />
         <KpiCard label="Horas Normais" value={fmtHM(norPeriod)} icon={Clock} accent="primary"
-          hint={`Mês ${fmtHM(tempos.nor.month)} · Ano ${fmtHM(tempos.nor.year)}`}
+          hint={`${rangeLabel} · ${fmtInt(inPeriod.filter(r => !isUrgente(r)).length)} registros`}
           onClick={() => openTempoDetail("nor")} />
         <KpiCard label="FPPs no período" value={fmtInt(fppPeriod)} icon={Factory} accent="primary"
-          hint={`Hoje ${fmtInt(fppCounts.day)} · Total ${fmtInt(fppCounts.total)}`}
+          hint={`${fmtNum(perDay.avg, 1)}/dia útil · ${rangeLabel}`}
           onClick={() => openFppDetail("FPPs por período")} />
-        <KpiCard label="Atravessamento ≤ 3 dias" value={`${atravess.pct.toFixed(1)}%`} icon={GaugeIcon} accent="success"
-          hint={`${fmtInt(atravess.dentro)} de ${fmtInt(atravess.total)} FPPs`}
+        <KpiCard label="Atravessamento no prazo" value={`${atravess.pct.toFixed(1)}%`} icon={GaugeIcon} accent="success"
+          hint={`Média ${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} d · ${fmtInt(atravess.dentro)}/${fmtInt(atravess.total)}`}
           onClick={() => setDetail({
             title: "Atravessamento",
             rows: [
-              { label: "Dentro do prazo (≤ 3 dias)", value: fmtInt(atravess.dentro) },
+              { label: "No prazo / adiantado", value: fmtInt(atravess.dentro) },
+              { label: "Atrasados", value: fmtInt(atravess.total - atravess.dentro) },
               { label: "Total avaliado", value: fmtInt(atravess.total) },
               { label: "Aderência", value: `${atravess.pct.toFixed(2)}%` },
-              { label: "Meta", value: `${META_ATRAVESSAMENTO}%` },
+              { label: "Média de atravessamento", value: `${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} dias úteis` },
+              { label: "Meta de aderência", value: `${META_ATRAVESSAMENTO}%` },
+              { label: "Meta de atravessamento", value: `${ATRAVESSAMENTO_META_DIAS} dias úteis` },
             ],
           })} />
       </section>
@@ -470,18 +481,22 @@ export function ProductionDashboard() {
             <h3 className="font-bold text-base uppercase tracking-wider text-foreground inline-flex items-center gap-2">
               <GaugeIcon className="size-5 text-primary" /> Atravessamento
             </h3>
-            <span className="text-xs text-muted-foreground">≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias úteis</span>
+            <span className="text-xs text-muted-foreground">Meta: {ATRAVESSAMENTO_META_DIAS} dias úteis</span>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center">
             <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={320} />
-            <div className="mt-3 grid grid-cols-2 gap-3 w-full max-w-[300px]">
-              <div className="rounded-xl bg-success/10 border border-success/30 px-3 py-2 text-center">
-                <div className="text-2xl font-extrabold text-success leading-none">{fmtInt(atravess.dentro)}</div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">No prazo</div>
+            <div className="mt-3 grid grid-cols-3 gap-2 w-full max-w-[320px]">
+              <div className="rounded-xl bg-success/10 border border-success/30 px-2 py-2 text-center">
+                <div className="text-xl font-extrabold text-success leading-none">{fmtInt(atravess.dentro)}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">No prazo</div>
               </div>
-              <div className="rounded-xl bg-muted/30 border border-border px-3 py-2 text-center">
-                <div className="text-2xl font-extrabold text-foreground leading-none">{fmtInt(atravess.total)}</div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">Avaliados</div>
+              <div className="rounded-xl bg-destructive/10 border border-destructive/30 px-2 py-2 text-center">
+                <div className="text-xl font-extrabold text-destructive leading-none">{fmtInt(atravess.total - atravess.dentro)}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Atrasados</div>
+              </div>
+              <div className="rounded-xl bg-muted/30 border border-border px-2 py-2 text-center">
+                <div className={`text-xl font-extrabold leading-none ${atravess.media >= 0 ? "text-success" : "text-destructive"}`}>{atravess.media >= 0 ? "+" : ""}{fmtNum(atravess.media, 1)}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Média (d)</div>
               </div>
             </div>
           </div>
@@ -564,28 +579,34 @@ export function ProductionDashboard() {
               <thead className="bg-secondary/40 sticky top-0">
                 <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                   <th className="px-3 py-2">FPP</th>
-                  <th className="px-3 py-2">Data Prog.</th>
-                  <th className="px-3 py-2">Data Fim Estamparia</th>
-                  <th className="px-3 py-2 text-right">Dias</th>
+                  <th className="px-3 py-2">Data Prog. (B)</th>
+                  <th className="px-3 py-2">Data Fim Estamparia (K)</th>
+                  <th className="px-3 py-2 text-right">Máquina</th>
+                  <th className="px-3 py-2 text-right">Tempo FPP</th>
+                  <th className="px-3 py-2 text-right">Atravess. (dias)</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {atravess.detalhes.slice(0, 500).map((d, i) => (
-                  <tr key={i} className="border-t border-border hover:bg-secondary/30">
-                    <td className="px-3 py-2 font-mono text-xs">{d.fpp}</td>
-                    <td className="px-3 py-2 text-xs">{fmtDate(d.dt_prog)}</td>
-                    <td className="px-3 py-2 text-xs">{fmtDate(d.dt_fim_est)}</td>
-                    <td className="px-3 py-2 text-right font-mono">{d.dias.toFixed(1)}</td>
-                    <td className="px-3 py-2">
-                      <span className={`text-xs font-semibold ${d.dentro ? "text-success" : "text-destructive"}`}>
-                        {d.dentro ? "Dentro" : "Fora"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {atravess.detalhes.slice(0, 500).map((d, i) => {
+                  const status = d.dias > 0 ? "Adiantado" : d.dias < 0 ? "Atrasado" : "Ok";
+                  const cls = d.dias > 0 ? "text-success" : d.dias < 0 ? "text-destructive" : "text-muted-foreground";
+                  return (
+                    <tr key={i} className="border-t border-border hover:bg-secondary/30">
+                      <td className="px-3 py-2 font-mono text-xs">{d.fpp}</td>
+                      <td className="px-3 py-2 text-xs">{fmtDate(d.dt_prog)}</td>
+                      <td className="px-3 py-2 text-xs">{fmtDate(d.dt_fim_est)}</td>
+                      <td className="px-3 py-2 text-right text-xs">{d.maquina ?? "—"}</td>
+                      <td className="px-3 py-2 text-right text-xs font-mono">{d.tempo ? fmtHM(d.tempo) : "—"}</td>
+                      <td className={`px-3 py-2 text-right font-mono font-semibold ${cls}`}>{d.dias > 0 ? "+" : ""}{d.dias}</td>
+                      <td className="px-3 py-2">
+                        <span className={`text-xs font-semibold ${cls}`}>{status}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {atravess.detalhes.length === 0 && (
-                  <tr><td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">Sem dados para avaliação.</td></tr>
+                  <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">Sem dados para avaliação.</td></tr>
                 )}
               </tbody>
             </table>
@@ -595,7 +616,7 @@ export function ProductionDashboard() {
 
       <div className="text-xs text-muted-foreground">
         * Capacidade considera o intervalo de datas selecionado (por Data Prog.) e o campo TEMPO FPP da planilha (75h/semana por máquina).
-        Urgente = PRODUTO contém "URGENTE". Atravessamento = dias úteis entre a Data Prog. (data atual da programação) e a Data Fim Estamparia (data em que deveria terminar), descontando fins de semana, feriados de Curitiba e dias ponte; dentro do prazo quando ≤ {ATRAVESSAMENTO_LIMITE_DIAS} dias.
+        Urgente = PRODUTO contém "URGENTE". Atravessamento (dias úteis) = Data Fim Estamparia (col. K, prazo) − Data Prog. (col. B, data atual): valor positivo = adiantado, negativo = atrasado, zero = no prazo (Ok). Descontados fins de semana, feriados de Curitiba e dias ponte. Meta de atravessamento: {ATRAVESSAMENTO_META_DIAS} dias úteis.
         Sem datas selecionadas, mostra todo o período disponível.
         Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
       </div>
