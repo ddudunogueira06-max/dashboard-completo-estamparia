@@ -82,8 +82,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Lovable App" },
       { name: "twitter:description", content: "Web dashboard for industrial waste analysis and control via daily Excel imports." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/278da207-cf2f-4ab7-8e31-1c07dc4a9691/id-preview-41b88580--1a8b6ec7-5277-474a-a87d-0ff452d5f2af.lovable.app-1779885732533.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/278da207-cf2f-4ab7-8e31-1c07dc4a9691/id-preview-41b88580--1a8b6ec7-5277-474a-a87d-0ff452d5f2af.lovable.app-1779885732533.png" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7d3a8aa4-264f-4f6b-81e9-1f6bbe0369fc/id-preview-0c48e879--25aaa403-2cee-42ec-af54-08fa4ae9d73c.lovable.app-1780938125210.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7d3a8aa4-264f-4f6b-81e9-1f6bbe0369fc/id-preview-0c48e879--25aaa403-2cee-42ec-af54-08fa4ae9d73c.lovable.app-1780938125210.png" },
     ],
     links: [
       {
