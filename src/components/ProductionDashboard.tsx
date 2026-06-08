@@ -444,26 +444,29 @@ export function ProductionDashboard() {
         </div>
       </section>
 
-      {/* Pílulas principais */}
+      {/* Pílulas principais — todas refletem o intervalo/máquina/urgência filtrados */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Tempo de Urgência" value={fmtHM(urgPeriod)} icon={Zap} accent="destructive"
-          hint={`Mês ${fmtHM(tempos.urg.month)} · Ano ${fmtHM(tempos.urg.year)}`}
+          hint={`${rangeLabel} · ${fmtInt(inPeriod.filter(isUrgente).length)} registros`}
           onClick={() => openTempoDetail("urg")} />
         <KpiCard label="Horas Normais" value={fmtHM(norPeriod)} icon={Clock} accent="primary"
-          hint={`Mês ${fmtHM(tempos.nor.month)} · Ano ${fmtHM(tempos.nor.year)}`}
+          hint={`${rangeLabel} · ${fmtInt(inPeriod.filter(r => !isUrgente(r)).length)} registros`}
           onClick={() => openTempoDetail("nor")} />
         <KpiCard label="FPPs no período" value={fmtInt(fppPeriod)} icon={Factory} accent="primary"
-          hint={`Hoje ${fmtInt(fppCounts.day)} · Total ${fmtInt(fppCounts.total)}`}
+          hint={`${fmtNum(perDay.avg, 1)}/dia útil · ${rangeLabel}`}
           onClick={() => openFppDetail("FPPs por período")} />
-        <KpiCard label="Atravessamento ≤ 3 dias" value={`${atravess.pct.toFixed(1)}%`} icon={GaugeIcon} accent="success"
-          hint={`${fmtInt(atravess.dentro)} de ${fmtInt(atravess.total)} FPPs`}
+        <KpiCard label="Atravessamento no prazo" value={`${atravess.pct.toFixed(1)}%`} icon={GaugeIcon} accent="success"
+          hint={`Média ${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} d · ${fmtInt(atravess.dentro)}/${fmtInt(atravess.total)}`}
           onClick={() => setDetail({
             title: "Atravessamento",
             rows: [
-              { label: "Dentro do prazo (≤ 3 dias)", value: fmtInt(atravess.dentro) },
+              { label: "No prazo / adiantado", value: fmtInt(atravess.dentro) },
+              { label: "Atrasados", value: fmtInt(atravess.total - atravess.dentro) },
               { label: "Total avaliado", value: fmtInt(atravess.total) },
               { label: "Aderência", value: `${atravess.pct.toFixed(2)}%` },
-              { label: "Meta", value: `${META_ATRAVESSAMENTO}%` },
+              { label: "Média de atravessamento", value: `${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} dias úteis` },
+              { label: "Meta de aderência", value: `${META_ATRAVESSAMENTO}%` },
+              { label: "Meta de atravessamento", value: `${ATRAVESSAMENTO_META_DIAS} dias úteis` },
             ],
           })} />
       </section>
