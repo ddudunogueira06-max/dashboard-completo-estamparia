@@ -31,7 +31,7 @@ interface ProdRecord {
 
 const MACHINES = [2000, 3000, 5000] as const;
 const WEEKLY_CAPACITY_HOURS = 75; // h por máquina por semana
-const ATRAVESSAMENTO_LIMITE_DIAS = 3;
+const ATRAVESSAMENTO_META_DIAS = 2; // dias úteis de antecedência considerados ideais
 const META_ATRAVESSAMENTO = 90; // %
 
 function isUrgente(r: ProdRecord) {
@@ -137,7 +137,13 @@ function isWorkingDay(date: Date) {
   return !holidaySetForYear(date.getFullYear()).has(ymd(date));
 }
 
-/** Atravessamento: dias úteis entre a Data Prog. (data atual da programação) e a Data Fim Estamparia (data em que deveria terminar), descontando fins de semana, feriados de Curitiba e dias ponte. */
+/**
+ * Atravessamento (em dias úteis) = Data Fim Estamparia (col. K, prazo) − Data Prog. (col. B, data atual).
+ * Resultado POSITIVO  → termina antes do prazo (adiantado).
+ * Resultado NEGATIVO  → atrasado.
+ * Resultado ZERO      → no prazo (Ok).
+ * Desconta fins de semana, feriados de Curitiba e dias ponte.
+ */
 function atravessDias(dtProg: string | null, dtFimEst: string | null): number | null {
   const start = parseLocalDate(dtProg);
   const end = parseLocalDate(dtFimEst);
@@ -151,7 +157,8 @@ function atravessDias(dtProg: string | null, dtFimEst: string | null): number | 
     if (isWorkingDay(cursor)) days += 1;
   }
 
-  return days;
+  // Sinal: positivo quando o prazo (fim) está à frente da data atual (prog).
+  return forward ? days : -days;
 }
 
 export function ProductionDashboard() {
