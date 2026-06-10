@@ -923,8 +923,9 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
   }), [filtered, fTipo, fNumero, fCodigo, fDesc, fCat, fStatus]);
 
   const avgFator = useMemo(() => {
-    // Mesma fonte única usada em todo o dashboard (uniqueFatores)
-    return meanOf(uniqueFatores(rows as unknown as FatorRow[]));
+    // Mesma fonte única (uniqueFatores) — usa detLabel como chave de material+espessura
+    const mapped: FatorRow[] = rows.map(r => ({ tipo: r.tipo, numero: r.numero, id: r.id, detKey: r.detLabel, fator_perda: r.fator_perda }));
+    return meanOf(uniqueFatores(mapped));
   }, [rows]);
   const avgKg = useMemo(() => {
     const v = rows.filter(r => r.qtde_kg > 0).map(r => r.qtde_kg);
