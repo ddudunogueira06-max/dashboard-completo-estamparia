@@ -548,12 +548,12 @@ export function Dashboard() {
 
       {/* KPIs */}
       <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2 })} />
-        <KpiCard label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} icon={CheckCircle2} accent="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2 })} />
-        <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2 })} />
-        <KpiCard label="Média de Perda (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média de Perda (simples por material+espessura)", pct: metrics.mediaPerda, hint: `Meta: ${META_PERDA}%` })} />
+        <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2, fpps: metrics.fppList, hint: `${metrics.fppList.length} FPP/FPG distintas` })} />
+        <KpiCard label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} icon={CheckCircle2} accent="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2, fpps: metrics.fppList, hint: `${metrics.fppList.length} FPP/FPG distintas` })} />
+        <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2, fpps: metrics.fppList, hint: `${metrics.fppList.length} FPP/FPG com desperdício` })} />
+        <KpiCard label="Média de Perda (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média de Perda — média simples dos valores lançados", pct: metrics.mediaPerda, fpps: metrics.fppList, hint: `Meta: ${META_PERDA}% · dedup por FPP+material+espessura+fator` })} />
         <KpiCard label="Qtd estoque BR0140 (kg)" value={fmtNum(metrics.estoqueBR0140_kg)} icon={Package} accent="success" onClick={() => setKpiDetail({ title: "Qtd estoque BR0140", kg: metrics.estoqueBR0140_kg, m2: metrics.estoqueBR0140_m2, hint: "Total de retalho enviado ao armazém BR0140 (conforme filtros)" })} />
-        <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, hint: "Ordens distintas do tipo FPP" })} />
+        <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, fpps: metrics.fppListFPPonly, hint: "Ordens distintas do tipo FPP" })} />
       </section>
 
       {/* === MATRIZ MENSAL POR CATEGORIA === */}
@@ -836,6 +836,18 @@ export function Dashboard() {
                   {kpiDetail.hint && <div className="text-xs text-muted-foreground mt-1">{kpiDetail.hint}</div>}
                 </div>
               )}
+            </div>
+          )}
+          {kpiDetail?.fpps && kpiDetail.fpps.length > 0 && (
+            <div className="mt-3 rounded-lg border border-border bg-secondary/20 p-3">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                FPPs / FPGs ({kpiDetail.fpps.length})
+              </div>
+              <div className="max-h-48 overflow-auto flex flex-wrap gap-1.5">
+                {kpiDetail.fpps.map(n => (
+                  <span key={n} className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-mono font-medium">{n}</span>
+                ))}
+              </div>
             </div>
           )}
           <button
