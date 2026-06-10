@@ -498,6 +498,52 @@ export function ProductionDashboard() {
         </div>
       </section>
 
+      {/* Mini gráfico — capacidade x realizado (semana atual). Clique abre o histórico completo. */}
+      <section>
+        <button type="button" onClick={() => setCapModalOpen(true)}
+          className="w-full bg-card border border-border rounded-xl p-3 hover:border-primary/50 hover:bg-secondary/30 transition-colors text-left">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="size-4 text-primary" />
+              <h3 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">
+                Realidade × Capacidade média — semana atual
+              </h3>
+            </div>
+            <div className="flex items-center gap-3 text-[11px]">
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> ≥ média</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> &lt; média</span>
+              <span className="text-muted-foreground">média = <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)} FPP/dia</span></span>
+              <span className="text-primary text-[10px] uppercase tracking-wider">clique p/ ver tudo →</span>
+            </div>
+          </div>
+          <div className="h-[140px]">
+            {weekSeries.length === 0 ? (
+              <div className="h-full grid place-items-center text-xs text-muted-foreground">Sem registros na semana atual.</div>
+            ) : (
+              <ResponsiveContainer>
+                <BarChart data={weekSeries} margin={{ left: 4, right: 8, top: 16, bottom: 4 }}>
+                  <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis hide allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)", fontSize: 12 }}
+                    formatter={(v: number) => [`${v} FPPs`, "Realizado"]}
+                  />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={42}>
+                    {weekSeries.map((d, i) => (
+                      <Cell key={i} fill={d.count >= perDay.avg ? "oklch(0.7 0.16 155)" : "oklch(0.65 0.22 25)"} />
+                    ))}
+                    <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={600} />
+                  </Bar>
+                  <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </button>
+      </section>
+
+
       {/* Pílulas principais — todas refletem o intervalo/máquina/urgência filtrados */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Tempo de Urgência" value={fmtHM(urgPeriod)} icon={Zap} accent="destructive"
