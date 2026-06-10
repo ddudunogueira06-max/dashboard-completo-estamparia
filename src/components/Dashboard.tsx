@@ -203,7 +203,17 @@ export function Dashboard() {
     });
     const totalProcessado = totalSolic - totalDesperd;
     const totalProcessado_m2 = totalSolic_m2 - totalDesperd_m2;
-    const mediaPerda = totalSolic > 0 ? (totalDesperd / totalSolic) * 100 : 0;
+    // Média simples de perda: deduplica por (detKey + fator_perda) — mesmo material/espessura com mesmo % conta 1x
+    const seen = new Set<string>();
+    const fatores: number[] = [];
+    filtered.forEach(r => {
+      if (r.fator_perda === null || !r.detKey) return;
+      const k = `${r.detKey}|${r.fator_perda}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      fatores.push(r.fator_perda);
+    });
+    const mediaPerda = fatores.length > 0 ? fatores.reduce((a, b) => a + b, 0) / fatores.length : 0;
     const totalFPP = new Set(
       filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").map(r => r.numero).filter(n => n !== null)
     ).size;
