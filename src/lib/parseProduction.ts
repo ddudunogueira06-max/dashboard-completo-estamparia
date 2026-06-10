@@ -73,6 +73,7 @@ function toSeconds(v: unknown): number | null {
       if (n < 0) return Math.round(n);
       return n <= 2 ? Math.round(n * 86400) : Math.round(n);
     }
+  }
   return null;
 }
 
