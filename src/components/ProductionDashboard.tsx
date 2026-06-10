@@ -177,6 +177,10 @@ export function ProductionDashboard() {
   const [dateTo, setDateTo] = useState<string>("");
   const [showTable, setShowTable] = useState(false);
   const [detail, setDetail] = useState<null | { title: string; rows: { label: string; value: string }[] }>(null);
+  const [fFpp, setFFpp] = useState("");
+  const [fMaq, setFMaq] = useState("");
+  const [fStatus, setFStatus] = useState("");
+
 
   const now = useMemo(() => new Date(), []);
   const fromDate = useMemo(() => parseLocalDate(dateFrom), [dateFrom]);
