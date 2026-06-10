@@ -276,21 +276,22 @@ export function ProductionDashboard() {
     });
   }, [inPeriod, machineFilter, capLimitHours]);
 
-  // Atravessamento: dias úteis (com sinal) entre Data Prog. e Data Fim Estamparia (no intervalo)
+  // Atravessamento: dias úteis (com sinal) entre Data Prog. e DT FIM PROGRAMAÇÃO (col K)
   const atravess = useMemo(() => {
     let dentro = 0, total = 0, soma = 0;
     const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_est: string | null; tempo: number | null; maquina: number | null }[] = [];
     inPeriod.forEach(r => {
-      const dias = atravessDias(r.dt_prog, r.dt_fim_estamparia);
+      const dias = atravessDias(r.dt_prog, r.dt_fim_prog);
       if (dias === null) return;
       total++;
       soma += dias;
       const ok = dias >= 0; // no prazo ou adiantado
       if (ok) dentro++;
-      detalhes.push({ fpp: r.fpp, dias, dentro: ok, dt_prog: r.dt_prog, dt_fim_est: r.dt_fim_estamparia, tempo: r.tempo_fpp_seg, maquina: r.maquina });
+      detalhes.push({ fpp: r.fpp, dias, dentro: ok, dt_prog: r.dt_prog, dt_fim_est: r.dt_fim_prog, tempo: r.tempo_fpp_seg, maquina: r.maquina });
     });
     return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, media: total > 0 ? soma / total : 0, detalhes: detalhes.sort((a, b) => a.dias - b.dias) };
   }, [inPeriod]);
+
 
   // Contagem de FPPs (distintas) por bucket — usado nos diálogos
   const fppCounts = useMemo(() => {
