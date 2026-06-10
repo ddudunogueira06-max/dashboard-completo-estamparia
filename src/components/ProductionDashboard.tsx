@@ -397,6 +397,33 @@ export function ProductionDashboard() {
     });
   };
 
+  const openAtravessDetail = (focus?: "ok" | "late") => {
+    const late = atravess.detalhes.filter(d => d.dias < 0).map(d => d.fpp).filter(Boolean) as string[];
+    const ok = atravess.detalhes.filter(d => d.dias >= 0).map(d => d.fpp).filter(Boolean) as string[];
+    const lists = focus === "late"
+      ? [{ label: "FPPs atrasadas", fpps: late }]
+      : focus === "ok"
+        ? [{ label: "FPPs no prazo / adiantadas", fpps: ok }]
+        : [
+            { label: "FPPs atrasadas", fpps: late },
+            { label: "FPPs no prazo / adiantadas", fpps: ok },
+          ];
+    setDetail({
+      title: focus === "late" ? "Atravessamento — FPPs atrasadas" : focus === "ok" ? "Atravessamento — FPPs no prazo" : "Atravessamento",
+      rows: [
+        { label: "No prazo / adiantado", value: fmtInt(atravess.dentro) },
+        { label: "Atrasados", value: fmtInt(atravess.total - atravess.dentro) },
+        { label: "Total avaliado", value: fmtInt(atravess.total) },
+        { label: "Aderência", value: `${atravess.pct.toFixed(2)}%` },
+        { label: "Média de atravessamento", value: `${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} dias úteis` },
+        { label: "Meta de aderência", value: `${META_ATRAVESSAMENTO}%` },
+        { label: "Meta de atravessamento", value: `${ATRAVESSAMENTO_META_DIAS} dias` },
+      ],
+      fppLists: lists,
+    });
+  };
+
+
 
   return (
     <div className="p-3 md:p-6 space-y-4 md:space-y-6">
