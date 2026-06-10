@@ -804,8 +804,7 @@ export function Dashboard() {
 
       {/* Detail table */}
       <DetailTable filtered={filtered} />
-      </section>
-      <section className="hidden">{/* placeholder */}</section>
+
       <Dialog open={!!kpiDetail} onOpenChange={(o) => !o && setKpiDetail(null)}>
         <DialogContent>
           <DialogHeader>
