@@ -69,8 +69,10 @@ function toSeconds(v: unknown): number | null {
     const m = s.match(/^(\d{1,3}):(\d{2})(?::(\d{2}))?$/);
     if (m) return (+m[1]) * 3600 + (+m[2]) * 60 + (+(m[3] ?? 0));
     const n = Number(s);
-    if (Number.isFinite(n)) return n < 0 ? Math.round(n) : Math.round(n * 86400);
-  }
+    if (Number.isFinite(n)) {
+      if (n < 0) return Math.round(n);
+      return n <= 2 ? Math.round(n * 86400) : Math.round(n);
+    }
   return null;
 }
 
