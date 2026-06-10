@@ -5,7 +5,7 @@ import { KpiCard } from "@/components/KpiCard";
 import { Gauge } from "@/components/Gauge";
 import { fmtInt, fmtNum, fmtDate } from "@/lib/format";
 import {
-  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, LabelList,
+  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, LabelList, Cell, ReferenceLine,
 } from "recharts";
 import { Zap, Clock, Gauge as GaugeIcon, Factory, RefreshCw, ListChecks, ChevronDown, ChevronUp, Scissors, LayoutGrid, TrendingUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -179,7 +179,8 @@ export function ProductionDashboard() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [showTable, setShowTable] = useState(false);
-  const [detail, setDetail] = useState<null | { title: string; rows: { label: string; value: string }[] }>(null);
+  const [detail, setDetail] = useState<null | { title: string; rows: { label: string; value: string }[]; fppLists?: { label: string; fpps: string[] }[] }>(null);
+  const [capModalOpen, setCapModalOpen] = useState(false);
   const [fFpp, setFFpp] = useState("");
   const [fMaq, setFMaq] = useState("");
   const [fStatus, setFStatus] = useState("");
@@ -347,8 +348,21 @@ export function ProductionDashboard() {
       mm.forEach(s => { t += s.size; });
       return { machine: m, avg: mm.size > 0 ? t / mm.size : 0, days: mm.size };
     }).sort((a, b) => a.machine - b.machine);
-    return { avg: days > 0 ? total / days : 0, days, total, perMachine };
+    const series = Array.from(byDay.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([dk, s]) => ({ date: dk, label: dk.slice(8) + "/" + dk.slice(5, 7), count: s.size, fpps: Array.from(s) }));
+    return { avg: days > 0 ? total / days : 0, days, total, perMachine, series };
   }, [inPeriod]);
+
+  // Série da semana atual (ou últimos 7 dias úteis registrados se semana atual sem dados)
+  const weekSeries = useMemo(() => {
+    if (perDay.series.length === 0) return [] as typeof perDay.series;
+    const monday = startOfWeek(now);
+    const start = ymd(monday);
+    const end = ymd(addDays(monday, 4));
+    const wk = perDay.series.filter(p => p.date >= start && p.date <= end);
+    return wk.length > 0 ? wk : perDay.series.slice(-7);
+  }, [perDay.series, now]);
 
 
 
@@ -382,6 +396,33 @@ export function ProductionDashboard() {
       ],
     });
   };
+
+  const openAtravessDetail = (focus?: "ok" | "late") => {
+    const late = atravess.detalhes.filter(d => d.dias < 0).map(d => d.fpp).filter(Boolean) as string[];
+    const ok = atravess.detalhes.filter(d => d.dias >= 0).map(d => d.fpp).filter(Boolean) as string[];
+    const lists = focus === "late"
+      ? [{ label: "FPPs atrasadas", fpps: late }]
+      : focus === "ok"
+        ? [{ label: "FPPs no prazo / adiantadas", fpps: ok }]
+        : [
+            { label: "FPPs atrasadas", fpps: late },
+            { label: "FPPs no prazo / adiantadas", fpps: ok },
+          ];
+    setDetail({
+      title: focus === "late" ? "Atravessamento — FPPs atrasadas" : focus === "ok" ? "Atravessamento — FPPs no prazo" : "Atravessamento",
+      rows: [
+        { label: "No prazo / adiantado", value: fmtInt(atravess.dentro) },
+        { label: "Atrasados", value: fmtInt(atravess.total - atravess.dentro) },
+        { label: "Total avaliado", value: fmtInt(atravess.total) },
+        { label: "Aderência", value: `${atravess.pct.toFixed(2)}%` },
+        { label: "Média de atravessamento", value: `${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} dias úteis` },
+        { label: "Meta de aderência", value: `${META_ATRAVESSAMENTO}%` },
+        { label: "Meta de atravessamento", value: `${ATRAVESSAMENTO_META_DIAS} dias` },
+      ],
+      fppLists: lists,
+    });
+  };
+
 
 
   return (
@@ -457,6 +498,52 @@ export function ProductionDashboard() {
         </div>
       </section>
 
+      {/* Mini gráfico — capacidade x realizado (semana atual). Clique abre o histórico completo. */}
+      <section>
+        <button type="button" onClick={() => setCapModalOpen(true)}
+          className="w-full bg-card border border-border rounded-xl p-3 hover:border-primary/50 hover:bg-secondary/30 transition-colors text-left">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="size-4 text-primary" />
+              <h3 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">
+                Realidade × Capacidade média — semana atual
+              </h3>
+            </div>
+            <div className="flex items-center gap-3 text-[11px]">
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> ≥ média</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> &lt; média</span>
+              <span className="text-muted-foreground">média = <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)} FPP/dia</span></span>
+              <span className="text-primary text-[10px] uppercase tracking-wider">clique p/ ver tudo →</span>
+            </div>
+          </div>
+          <div className="h-[140px]">
+            {weekSeries.length === 0 ? (
+              <div className="h-full grid place-items-center text-xs text-muted-foreground">Sem registros na semana atual.</div>
+            ) : (
+              <ResponsiveContainer>
+                <BarChart data={weekSeries} margin={{ left: 4, right: 8, top: 16, bottom: 4 }}>
+                  <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis hide allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)", fontSize: 12 }}
+                    formatter={(v: number) => [`${v} FPPs`, "Realizado"]}
+                  />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={42}>
+                    {weekSeries.map((d, i) => (
+                      <Cell key={i} fill={d.count >= perDay.avg ? "oklch(0.7 0.16 155)" : "oklch(0.65 0.22 25)"} />
+                    ))}
+                    <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={600} />
+                  </Bar>
+                  <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </button>
+      </section>
+
+
       {/* Pílulas principais — todas refletem o intervalo/máquina/urgência filtrados */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Tempo de Urgência" value={fmtHM(urgPeriod)} icon={Zap} accent="destructive"
@@ -470,18 +557,7 @@ export function ProductionDashboard() {
           onClick={() => openFppDetail("FPPs por período")} />
         <KpiCard label="Atravessamento no prazo" value={`${atravess.pct.toFixed(1)}%`} icon={GaugeIcon} accent="success"
           hint={`Média ${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} d · ${fmtInt(atravess.dentro)}/${fmtInt(atravess.total)}`}
-          onClick={() => setDetail({
-            title: "Atravessamento",
-            rows: [
-              { label: "No prazo / adiantado", value: fmtInt(atravess.dentro) },
-              { label: "Atrasados", value: fmtInt(atravess.total - atravess.dentro) },
-              { label: "Total avaliado", value: fmtInt(atravess.total) },
-              { label: "Aderência", value: `${atravess.pct.toFixed(2)}%` },
-              { label: "Média de atravessamento", value: `${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} dias úteis` },
-              { label: "Meta de aderência", value: `${META_ATRAVESSAMENTO}%` },
-              { label: "Meta de atravessamento", value: `${ATRAVESSAMENTO_META_DIAS} dias` },
-            ],
-          })} />
+          onClick={() => openAtravessDetail()} />
       </section>
 
 
@@ -499,14 +575,16 @@ export function ProductionDashboard() {
           <div className="flex-1 flex flex-col items-center justify-center">
             <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={320} />
             <div className="mt-3 grid grid-cols-3 gap-2 w-full max-w-[320px]">
-              <div className="rounded-xl bg-success/10 border border-success/30 px-2 py-2 text-center">
+              <button type="button" onClick={() => openAtravessDetail("ok")}
+                className="rounded-xl bg-success/10 border border-success/30 px-2 py-2 text-center hover:bg-success/20 transition-colors">
                 <div className="text-xl font-extrabold text-success leading-none">{fmtInt(atravess.dentro)}</div>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">No prazo</div>
-              </div>
-              <div className="rounded-xl bg-destructive/10 border border-destructive/30 px-2 py-2 text-center">
+              </button>
+              <button type="button" onClick={() => openAtravessDetail("late")}
+                className="rounded-xl bg-destructive/10 border border-destructive/30 px-2 py-2 text-center hover:bg-destructive/20 transition-colors">
                 <div className="text-xl font-extrabold text-destructive leading-none">{fmtInt(atravess.total - atravess.dentro)}</div>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Atrasados</div>
-              </div>
+              </button>
               <div className="rounded-xl bg-muted/30 border border-border px-2 py-2 text-center">
                 <div className={`text-xl font-extrabold leading-none ${atravess.media >= 0 ? "text-success" : "text-destructive"}`}>{atravess.media >= 0 ? "+" : ""}{fmtNum(atravess.media, 1)}</div>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Média (d)</div>
@@ -668,7 +746,7 @@ export function ProductionDashboard() {
 
 
       <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{detail?.title}</DialogTitle>
             <DialogDescription>Detalhamento por período</DialogDescription>
@@ -680,6 +758,68 @@ export function ProductionDashboard() {
                 <span className="font-mono font-semibold">{r.value}</span>
               </div>
             ))}
+          </div>
+          {detail?.fppLists?.map((list, idx) => list.fpps.length > 0 && (
+            <div key={idx} className="mt-3 rounded-lg border border-border bg-secondary/20 p-3">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                {list.label} ({list.fpps.length})
+              </div>
+              <div className="max-h-48 overflow-auto flex flex-wrap gap-1.5">
+                {list.fpps.map(f => (
+                  <span key={f} className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-mono font-medium">{f}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal — gráfico expandido capacidade x real */}
+      <Dialog open={capModalOpen} onOpenChange={setCapModalOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>FPPs por dia vs Capacidade média</DialogTitle>
+            <DialogDescription>
+              Capacidade média diária = {fmtNum(perDay.avg, 1)} FPP/dia útil. Linha tracejada = média; barras = realizado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="h-[420px]">
+            {perDay.series.length === 0 ? (
+              <div className="h-full grid place-items-center text-sm text-muted-foreground">Sem dados no período.</div>
+            ) : (
+              <ResponsiveContainer>
+                <BarChart data={perDay.series} margin={{ left: 8, right: 16, top: 16, bottom: 8 }}>
+                  <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={11} />
+                  <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
+                    formatter={(v: number) => [`${v} FPPs`, "Realizado"]}
+                  />
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={48}>
+                    {perDay.series.map((d, i) => (
+                      <Cell key={i} fill={d.count >= perDay.avg ? "oklch(0.7 0.16 155)" : "oklch(0.65 0.22 25)"} />
+                    ))}
+                    <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={11} fontWeight={600} />
+                  </Bar>
+                  <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" label={{ value: `média ${perDay.avg.toFixed(1)}`, fill: "oklch(0.85 0.02 240)", fontSize: 11, position: "right" }} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-3 mt-2 text-center">
+            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Acima da média</div>
+              <div className="text-lg font-bold text-success">{fmtInt(perDay.series.filter(d => d.count > perDay.avg).length)} dias</div>
+            </div>
+            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Abaixo da média</div>
+              <div className="text-lg font-bold text-destructive">{fmtInt(perDay.series.filter(d => d.count < perDay.avg).length)} dias</div>
+            </div>
+            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias úteis avaliados</div>
+              <div className="text-lg font-bold text-foreground">{fmtInt(perDay.series.length)}</div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
