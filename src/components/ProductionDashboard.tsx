@@ -138,27 +138,16 @@ function isWorkingDay(date: Date) {
 }
 
 /**
- * Atravessamento (em dias úteis) = Data Fim Estamparia (col. K, prazo) − Data Prog. (col. B, data atual).
- * Resultado POSITIVO  → termina antes do prazo (adiantado).
- * Resultado NEGATIVO  → atrasado.
- * Resultado ZERO      → no prazo (Ok).
- * Desconta fins de semana, feriados de Curitiba e dias ponte.
+ * Atravessamento (em dias corridos) = Data Fim Estamparia (col. K) − Data Prog. (col. B).
+ * POSITIVO  → termina antes do prazo (adiantado).
+ * NEGATIVO  → atrasado.
+ * ZERO      → no prazo (Ok).
  */
 function atravessDias(dtProg: string | null, dtFimEst: string | null): number | null {
   const start = parseLocalDate(dtProg);
   const end = parseLocalDate(dtFimEst);
   if (!start || !end) return null;
-  const forward = end.getTime() >= start.getTime();
-  let cursor = new Date(start);
-  let days = 0;
-
-  while (forward ? cursor < end : cursor > end) {
-    cursor = addDays(cursor, forward ? 1 : -1);
-    if (isWorkingDay(cursor)) days += 1;
-  }
-
-  // Sinal: positivo quando o prazo (fim) está à frente da data atual (prog).
-  return forward ? days : -days;
+  return Math.round((end.getTime() - start.getTime()) / 86400000);
 }
 
 export function ProductionDashboard() {
