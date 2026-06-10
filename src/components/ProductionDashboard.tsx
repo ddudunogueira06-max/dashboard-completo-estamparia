@@ -455,7 +455,7 @@ export function ProductionDashboard() {
               { label: "Aderência", value: `${atravess.pct.toFixed(2)}%` },
               { label: "Média de atravessamento", value: `${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} dias úteis` },
               { label: "Meta de aderência", value: `${META_ATRAVESSAMENTO}%` },
-              { label: "Meta de atravessamento", value: `${ATRAVESSAMENTO_META_DIAS} dias úteis` },
+              { label: "Meta de atravessamento", value: `${ATRAVESSAMENTO_META_DIAS} dias` },
             ],
           })} />
       </section>
