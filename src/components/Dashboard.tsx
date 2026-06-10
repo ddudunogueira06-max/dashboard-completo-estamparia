@@ -203,7 +203,17 @@ export function Dashboard() {
     });
     const totalProcessado = totalSolic - totalDesperd;
     const totalProcessado_m2 = totalSolic_m2 - totalDesperd_m2;
-    const mediaPerda = totalSolic > 0 ? (totalDesperd / totalSolic) * 100 : 0;
+    // Média simples de perda: deduplica por (detKey + fator_perda) — mesmo material/espessura com mesmo % conta 1x
+    const seen = new Set<string>();
+    const fatores: number[] = [];
+    filtered.forEach(r => {
+      if (r.fator_perda === null || !r.detKey) return;
+      const k = `${r.detKey}|${r.fator_perda}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      fatores.push(r.fator_perda);
+    });
+    const mediaPerda = fatores.length > 0 ? fatores.reduce((a, b) => a + b, 0) / fatores.length : 0;
     const totalFPP = new Set(
       filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").map(r => r.numero).filter(n => n !== null)
     ).size;
@@ -228,72 +238,48 @@ export function Dashboard() {
   const yearSel = matrixYear || availableYears[0] || String(new Date().getFullYear());
 
   const matrix = useMemo(() => {
-    type Cell = { qtde: number; desp: number };
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
-    const matAgg = new Map<MaterialKind, Cell[]>();
-    materials.forEach(m => matAgg.set(m, Array.from({ length: 12 }, () => ({ qtde: 0, desp: 0 }))));
+    // Para cada (material, mês) e (material, ano) — coletar fatores únicos por (detKey+fator)
+    const monthSeen = new Map<string, Set<string>>(); // key: mat|m
+    const monthVals = new Map<string, number[]>();
+    const yearSeen = new Map<MaterialKind, Set<string>>();
+    const yearVals = new Map<MaterialKind, number[]>();
+    materials.forEach(m => { yearSeen.set(m, new Set()); yearVals.set(m, []); });
 
-    // Agrupa por (tipo+numero) para usar fator só da 1ª linha
-    const localGroups = new Map<string, typeof enriched>();
     enriched.forEach(r => {
       if (!r.data_registro || !materials.includes(r.material)) return;
       if (tipoFilter && r.tipo !== tipoFilter) return;
+      if (r.fator_perda === null || !r.detKey) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
-      const key = r.numero !== null ? `${r.tipo ?? ""}#${r.numero}` : `__solo__${r.id}`;
-      const arr = localGroups.get(key);
-      if (arr) arr.push(r); else localGroups.set(key, [r]);
+      const m = d.getMonth();
+      const mKey = `${r.material}|${m}`;
+      const dedupKey = `${r.detKey}|${r.fator_perda}`;
+      let ms = monthSeen.get(mKey);
+      if (!ms) { ms = new Set(); monthSeen.set(mKey, ms); monthVals.set(mKey, []); }
+      if (!ms.has(dedupKey)) {
+        ms.add(dedupKey);
+        monthVals.get(mKey)!.push(r.fator_perda);
+      }
+      const ys = yearSeen.get(r.material)!;
+      if (!ys.has(dedupKey)) {
+        ys.add(dedupKey);
+        yearVals.get(r.material)!.push(r.fator_perda);
+      }
     });
-    localGroups.forEach(arr => arr.sort((a, b) => (a.linha ?? 1e9) - (b.linha ?? 1e9)));
 
-    localGroups.forEach(rows => {
-      const first = rows[0];
-      const fator = (first.fator_perda ?? 0) / 100;
-      rows.forEach(r => {
-        const d = new Date(r.data_registro!);
-        const m = d.getMonth();
-        const cell = matAgg.get(r.material)!;
-        cell[m].qtde += r.qtde_kg;
-        cell[m].desp += r.qtde_kg * fator;
-      });
-    });
+    const avg = (arr: number[]) => arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : null;
 
     return materials.map(mat => {
-      const cells = matAgg.get(mat)!;
-      const monthly = cells.map(c => (c.qtde > 0 ? +(c.desp / c.qtde * 100).toFixed(2) : null));
-      const totalQ = cells.reduce((a, c) => a + c.qtde, 0);
-      const totalD = cells.reduce((a, c) => a + c.desp, 0);
-      const acumulada = totalQ > 0 ? +(totalD / totalQ * 100).toFixed(2) : null;
-      return {
-        key: mat,
-        material: mat,
-        label: MATERIAL_LABEL[mat].toUpperCase(),
-        monthly,
-        acumulada,
-        isSummary: true,
-      };
+      const monthly = Array.from({ length: 12 }, (_, i) => avg(monthVals.get(`${mat}|${i}`) ?? []));
+      const acumulada = avg(yearVals.get(mat) ?? []);
+      return { key: mat, material: mat, label: MATERIAL_LABEL[mat].toUpperCase(), monthly, acumulada, isSummary: true };
     }).filter(r => r.acumulada !== null);
   }, [enriched, yearSel, tipoFilter]);
 
-  // === MATRIZ SEMANAL (Segunda a Sexta) por material — base = TODOS os registros
+  // === MATRIZ SEMANAL (Segunda a Sexta) por material — média simples por (material+espessura+fator) deduplicado por semana
   const weeklyMatrix = useMemo(() => {
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
-    const weekData = new Map<string, { start: Date; perMat: Map<MaterialKind, { qtde: number; desp: number }> }>();
-
-    const localGroups = new Map<string, typeof enriched>();
-    enriched.forEach(r => {
-      if (!r.data_registro || !materials.includes(r.material)) return;
-      if (tipoFilter && r.tipo !== tipoFilter) return;
-      const d = new Date(r.data_registro);
-      if (String(d.getFullYear()) !== yearSel) return;
-      const dow = d.getDay();
-      if (dow === 0 || dow === 6) return;
-      const key = r.numero !== null ? `${r.tipo ?? ""}#${r.numero}` : `__solo__${r.id}`;
-      const arr = localGroups.get(key);
-      if (arr) arr.push(r); else localGroups.set(key, [r]);
-    });
-    localGroups.forEach(arr => arr.sort((a, b) => (a.linha ?? 1e9) - (b.linha ?? 1e9)));
-
     const getMonday = (d: Date) => {
       const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       const day = x.getDay();
@@ -302,25 +288,31 @@ export function Dashboard() {
       return x;
     };
 
-    localGroups.forEach(rows => {
-      const first = rows[0];
-      const fator = (first.fator_perda ?? 0) / 100;
-      rows.forEach(r => {
-        const d = new Date(r.data_registro!);
-        const dow = d.getDay();
-        if (dow === 0 || dow === 6) return;
-        const mon = getMonday(d);
-        const wkKey = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, "0")}-${String(mon.getDate()).padStart(2, "0")}`;
-        let wk = weekData.get(wkKey);
-        if (!wk) {
-          wk = { start: mon, perMat: new Map() };
-          materials.forEach(m => wk!.perMat.set(m, { qtde: 0, desp: 0 }));
-          weekData.set(wkKey, wk);
-        }
-        const cell = wk.perMat.get(r.material)!;
-        cell.qtde += r.qtde_kg;
-        cell.desp += r.qtde_kg * fator;
-      });
+    type Wk = { start: Date; perMat: Map<MaterialKind, { seen: Set<string>; vals: number[] }> };
+    const weekData = new Map<string, Wk>();
+
+    enriched.forEach(r => {
+      if (!r.data_registro || !materials.includes(r.material)) return;
+      if (tipoFilter && r.tipo !== tipoFilter) return;
+      if (r.fator_perda === null || !r.detKey) return;
+      const d = new Date(r.data_registro);
+      if (String(d.getFullYear()) !== yearSel) return;
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) return;
+      const mon = getMonday(d);
+      const wkKey = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, "0")}-${String(mon.getDate()).padStart(2, "0")}`;
+      let wk = weekData.get(wkKey);
+      if (!wk) {
+        wk = { start: mon, perMat: new Map() };
+        materials.forEach(m => wk!.perMat.set(m, { seen: new Set(), vals: [] }));
+        weekData.set(wkKey, wk);
+      }
+      const cell = wk.perMat.get(r.material)!;
+      const dedupKey = `${r.detKey}|${r.fator_perda}`;
+      if (!cell.seen.has(dedupKey)) {
+        cell.seen.add(dedupKey);
+        cell.vals.push(r.fator_perda);
+      }
     });
 
     const weeks = Array.from(weekData.entries())
@@ -332,14 +324,28 @@ export function Dashboard() {
         return { key, label: `${fmt(w.start)}–${fmt(fri)}`, perMat: w.perMat };
       });
 
+    const avg = (arr: number[]) => arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : null;
+
     const rows = materials.map(mat => {
-      const weekly = weeks.map(w => {
+      const weekly = weeks.map(w => avg(w.perMat.get(mat)!.vals));
+      // Acumulada da janela: dedup global no período exibido
+      const seen = new Set<string>();
+      const vals: number[] = [];
+      weeks.forEach(w => {
         const c = w.perMat.get(mat)!;
-        return c.qtde > 0 ? +(c.desp / c.qtde * 100).toFixed(2) : null;
+        c.seen.forEach(k => { if (!seen.has(k)) { seen.add(k); vals.push(c.vals[Array.from(c.seen).indexOf(k)]); } });
       });
-      const totalQ = weeks.reduce((a, w) => a + w.perMat.get(mat)!.qtde, 0);
-      const totalD = weeks.reduce((a, w) => a + w.perMat.get(mat)!.desp, 0);
-      const acumulada = totalQ > 0 ? +(totalD / totalQ * 100).toFixed(2) : null;
+      // Recalcula vals de forma estável a partir dos pares (key,val)
+      const allVals: number[] = [];
+      const allSeen = new Set<string>();
+      weeks.forEach(w => {
+        const c = w.perMat.get(mat)!;
+        const keys = Array.from(c.seen);
+        keys.forEach((k, idx) => {
+          if (!allSeen.has(k)) { allSeen.add(k); allVals.push(c.vals[idx]); }
+        });
+      });
+      const acumulada = avg(allVals);
       return { key: mat, material: mat, label: MATERIAL_LABEL[mat].toUpperCase(), weekly, acumulada };
     }).filter(r => r.acumulada !== null);
 
@@ -547,7 +553,7 @@ export function Dashboard() {
         <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2 })} />
         <KpiCard label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} icon={CheckCircle2} accent="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2 })} />
         <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2 })} />
-        <KpiCard label="Média Ponderada (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média Ponderada de Perda", pct: metrics.mediaPerda, hint: `Meta: ${META_PERDA}%` })} />
+        <KpiCard label="Média de Perda (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média de Perda (simples por material+espessura)", pct: metrics.mediaPerda, hint: `Meta: ${META_PERDA}%` })} />
         <KpiCard label="Qtd estoque BR0140 (kg)" value={fmtNum(metrics.estoqueBR0140_kg)} icon={Package} accent="success" onClick={() => setKpiDetail({ title: "Qtd estoque BR0140", kg: metrics.estoqueBR0140_kg, m2: metrics.estoqueBR0140_m2, hint: "Total de retalho enviado ao armazém BR0140 (conforme filtros)" })} />
         <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, hint: "Ordens distintas do tipo FPP" })} />
       </section>
@@ -668,21 +674,24 @@ export function Dashboard() {
                     <tbody>
                       {weeklyMatrix.rows.map(row => {
                         const meta = META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">];
-                        // Média do Mês = ponderada por kg de TODOS os lançamentos do mês
-                        // (mesma base da matriz anual, garantindo consistência entre painéis)
-                        let monthQ = 0, monthD = 0;
+                        // Média do Mês = média simples por (material+espessura+fator) deduplicado dentro do mês
+                        const seen = new Set<string>();
+                        const vals: number[] = [];
                         enriched.forEach(r => {
                           if (!r.data_registro || r.material !== row.material) return;
                           if (tipoFilter && r.tipo !== tipoFilter) return;
+                          if (r.fator_perda === null || !r.detKey) return;
                           const d = new Date(r.data_registro);
                           if (String(d.getFullYear()) !== yearSel) return;
                           if (String(d.getMonth() + 1).padStart(2, "0") !== activeMonth) return;
                           const dow = d.getDay();
                           if (dow === 0 || dow === 6) return;
-                          monthQ += r.qtde_kg;
-                          monthD += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
+                          const k = `${r.detKey}|${r.fator_perda}`;
+                          if (seen.has(k)) return;
+                          seen.add(k);
+                          vals.push(r.fator_perda);
                         });
-                        const mediaMes = monthQ > 0 ? +(monthD / monthQ * 100).toFixed(2) : null;
+                        const mediaMes = vals.length > 0 ? +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : null;
                         return (
                           <tr key={row.key} className="border-t border-border bg-secondary/30">
                             <td className="px-3 py-2.5 whitespace-nowrap font-bold uppercase text-xs tracking-wider">
@@ -794,49 +803,8 @@ export function Dashboard() {
 
 
       {/* Detail table */}
-      <section className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-          <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-            Detalhamento das Solicitações
-          </h3>
-          <span className="text-xs text-muted-foreground">{fmtInt(filtered.length)} linhas</span>
-        </div>
-        <div className="overflow-auto max-h-[480px]">
-          <table className="w-full text-sm">
-            <thead className="bg-secondary/40 sticky top-0">
-              <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Qtde (kg)", "Data", "Status"].map(h => (
-                  <th key={h} className="px-3 py-2 font-medium">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.slice(0, 500).map((r) => (
-                <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
-                  <td className="px-3 py-2"><span className="inline-flex items-center rounded-md bg-primary/15 text-primary px-2 py-0.5 text-xs font-medium">{r.tipo}</span></td>
-                  <td className="px-3 py-2 text-muted-foreground">{r.numero}</td>
-                  <td className="px-3 py-2 font-mono text-xs">{r.codigo_item}</td>
-                  <td className="px-3 py-2 max-w-[260px] truncate">{r.descricao}</td>
-                  <td className="px-3 py-2"><span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${MATERIAL_COLOR[r.material]} 18%, transparent)`, color: MATERIAL_COLOR[r.material] }}>{r.detLabel || MATERIAL_LABEL[r.material]}</span></td>
-                  <td className="px-3 py-2 font-medium">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 0)}%` : "—"}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
-                  <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
-                  <td className="px-3 py-2 text-muted-foreground text-xs">{fmtDate(r.data_registro)}</td>
-                  <td className="px-3 py-2"><span className="text-xs text-success">{r.status}</span></td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={10} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro. Importe uma planilha na aba "Importar Planilha".</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {filtered.length > 500 && (
-          <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border bg-secondary/20">
-            Exibindo as primeiras 500 linhas. Use os filtros ou exporte para ver todas.
-          </div>
-        )}
-      </section>
+      <DetailTable filtered={filtered} />
+
       <Dialog open={!!kpiDetail} onOpenChange={(o) => !o && setKpiDetail(null)}>
         <DialogContent>
           <DialogHeader>
@@ -907,6 +875,142 @@ function Panel({ title, children, className = "", right }: { title: string; chil
       </div>
       {children}
     </div>
+  );
+}
+
+interface DetailRow {
+  id: string;
+  tipo: string | null;
+  numero: number | null;
+  codigo_item: string | null;
+  descricao: string | null;
+  status: string | null;
+  data_registro: string | null;
+  linha: number | null;
+  fator_perda: number | null;
+  qtde_kg: number;
+  material: MaterialKind;
+  detLabel: string;
+}
+
+function DetailTable({ filtered }: { filtered: DetailRow[] }) {
+  const [fTipo, setFTipo] = useState("");
+  const [fNumero, setFNumero] = useState("");
+  const [fCodigo, setFCodigo] = useState("");
+  const [fDesc, setFDesc] = useState("");
+  const [fCat, setFCat] = useState("");
+  const [fStatus, setFStatus] = useState("");
+
+  const tipos = useMemo(() => Array.from(new Set(filtered.map(r => r.tipo).filter(Boolean))) as string[], [filtered]);
+  const cats = useMemo(() => Array.from(new Set(filtered.map(r => r.detLabel).filter(Boolean))).sort(), [filtered]);
+  const statuses2 = useMemo(() => Array.from(new Set(filtered.map(r => r.status).filter(Boolean))) as string[], [filtered]);
+
+  const rows = useMemo(() => filtered.filter(r => {
+    if (fTipo && r.tipo !== fTipo) return false;
+    if (fStatus && r.status !== fStatus) return false;
+    if (fCat && r.detLabel !== fCat) return false;
+    if (fNumero && !String(r.numero ?? "").toLowerCase().includes(fNumero.toLowerCase())) return false;
+    if (fCodigo && !(r.codigo_item ?? "").toLowerCase().includes(fCodigo.toLowerCase())) return false;
+    if (fDesc && !(r.descricao ?? "").toLowerCase().includes(fDesc.toLowerCase())) return false;
+    return true;
+  }), [filtered, fTipo, fNumero, fCodigo, fDesc, fCat, fStatus]);
+
+  const avgFator = useMemo(() => {
+    const v = rows.filter(r => r.fator_perda !== null).map(r => r.fator_perda as number);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
+  }, [rows]);
+  const avgKg = useMemo(() => {
+    const v = rows.filter(r => r.qtde_kg > 0).map(r => r.qtde_kg);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
+  }, [rows]);
+  const sumKg = useMemo(() => rows.reduce((a, r) => a + r.qtde_kg, 0), [rows]);
+
+  const filtCls = "w-full rounded border border-input bg-background/50 px-2 py-1 text-[11px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring";
+
+  return (
+    <section className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Detalhamento das Solicitações</h3>
+        <span className="text-xs text-muted-foreground">{fmtInt(rows.length)} de {fmtInt(filtered.length)} linhas</span>
+      </div>
+      <div className="overflow-auto max-h-[520px]">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/40 sticky top-0 z-10">
+            <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Qtde (kg)", "Data", "Status"].map(h => (
+                <th key={h} className="px-3 py-2 font-medium">{h}</th>
+              ))}
+            </tr>
+            <tr className="bg-secondary/20">
+              <th className="px-2 py-1.5">
+                <select value={fTipo} onChange={e => setFTipo(e.target.value)} className={filtCls}>
+                  <option value="">Todos</option>
+                  {tipos.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </th>
+              <th className="px-2 py-1.5"><input value={fNumero} onChange={e => setFNumero(e.target.value)} placeholder="filtrar…" className={filtCls} /></th>
+              <th className="px-2 py-1.5"><input value={fCodigo} onChange={e => setFCodigo(e.target.value)} placeholder="filtrar…" className={filtCls} /></th>
+              <th className="px-2 py-1.5"><input value={fDesc} onChange={e => setFDesc(e.target.value)} placeholder="filtrar…" className={filtCls} /></th>
+              <th className="px-2 py-1.5">
+                <select value={fCat} onChange={e => setFCat(e.target.value)} className={filtCls}>
+                  <option value="">Todas</option>
+                  {cats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </th>
+              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5">
+                <select value={fStatus} onChange={e => setFStatus(e.target.value)} className={filtCls}>
+                  <option value="">Todos</option>
+                  {statuses2.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(0, 500).map((r) => (
+              <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
+                <td className="px-3 py-2"><span className="inline-flex items-center rounded-md bg-primary/15 text-primary px-2 py-0.5 text-xs font-medium">{r.tipo}</span></td>
+                <td className="px-3 py-2 text-muted-foreground">{r.numero}</td>
+                <td className="px-3 py-2 font-mono text-xs">{r.codigo_item}</td>
+                <td className="px-3 py-2 max-w-[260px] truncate">{r.descricao}</td>
+                <td className="px-3 py-2"><span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${MATERIAL_COLOR[r.material]} 18%, transparent)`, color: MATERIAL_COLOR[r.material] }}>{r.detLabel || MATERIAL_LABEL[r.material]}</span></td>
+                <td className="px-3 py-2 font-medium">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 0)}%` : "—"}</td>
+                <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
+                <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
+                <td className="px-3 py-2 text-muted-foreground text-xs">{fmtDate(r.data_registro)}</td>
+                <td className="px-3 py-2"><span className="text-xs text-success">{r.status}</span></td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr><td colSpan={10} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro com esses filtros.</td></tr>
+            )}
+          </tbody>
+          {rows.length > 0 && (
+            <tfoot className="bg-secondary/60 border-t-2 border-border sticky bottom-0">
+              <tr className="text-xs uppercase tracking-wider font-bold">
+                <td className="px-3 py-2.5" colSpan={5}>Média / Soma</td>
+                <td className="px-3 py-2.5 font-mono">{fmtPct(avgFator)}</td>
+                <td className="px-3 py-2.5"></td>
+                <td className="px-3 py-2.5 font-mono">
+                  <div>μ {fmtNum(avgKg)}</div>
+                  <div className="text-[10px] font-normal text-muted-foreground">Σ {fmtNum(sumKg)}</div>
+                </td>
+                <td className="px-3 py-2.5"></td>
+                <td className="px-3 py-2.5"></td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+      {rows.length > 500 && (
+        <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border bg-secondary/20">
+          Exibindo as primeiras 500 linhas. Use os filtros ou exporte para ver todas.
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -138,27 +138,16 @@ function isWorkingDay(date: Date) {
 }
 
 /**
- * Atravessamento (em dias úteis) = Data Fim Estamparia (col. K, prazo) − Data Prog. (col. B, data atual).
- * Resultado POSITIVO  → termina antes do prazo (adiantado).
- * Resultado NEGATIVO  → atrasado.
- * Resultado ZERO      → no prazo (Ok).
- * Desconta fins de semana, feriados de Curitiba e dias ponte.
+ * Atravessamento (em dias corridos) = Data Fim Estamparia (col. K) − Data Prog. (col. B).
+ * POSITIVO  → termina antes do prazo (adiantado).
+ * NEGATIVO  → atrasado.
+ * ZERO      → no prazo (Ok).
  */
 function atravessDias(dtProg: string | null, dtFimEst: string | null): number | null {
   const start = parseLocalDate(dtProg);
   const end = parseLocalDate(dtFimEst);
   if (!start || !end) return null;
-  const forward = end.getTime() >= start.getTime();
-  let cursor = new Date(start);
-  let days = 0;
-
-  while (forward ? cursor < end : cursor > end) {
-    cursor = addDays(cursor, forward ? 1 : -1);
-    if (isWorkingDay(cursor)) days += 1;
-  }
-
-  // Sinal: positivo quando o prazo (fim) está à frente da data atual (prog).
-  return forward ? days : -days;
+  return Math.round((end.getTime() - start.getTime()) / 86400000);
 }
 
 export function ProductionDashboard() {
@@ -466,7 +455,7 @@ export function ProductionDashboard() {
               { label: "Aderência", value: `${atravess.pct.toFixed(2)}%` },
               { label: "Média de atravessamento", value: `${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} dias úteis` },
               { label: "Meta de aderência", value: `${META_ATRAVESSAMENTO}%` },
-              { label: "Meta de atravessamento", value: `${ATRAVESSAMENTO_META_DIAS} dias úteis` },
+              { label: "Meta de atravessamento", value: `${ATRAVESSAMENTO_META_DIAS} dias` },
             ],
           })} />
       </section>
@@ -481,7 +470,7 @@ export function ProductionDashboard() {
             <h3 className="font-bold text-base uppercase tracking-wider text-foreground inline-flex items-center gap-2">
               <GaugeIcon className="size-5 text-primary" /> Atravessamento
             </h3>
-            <span className="text-xs text-muted-foreground">Meta: {ATRAVESSAMENTO_META_DIAS} dias úteis</span>
+            <span className="text-xs text-muted-foreground">Meta: {ATRAVESSAMENTO_META_DIAS} dias</span>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center">
             <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={320} />
@@ -616,7 +605,7 @@ export function ProductionDashboard() {
 
       <div className="text-xs text-muted-foreground">
         * Capacidade considera o intervalo de datas selecionado (por Data Prog.) e o campo TEMPO FPP da planilha (75h/semana por máquina).
-        Urgente = PRODUTO contém "URGENTE". Atravessamento (dias úteis) = Data Fim Estamparia (col. K, prazo) − Data Prog. (col. B, data atual): valor positivo = adiantado, negativo = atrasado, zero = no prazo (Ok). Descontados fins de semana, feriados de Curitiba e dias ponte. Meta de atravessamento: {ATRAVESSAMENTO_META_DIAS} dias úteis.
+        Urgente = PRODUTO contém "URGENTE". Atravessamento (dias corridos) = Data Fim Estamparia (col. K) − Data Prog. (col. B): positivo = adiantado, negativo = atrasado, zero = no prazo (Ok). Meta de atravessamento: {ATRAVESSAMENTO_META_DIAS} dias.
         Sem datas selecionadas, mostra todo o período disponível.
         Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
       </div>
