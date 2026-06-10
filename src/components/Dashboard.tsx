@@ -878,3 +878,139 @@ function Panel({ title, children, className = "", right }: { title: string; chil
   );
 }
 
+interface DetailRow {
+  id: string;
+  tipo: string | null;
+  numero: number | null;
+  codigo_item: string | null;
+  descricao: string | null;
+  status: string | null;
+  data_registro: string | null;
+  linha: number | null;
+  fator_perda: number | null;
+  qtde_kg: number;
+  material: MaterialKind;
+  detLabel: string;
+}
+
+function DetailTable({ filtered }: { filtered: DetailRow[] }) {
+  const [fTipo, setFTipo] = useState("");
+  const [fNumero, setFNumero] = useState("");
+  const [fCodigo, setFCodigo] = useState("");
+  const [fDesc, setFDesc] = useState("");
+  const [fCat, setFCat] = useState("");
+  const [fStatus, setFStatus] = useState("");
+
+  const tipos = useMemo(() => Array.from(new Set(filtered.map(r => r.tipo).filter(Boolean))) as string[], [filtered]);
+  const cats = useMemo(() => Array.from(new Set(filtered.map(r => r.detLabel).filter(Boolean))).sort(), [filtered]);
+  const statuses2 = useMemo(() => Array.from(new Set(filtered.map(r => r.status).filter(Boolean))) as string[], [filtered]);
+
+  const rows = useMemo(() => filtered.filter(r => {
+    if (fTipo && r.tipo !== fTipo) return false;
+    if (fStatus && r.status !== fStatus) return false;
+    if (fCat && r.detLabel !== fCat) return false;
+    if (fNumero && !String(r.numero ?? "").toLowerCase().includes(fNumero.toLowerCase())) return false;
+    if (fCodigo && !(r.codigo_item ?? "").toLowerCase().includes(fCodigo.toLowerCase())) return false;
+    if (fDesc && !(r.descricao ?? "").toLowerCase().includes(fDesc.toLowerCase())) return false;
+    return true;
+  }), [filtered, fTipo, fNumero, fCodigo, fDesc, fCat, fStatus]);
+
+  const avgFator = useMemo(() => {
+    const v = rows.filter(r => r.fator_perda !== null).map(r => r.fator_perda as number);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
+  }, [rows]);
+  const avgKg = useMemo(() => {
+    const v = rows.filter(r => r.qtde_kg > 0).map(r => r.qtde_kg);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
+  }, [rows]);
+  const sumKg = useMemo(() => rows.reduce((a, r) => a + r.qtde_kg, 0), [rows]);
+
+  const filtCls = "w-full rounded border border-input bg-background/50 px-2 py-1 text-[11px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring";
+
+  return (
+    <section className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Detalhamento das Solicitações</h3>
+        <span className="text-xs text-muted-foreground">{fmtInt(rows.length)} de {fmtInt(filtered.length)} linhas</span>
+      </div>
+      <div className="overflow-auto max-h-[520px]">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/40 sticky top-0 z-10">
+            <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Qtde (kg)", "Data", "Status"].map(h => (
+                <th key={h} className="px-3 py-2 font-medium">{h}</th>
+              ))}
+            </tr>
+            <tr className="bg-secondary/20">
+              <th className="px-2 py-1.5">
+                <select value={fTipo} onChange={e => setFTipo(e.target.value)} className={filtCls}>
+                  <option value="">Todos</option>
+                  {tipos.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </th>
+              <th className="px-2 py-1.5"><input value={fNumero} onChange={e => setFNumero(e.target.value)} placeholder="filtrar…" className={filtCls} /></th>
+              <th className="px-2 py-1.5"><input value={fCodigo} onChange={e => setFCodigo(e.target.value)} placeholder="filtrar…" className={filtCls} /></th>
+              <th className="px-2 py-1.5"><input value={fDesc} onChange={e => setFDesc(e.target.value)} placeholder="filtrar…" className={filtCls} /></th>
+              <th className="px-2 py-1.5">
+                <select value={fCat} onChange={e => setFCat(e.target.value)} className={filtCls}>
+                  <option value="">Todas</option>
+                  {cats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </th>
+              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5">
+                <select value={fStatus} onChange={e => setFStatus(e.target.value)} className={filtCls}>
+                  <option value="">Todos</option>
+                  {statuses2.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(0, 500).map((r) => (
+              <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
+                <td className="px-3 py-2"><span className="inline-flex items-center rounded-md bg-primary/15 text-primary px-2 py-0.5 text-xs font-medium">{r.tipo}</span></td>
+                <td className="px-3 py-2 text-muted-foreground">{r.numero}</td>
+                <td className="px-3 py-2 font-mono text-xs">{r.codigo_item}</td>
+                <td className="px-3 py-2 max-w-[260px] truncate">{r.descricao}</td>
+                <td className="px-3 py-2"><span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${MATERIAL_COLOR[r.material]} 18%, transparent)`, color: MATERIAL_COLOR[r.material] }}>{r.detLabel || MATERIAL_LABEL[r.material]}</span></td>
+                <td className="px-3 py-2 font-medium">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 0)}%` : "—"}</td>
+                <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
+                <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
+                <td className="px-3 py-2 text-muted-foreground text-xs">{fmtDate(r.data_registro)}</td>
+                <td className="px-3 py-2"><span className="text-xs text-success">{r.status}</span></td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr><td colSpan={10} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro com esses filtros.</td></tr>
+            )}
+          </tbody>
+          {rows.length > 0 && (
+            <tfoot className="bg-secondary/60 border-t-2 border-border sticky bottom-0">
+              <tr className="text-xs uppercase tracking-wider font-bold">
+                <td className="px-3 py-2.5" colSpan={5}>Média / Soma</td>
+                <td className="px-3 py-2.5 font-mono">{fmtPct(avgFator)}</td>
+                <td className="px-3 py-2.5"></td>
+                <td className="px-3 py-2.5 font-mono">
+                  <div>μ {fmtNum(avgKg)}</div>
+                  <div className="text-[10px] font-normal text-muted-foreground">Σ {fmtNum(sumKg)}</div>
+                </td>
+                <td className="px-3 py-2.5"></td>
+                <td className="px-3 py-2.5"></td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+      {rows.length > 500 && (
+        <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border bg-secondary/20">
+          Exibindo as primeiras 500 linhas. Use os filtros ou exporte para ver todas.
+        </div>
+      )}
+    </section>
+  );
+}
+
