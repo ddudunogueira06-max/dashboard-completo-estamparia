@@ -916,7 +916,16 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
   }), [filtered, fTipo, fNumero, fCodigo, fDesc, fCat, fStatus]);
 
   const avgFator = useMemo(() => {
-    const v = rows.filter(r => r.fator_perda !== null).map(r => r.fator_perda as number);
+    // Dedupe: mesmo material+espessura+fator dentro do mesmo FPP (nº) conta 1 vez
+    const seen = new Set<string>();
+    const v: number[] = [];
+    rows.forEach(r => {
+      if (r.fator_perda === null) return;
+      const k = `${r.numero ?? "?"}|${r.detLabel}|${r.fator_perda}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      v.push(r.fator_perda);
+    });
     return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
   }, [rows]);
   const avgKg = useMemo(() => {
