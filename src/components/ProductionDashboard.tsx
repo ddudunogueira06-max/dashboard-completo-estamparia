@@ -138,7 +138,7 @@ function isWorkingDay(date: Date) {
 }
 
 /**
- * Atravessamento (em dias úteis) = Data Fim Estamparia (col. K) − Data Prog. (col. B),
+ * Atravessamento (em dias úteis) = DT FIM PROGRAMAÇÃO (col. K) − Data Prog. (col. B),
  * desconsiderando finais de semana, feriados de Curitiba e dias-ponte.
  * POSITIVO  → terminou antes do prazo (adiantado).
  * NEGATIVO  → atrasado.
@@ -154,15 +154,16 @@ function businessDaysBetween(a: Date, b: Date): number {
   }
   return cnt;
 }
-function atravessDias(dtProg: string | null, dtFimEst: string | null): number | null {
+function atravessDias(dtProg: string | null, dtFimProg: string | null): number | null {
   const start = parseLocalDate(dtProg);
-  const end = parseLocalDate(dtFimEst);
+  const end = parseLocalDate(dtFimProg);
   if (!start || !end) return null;
   if (start.getTime() === end.getTime()) return 0;
   return end.getTime() > start.getTime()
     ? -businessDaysBetween(start, end) // entregou depois do programado → atrasado
     : businessDaysBetween(end, start); // entregou antes → adiantado
 }
+
 
 
 export function ProductionDashboard() {
