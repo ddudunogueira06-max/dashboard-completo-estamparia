@@ -700,7 +700,7 @@ export function ProductionDashboard() {
 
 
       <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{detail?.title}</DialogTitle>
             <DialogDescription>Detalhamento por período</DialogDescription>
@@ -712,6 +712,68 @@ export function ProductionDashboard() {
                 <span className="font-mono font-semibold">{r.value}</span>
               </div>
             ))}
+          </div>
+          {detail?.fppLists?.map((list, idx) => list.fpps.length > 0 && (
+            <div key={idx} className="mt-3 rounded-lg border border-border bg-secondary/20 p-3">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                {list.label} ({list.fpps.length})
+              </div>
+              <div className="max-h-48 overflow-auto flex flex-wrap gap-1.5">
+                {list.fpps.map(f => (
+                  <span key={f} className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-mono font-medium">{f}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal — gráfico expandido capacidade x real */}
+      <Dialog open={capModalOpen} onOpenChange={setCapModalOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>FPPs por dia vs Capacidade média</DialogTitle>
+            <DialogDescription>
+              Capacidade média diária = {fmtNum(perDay.avg, 1)} FPP/dia útil. Linha tracejada = média; barras = realizado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="h-[420px]">
+            {perDay.series.length === 0 ? (
+              <div className="h-full grid place-items-center text-sm text-muted-foreground">Sem dados no período.</div>
+            ) : (
+              <ResponsiveContainer>
+                <BarChart data={perDay.series} margin={{ left: 8, right: 16, top: 16, bottom: 8 }}>
+                  <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={11} />
+                  <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
+                    formatter={(v: number) => [`${v} FPPs`, "Realizado"]}
+                  />
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={48}>
+                    {perDay.series.map((d, i) => (
+                      <Cell key={i} fill={d.count >= perDay.avg ? "oklch(0.7 0.16 155)" : "oklch(0.65 0.22 25)"} />
+                    ))}
+                    <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={11} fontWeight={600} />
+                  </Bar>
+                  <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" label={{ value: `média ${perDay.avg.toFixed(1)}`, fill: "oklch(0.85 0.02 240)", fontSize: 11, position: "right" }} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-3 mt-2 text-center">
+            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Acima da média</div>
+              <div className="text-lg font-bold text-success">{fmtInt(perDay.series.filter(d => d.count > perDay.avg).length)} dias</div>
+            </div>
+            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Abaixo da média</div>
+              <div className="text-lg font-bold text-destructive">{fmtInt(perDay.series.filter(d => d.count < perDay.avg).length)} dias</div>
+            </div>
+            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias úteis avaliados</div>
+              <div className="text-lg font-bold text-foreground">{fmtInt(perDay.series.length)}</div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
