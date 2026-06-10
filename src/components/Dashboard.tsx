@@ -238,50 +238,42 @@ export function Dashboard() {
   const yearSel = matrixYear || availableYears[0] || String(new Date().getFullYear());
 
   const matrix = useMemo(() => {
-    type Cell = { qtde: number; desp: number };
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
-    const matAgg = new Map<MaterialKind, Cell[]>();
-    materials.forEach(m => matAgg.set(m, Array.from({ length: 12 }, () => ({ qtde: 0, desp: 0 }))));
+    // Para cada (material, mês) e (material, ano) — coletar fatores únicos por (detKey+fator)
+    const monthSeen = new Map<string, Set<string>>(); // key: mat|m
+    const monthVals = new Map<string, number[]>();
+    const yearSeen = new Map<MaterialKind, Set<string>>();
+    const yearVals = new Map<MaterialKind, number[]>();
+    materials.forEach(m => { yearSeen.set(m, new Set()); yearVals.set(m, []); });
 
-    // Agrupa por (tipo+numero) para usar fator só da 1ª linha
-    const localGroups = new Map<string, typeof enriched>();
     enriched.forEach(r => {
       if (!r.data_registro || !materials.includes(r.material)) return;
       if (tipoFilter && r.tipo !== tipoFilter) return;
+      if (r.fator_perda === null || !r.detKey) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
-      const key = r.numero !== null ? `${r.tipo ?? ""}#${r.numero}` : `__solo__${r.id}`;
-      const arr = localGroups.get(key);
-      if (arr) arr.push(r); else localGroups.set(key, [r]);
+      const m = d.getMonth();
+      const mKey = `${r.material}|${m}`;
+      const dedupKey = `${r.detKey}|${r.fator_perda}`;
+      let ms = monthSeen.get(mKey);
+      if (!ms) { ms = new Set(); monthSeen.set(mKey, ms); monthVals.set(mKey, []); }
+      if (!ms.has(dedupKey)) {
+        ms.add(dedupKey);
+        monthVals.get(mKey)!.push(r.fator_perda);
+      }
+      const ys = yearSeen.get(r.material)!;
+      if (!ys.has(dedupKey)) {
+        ys.add(dedupKey);
+        yearVals.get(r.material)!.push(r.fator_perda);
+      }
     });
-    localGroups.forEach(arr => arr.sort((a, b) => (a.linha ?? 1e9) - (b.linha ?? 1e9)));
 
-    localGroups.forEach(rows => {
-      const first = rows[0];
-      const fator = (first.fator_perda ?? 0) / 100;
-      rows.forEach(r => {
-        const d = new Date(r.data_registro!);
-        const m = d.getMonth();
-        const cell = matAgg.get(r.material)!;
-        cell[m].qtde += r.qtde_kg;
-        cell[m].desp += r.qtde_kg * fator;
-      });
-    });
+    const avg = (arr: number[]) => arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : null;
 
     return materials.map(mat => {
-      const cells = matAgg.get(mat)!;
-      const monthly = cells.map(c => (c.qtde > 0 ? +(c.desp / c.qtde * 100).toFixed(2) : null));
-      const totalQ = cells.reduce((a, c) => a + c.qtde, 0);
-      const totalD = cells.reduce((a, c) => a + c.desp, 0);
-      const acumulada = totalQ > 0 ? +(totalD / totalQ * 100).toFixed(2) : null;
-      return {
-        key: mat,
-        material: mat,
-        label: MATERIAL_LABEL[mat].toUpperCase(),
-        monthly,
-        acumulada,
-        isSummary: true,
-      };
+      const monthly = Array.from({ length: 12 }, (_, i) => avg(monthVals.get(`${mat}|${i}`) ?? []));
+      const acumulada = avg(yearVals.get(mat) ?? []);
+      return { key: mat, material: mat, label: MATERIAL_LABEL[mat].toUpperCase(), monthly, acumulada, isSummary: true };
     }).filter(r => r.acumulada !== null);
   }, [enriched, yearSel, tipoFilter]);
 
