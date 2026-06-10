@@ -484,18 +484,7 @@ export function ProductionDashboard() {
           onClick={() => openFppDetail("FPPs por período")} />
         <KpiCard label="Atravessamento no prazo" value={`${atravess.pct.toFixed(1)}%`} icon={GaugeIcon} accent="success"
           hint={`Média ${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} d · ${fmtInt(atravess.dentro)}/${fmtInt(atravess.total)}`}
-          onClick={() => setDetail({
-            title: "Atravessamento",
-            rows: [
-              { label: "No prazo / adiantado", value: fmtInt(atravess.dentro) },
-              { label: "Atrasados", value: fmtInt(atravess.total - atravess.dentro) },
-              { label: "Total avaliado", value: fmtInt(atravess.total) },
-              { label: "Aderência", value: `${atravess.pct.toFixed(2)}%` },
-              { label: "Média de atravessamento", value: `${atravess.media >= 0 ? "+" : ""}${fmtNum(atravess.media, 1)} dias úteis` },
-              { label: "Meta de aderência", value: `${META_ATRAVESSAMENTO}%` },
-              { label: "Meta de atravessamento", value: `${ATRAVESSAMENTO_META_DIAS} dias` },
-            ],
-          })} />
+          onClick={() => openAtravessDetail()} />
       </section>
 
 
@@ -513,14 +502,16 @@ export function ProductionDashboard() {
           <div className="flex-1 flex flex-col items-center justify-center">
             <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={320} />
             <div className="mt-3 grid grid-cols-3 gap-2 w-full max-w-[320px]">
-              <div className="rounded-xl bg-success/10 border border-success/30 px-2 py-2 text-center">
+              <button type="button" onClick={() => openAtravessDetail("ok")}
+                className="rounded-xl bg-success/10 border border-success/30 px-2 py-2 text-center hover:bg-success/20 transition-colors">
                 <div className="text-xl font-extrabold text-success leading-none">{fmtInt(atravess.dentro)}</div>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">No prazo</div>
-              </div>
-              <div className="rounded-xl bg-destructive/10 border border-destructive/30 px-2 py-2 text-center">
+              </button>
+              <button type="button" onClick={() => openAtravessDetail("late")}
+                className="rounded-xl bg-destructive/10 border border-destructive/30 px-2 py-2 text-center hover:bg-destructive/20 transition-colors">
                 <div className="text-xl font-extrabold text-destructive leading-none">{fmtInt(atravess.total - atravess.dentro)}</div>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Atrasados</div>
-              </div>
+              </button>
               <div className="rounded-xl bg-muted/30 border border-border px-2 py-2 text-center">
                 <div className={`text-xl font-extrabold leading-none ${atravess.media >= 0 ? "text-success" : "text-destructive"}`}>{atravess.media >= 0 ? "+" : ""}{fmtNum(atravess.media, 1)}</div>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Média (d)</div>
