@@ -277,25 +277,9 @@ export function Dashboard() {
     }).filter(r => r.acumulada !== null);
   }, [enriched, yearSel, tipoFilter]);
 
-  // === MATRIZ SEMANAL (Segunda a Sexta) por material — base = TODOS os registros
+  // === MATRIZ SEMANAL (Segunda a Sexta) por material — média simples por (material+espessura+fator) deduplicado por semana
   const weeklyMatrix = useMemo(() => {
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
-    const weekData = new Map<string, { start: Date; perMat: Map<MaterialKind, { qtde: number; desp: number }> }>();
-
-    const localGroups = new Map<string, typeof enriched>();
-    enriched.forEach(r => {
-      if (!r.data_registro || !materials.includes(r.material)) return;
-      if (tipoFilter && r.tipo !== tipoFilter) return;
-      const d = new Date(r.data_registro);
-      if (String(d.getFullYear()) !== yearSel) return;
-      const dow = d.getDay();
-      if (dow === 0 || dow === 6) return;
-      const key = r.numero !== null ? `${r.tipo ?? ""}#${r.numero}` : `__solo__${r.id}`;
-      const arr = localGroups.get(key);
-      if (arr) arr.push(r); else localGroups.set(key, [r]);
-    });
-    localGroups.forEach(arr => arr.sort((a, b) => (a.linha ?? 1e9) - (b.linha ?? 1e9)));
-
     const getMonday = (d: Date) => {
       const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       const day = x.getDay();
@@ -304,25 +288,31 @@ export function Dashboard() {
       return x;
     };
 
-    localGroups.forEach(rows => {
-      const first = rows[0];
-      const fator = (first.fator_perda ?? 0) / 100;
-      rows.forEach(r => {
-        const d = new Date(r.data_registro!);
-        const dow = d.getDay();
-        if (dow === 0 || dow === 6) return;
-        const mon = getMonday(d);
-        const wkKey = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, "0")}-${String(mon.getDate()).padStart(2, "0")}`;
-        let wk = weekData.get(wkKey);
-        if (!wk) {
-          wk = { start: mon, perMat: new Map() };
-          materials.forEach(m => wk!.perMat.set(m, { qtde: 0, desp: 0 }));
-          weekData.set(wkKey, wk);
-        }
-        const cell = wk.perMat.get(r.material)!;
-        cell.qtde += r.qtde_kg;
-        cell.desp += r.qtde_kg * fator;
-      });
+    type Wk = { start: Date; perMat: Map<MaterialKind, { seen: Set<string>; vals: number[] }> };
+    const weekData = new Map<string, Wk>();
+
+    enriched.forEach(r => {
+      if (!r.data_registro || !materials.includes(r.material)) return;
+      if (tipoFilter && r.tipo !== tipoFilter) return;
+      if (r.fator_perda === null || !r.detKey) return;
+      const d = new Date(r.data_registro);
+      if (String(d.getFullYear()) !== yearSel) return;
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) return;
+      const mon = getMonday(d);
+      const wkKey = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, "0")}-${String(mon.getDate()).padStart(2, "0")}`;
+      let wk = weekData.get(wkKey);
+      if (!wk) {
+        wk = { start: mon, perMat: new Map() };
+        materials.forEach(m => wk!.perMat.set(m, { seen: new Set(), vals: [] }));
+        weekData.set(wkKey, wk);
+      }
+      const cell = wk.perMat.get(r.material)!;
+      const dedupKey = `${r.detKey}|${r.fator_perda}`;
+      if (!cell.seen.has(dedupKey)) {
+        cell.seen.add(dedupKey);
+        cell.vals.push(r.fator_perda);
+      }
     });
 
     const weeks = Array.from(weekData.entries())
@@ -334,14 +324,28 @@ export function Dashboard() {
         return { key, label: `${fmt(w.start)}–${fmt(fri)}`, perMat: w.perMat };
       });
 
+    const avg = (arr: number[]) => arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : null;
+
     const rows = materials.map(mat => {
-      const weekly = weeks.map(w => {
+      const weekly = weeks.map(w => avg(w.perMat.get(mat)!.vals));
+      // Acumulada da janela: dedup global no período exibido
+      const seen = new Set<string>();
+      const vals: number[] = [];
+      weeks.forEach(w => {
         const c = w.perMat.get(mat)!;
-        return c.qtde > 0 ? +(c.desp / c.qtde * 100).toFixed(2) : null;
+        c.seen.forEach(k => { if (!seen.has(k)) { seen.add(k); vals.push(c.vals[Array.from(c.seen).indexOf(k)]); } });
       });
-      const totalQ = weeks.reduce((a, w) => a + w.perMat.get(mat)!.qtde, 0);
-      const totalD = weeks.reduce((a, w) => a + w.perMat.get(mat)!.desp, 0);
-      const acumulada = totalQ > 0 ? +(totalD / totalQ * 100).toFixed(2) : null;
+      // Recalcula vals de forma estável a partir dos pares (key,val)
+      const allVals: number[] = [];
+      const allSeen = new Set<string>();
+      weeks.forEach(w => {
+        const c = w.perMat.get(mat)!;
+        const keys = Array.from(c.seen);
+        keys.forEach((k, idx) => {
+          if (!allSeen.has(k)) { allSeen.add(k); allVals.push(c.vals[idx]); }
+        });
+      });
+      const acumulada = avg(allVals);
       return { key: mat, material: mat, label: MATERIAL_LABEL[mat].toUpperCase(), weekly, acumulada };
     }).filter(r => r.acumulada !== null);
 
