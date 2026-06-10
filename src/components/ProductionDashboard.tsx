@@ -138,7 +138,7 @@ function isWorkingDay(date: Date) {
 }
 
 /**
- * Atravessamento (em dias úteis) = Data Fim Estamparia (col. K) − Data Prog. (col. B),
+ * Atravessamento (em dias úteis) = DT FIM PROGRAMAÇÃO (col. K) − Data Prog. (col. B),
  * desconsiderando finais de semana, feriados de Curitiba e dias-ponte.
  * POSITIVO  → terminou antes do prazo (adiantado).
  * NEGATIVO  → atrasado.
@@ -154,15 +154,16 @@ function businessDaysBetween(a: Date, b: Date): number {
   }
   return cnt;
 }
-function atravessDias(dtProg: string | null, dtFimEst: string | null): number | null {
+function atravessDias(dtProg: string | null, dtFimProg: string | null): number | null {
   const start = parseLocalDate(dtProg);
-  const end = parseLocalDate(dtFimEst);
+  const end = parseLocalDate(dtFimProg);
   if (!start || !end) return null;
   if (start.getTime() === end.getTime()) return 0;
   return end.getTime() > start.getTime()
     ? -businessDaysBetween(start, end) // entregou depois do programado → atrasado
     : businessDaysBetween(end, start); // entregou antes → adiantado
 }
+
 
 
 export function ProductionDashboard() {
@@ -176,6 +177,10 @@ export function ProductionDashboard() {
   const [dateTo, setDateTo] = useState<string>("");
   const [showTable, setShowTable] = useState(false);
   const [detail, setDetail] = useState<null | { title: string; rows: { label: string; value: string }[] }>(null);
+  const [fFpp, setFFpp] = useState("");
+  const [fMaq, setFMaq] = useState("");
+  const [fStatus, setFStatus] = useState("");
+
 
   const now = useMemo(() => new Date(), []);
   const fromDate = useMemo(() => parseLocalDate(dateFrom), [dateFrom]);
@@ -275,21 +280,22 @@ export function ProductionDashboard() {
     });
   }, [inPeriod, machineFilter, capLimitHours]);
 
-  // Atravessamento: dias úteis (com sinal) entre Data Prog. e Data Fim Estamparia (no intervalo)
+  // Atravessamento: dias úteis (com sinal) entre Data Prog. e DT FIM PROGRAMAÇÃO (col K)
   const atravess = useMemo(() => {
     let dentro = 0, total = 0, soma = 0;
     const detalhes: { fpp: string | null; dias: number; dentro: boolean; dt_prog: string | null; dt_fim_est: string | null; tempo: number | null; maquina: number | null }[] = [];
     inPeriod.forEach(r => {
-      const dias = atravessDias(r.dt_prog, r.dt_fim_estamparia);
+      const dias = atravessDias(r.dt_prog, r.dt_fim_prog);
       if (dias === null) return;
       total++;
       soma += dias;
       const ok = dias >= 0; // no prazo ou adiantado
       if (ok) dentro++;
-      detalhes.push({ fpp: r.fpp, dias, dentro: ok, dt_prog: r.dt_prog, dt_fim_est: r.dt_fim_estamparia, tempo: r.tempo_fpp_seg, maquina: r.maquina });
+      detalhes.push({ fpp: r.fpp, dias, dentro: ok, dt_prog: r.dt_prog, dt_fim_est: r.dt_fim_prog, tempo: r.tempo_fpp_seg, maquina: r.maquina });
     });
     return { pct: total > 0 ? (dentro / total) * 100 : 0, dentro, total, media: total > 0 ? soma / total : 0, detalhes: detalhes.sort((a, b) => a.dias - b.dias) };
   }, [inPeriod]);
+
 
   // Contagem de FPPs (distintas) por bucket — usado nos diálogos
   const fppCounts = useMemo(() => {
@@ -578,52 +584,84 @@ export function ProductionDashboard() {
           {showTable ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </button>
         {showTable && (
-          <div className="overflow-auto max-h-[420px] border-t border-border">
+          <div className="overflow-auto max-h-[480px] border-t border-border">
             <table className="w-full text-sm">
               <thead className="bg-secondary/40 sticky top-0">
                 <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                   <th className="px-3 py-2">FPP</th>
                   <th className="px-3 py-2">Data Prog. (B)</th>
-                  <th className="px-3 py-2">Data Fim Estamparia (K)</th>
+                  <th className="px-3 py-2">DT Fim Programação (K)</th>
                   <th className="px-3 py-2 text-right">Máquina</th>
                   <th className="px-3 py-2 text-right">Tempo FPP</th>
                   <th className="px-3 py-2 text-right">Atravess. (dias)</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>
+                <tr className="bg-card/60">
+                  <th className="px-2 py-1.5"><input value={fFpp} onChange={(e) => setFFpp(e.target.value)} placeholder="Filtrar…" className="w-full rounded border border-input bg-input/40 px-2 py-1 text-xs" /></th>
+                  <th className="px-2 py-1.5" />
+                  <th className="px-2 py-1.5" />
+                  <th className="px-2 py-1.5">
+                    <select value={fMaq} onChange={(e) => setFMaq(e.target.value)} className="w-full rounded border border-input bg-input/40 px-2 py-1 text-xs">
+                      <option value="">Todas</option>
+                      {MACHINES.map(m => <option key={m} value={String(m)}>{m}</option>)}
+                    </select>
+                  </th>
+                  <th className="px-2 py-1.5" />
+                  <th className="px-2 py-1.5" />
+                  <th className="px-2 py-1.5">
+                    <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className="w-full rounded border border-input bg-input/40 px-2 py-1 text-xs">
+                      <option value="">Todos</option>
+                      <option value="adiantado">Adiantado</option>
+                      <option value="ok">Ok</option>
+                      <option value="atrasado">Atrasado</option>
+                    </select>
+                  </th>
+                </tr>
               </thead>
               <tbody>
-                {atravess.detalhes.slice(0, 500).map((d, i) => {
-                  const status = d.dias > 0 ? "Adiantado" : d.dias < 0 ? "Atrasado" : "Ok";
-                  const cls = d.dias > 0 ? "text-success" : d.dias < 0 ? "text-destructive" : "text-muted-foreground";
-                  return (
-                    <tr key={i} className="border-t border-border hover:bg-secondary/30">
-                      <td className="px-3 py-2 font-mono text-xs">{d.fpp}</td>
-                      <td className="px-3 py-2 text-xs">{fmtDate(d.dt_prog)}</td>
-                      <td className="px-3 py-2 text-xs">{fmtDate(d.dt_fim_est)}</td>
-                      <td className="px-3 py-2 text-right text-xs">{d.maquina ?? "—"}</td>
-                      <td className="px-3 py-2 text-right text-xs font-mono">{d.tempo ? fmtHM(d.tempo) : "—"}</td>
-                      <td className={`px-3 py-2 text-right font-mono font-semibold ${cls}`}>{d.dias > 0 ? "+" : ""}{d.dias}</td>
-                      <td className="px-3 py-2">
-                        <span className={`text-xs font-semibold ${cls}`}>{status}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {atravess.detalhes.length === 0 && (
-                  <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">Sem dados para avaliação.</td></tr>
-                )}
+                {(() => {
+                  const filteredDet = atravess.detalhes.filter((d) => {
+                    if (fFpp && !(d.fpp ?? "").toLowerCase().includes(fFpp.toLowerCase())) return false;
+                    if (fMaq && String(d.maquina ?? "") !== fMaq) return false;
+                    if (fStatus) {
+                      const st = d.dias > 0 ? "adiantado" : d.dias < 0 ? "atrasado" : "ok";
+                      if (st !== fStatus) return false;
+                    }
+                    return true;
+                  });
+                  if (filteredDet.length === 0) {
+                    return <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">Sem dados para avaliação.</td></tr>;
+                  }
+                  return filteredDet.slice(0, 500).map((d, i) => {
+                    const status = d.dias > 0 ? "Adiantado" : d.dias < 0 ? "Atrasado" : "Ok";
+                    const cls = d.dias > 0 ? "text-success" : d.dias < 0 ? "text-destructive" : "text-muted-foreground";
+                    return (
+                      <tr key={i} className="border-t border-border hover:bg-secondary/30">
+                        <td className="px-3 py-2 font-mono text-xs">{d.fpp}</td>
+                        <td className="px-3 py-2 text-xs">{fmtDate(d.dt_prog)}</td>
+                        <td className="px-3 py-2 text-xs">{fmtDate(d.dt_fim_est)}</td>
+                        <td className="px-3 py-2 text-right text-xs">{d.maquina ?? "—"}</td>
+                        <td className="px-3 py-2 text-right text-xs font-mono">{d.tempo ? fmtHM(d.tempo) : "—"}</td>
+                        <td className={`px-3 py-2 text-right font-mono font-semibold ${cls}`}>{d.dias > 0 ? "+" : ""}{d.dias}</td>
+                        <td className="px-3 py-2"><span className={`text-xs font-semibold ${cls}`}>{status}</span></td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
         )}
       </section>
 
+
       <div className="text-xs text-muted-foreground">
         * Capacidade considera o intervalo de datas selecionado (por Data Prog.) e o campo TEMPO FPP da planilha (75h/semana por máquina).
-        Urgente = PRODUTO contém "URGENTE". Atravessamento (dias úteis, exclui sábados/domingos, feriados de Curitiba e pontes) = Data Fim Estamparia (col. K) − Data Prog. (col. B): positivo = adiantado, negativo = atrasado, zero = no prazo (Ok). Meta de atravessamento: {ATRAVESSAMENTO_META_DIAS} dias úteis.
+        Urgente = PRODUTO contém "URGENTE". Atravessamento (dias úteis, exclui sábados/domingos, feriados de Curitiba e pontes) = DT FIM PROGRAMAÇÃO (col. K, aba BASE) − Data Prog. (col. B): positivo = adiantado, negativo = atrasado, zero = no prazo (Ok). Meta de atravessamento: {ATRAVESSAMENTO_META_DIAS} dias úteis.
         Sem datas selecionadas, mostra todo o período disponível.
         Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
       </div>
+
 
 
       <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
