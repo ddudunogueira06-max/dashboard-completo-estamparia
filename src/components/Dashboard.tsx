@@ -803,49 +803,9 @@ export function Dashboard() {
 
 
       {/* Detail table */}
-      <section className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-          <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-            Detalhamento das Solicitações
-          </h3>
-          <span className="text-xs text-muted-foreground">{fmtInt(filtered.length)} linhas</span>
-        </div>
-        <div className="overflow-auto max-h-[480px]">
-          <table className="w-full text-sm">
-            <thead className="bg-secondary/40 sticky top-0">
-              <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Qtde (kg)", "Data", "Status"].map(h => (
-                  <th key={h} className="px-3 py-2 font-medium">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.slice(0, 500).map((r) => (
-                <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
-                  <td className="px-3 py-2"><span className="inline-flex items-center rounded-md bg-primary/15 text-primary px-2 py-0.5 text-xs font-medium">{r.tipo}</span></td>
-                  <td className="px-3 py-2 text-muted-foreground">{r.numero}</td>
-                  <td className="px-3 py-2 font-mono text-xs">{r.codigo_item}</td>
-                  <td className="px-3 py-2 max-w-[260px] truncate">{r.descricao}</td>
-                  <td className="px-3 py-2"><span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${MATERIAL_COLOR[r.material]} 18%, transparent)`, color: MATERIAL_COLOR[r.material] }}>{r.detLabel || MATERIAL_LABEL[r.material]}</span></td>
-                  <td className="px-3 py-2 font-medium">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 0)}%` : "—"}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
-                  <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
-                  <td className="px-3 py-2 text-muted-foreground text-xs">{fmtDate(r.data_registro)}</td>
-                  <td className="px-3 py-2"><span className="text-xs text-success">{r.status}</span></td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={10} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro. Importe uma planilha na aba "Importar Planilha".</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {filtered.length > 500 && (
-          <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border bg-secondary/20">
-            Exibindo as primeiras 500 linhas. Use os filtros ou exporte para ver todas.
-          </div>
-        )}
+      <DetailTable filtered={filtered} />
       </section>
+      <section className="hidden">{/* placeholder */}</section>
       <Dialog open={!!kpiDetail} onOpenChange={(o) => !o && setKpiDetail(null)}>
         <DialogContent>
           <DialogHeader>
