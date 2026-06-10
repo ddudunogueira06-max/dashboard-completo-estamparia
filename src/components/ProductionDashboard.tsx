@@ -155,13 +155,16 @@ function businessDaysBetween(a: Date, b: Date): number {
   return cnt;
 }
 function atravessDias(dtProg: string | null, dtFimProg: string | null): number | null {
-  const start = parseLocalDate(dtProg);
-  const end = parseLocalDate(dtFimProg);
-  if (!start || !end) return null;
-  if (start.getTime() === end.getTime()) return 0;
-  return end.getTime() > start.getTime()
-    ? -businessDaysBetween(start, end) // entregou depois do programado → atrasado
-    : businessDaysBetween(end, start); // entregou antes → adiantado
+  // dtProg (col. B) = data em que efetivamente terminou
+  // dtFimProg (col. K) = data em que deveria ter terminado (prazo)
+  // resultado = K - B em dias úteis → positivo = adiantado, negativo = atrasado, zero = no prazo
+  const entregue = parseLocalDate(dtProg);
+  const prazo = parseLocalDate(dtFimProg);
+  if (!entregue || !prazo) return null;
+  if (entregue.getTime() === prazo.getTime()) return 0;
+  return prazo.getTime() > entregue.getTime()
+    ? businessDaysBetween(entregue, prazo)   // terminou antes do prazo → adiantado
+    : -businessDaysBetween(prazo, entregue); // terminou depois do prazo → atrasado
 }
 
 
