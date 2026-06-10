@@ -53,16 +53,10 @@ function toDate(v: unknown): string | null {
 function toSeconds(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
   if (v instanceof Date) {
-    // XLSX com cellDates retorna Date com o componente de tempo no UTC do epoch Excel.
-    // Usamos os componentes UTC (h/m/s exatamente como mostrados na célula),
-    // e somamos o offset de dias caso a data seja > 1899-12-31 (raro, mas seguro).
-    const epoch = Date.UTC(1899, 11, 30);
-    const totalSec = Math.round((v.getTime() - epoch) / 1000);
-    // Se o valor é só hora (mesmo dia base), totalSec já é segundos do dia.
-    // Se contém data, ainda assim representa o intervalo desde 1899-12-30 — para tempos
-    // típicos < 24h isto coincide com h*3600+m*60+s.
-    if (totalSec >= 0 && totalSec < 86400 * 2) return totalSec;
-    return v.getUTCHours() * 3600 + v.getUTCMinutes() * 60 + v.getUTCSeconds();
+    // XLSX com cellDates cria Date no fuso LOCAL com os mesmos componentes mostrados
+    // na célula (ex.: "06:05:30" → new Date(1899,11,30,6,5,30) local).
+    // Usar getHours/getMinutes/getSeconds preserva o valor exibido sem distorção de fuso.
+    return v.getHours() * 3600 + v.getMinutes() * 60 + v.getSeconds();
   }
   if (typeof v === "number") {
     // -1 sentinel = not done
