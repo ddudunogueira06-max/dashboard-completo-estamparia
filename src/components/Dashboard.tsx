@@ -668,12 +668,21 @@ export function Dashboard() {
                     <tbody>
                       {weeklyMatrix.rows.map(row => {
                         const meta = META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">];
-                        const monthVals = weekIdxOfMonth
-                          .map(({ i }) => row.weekly[i])
-                          .filter((v): v is number => v !== null && v !== undefined);
-                        const mediaMes = monthVals.length > 0
-                          ? +(monthVals.reduce((a, b) => a + b, 0) / monthVals.length).toFixed(2)
-                          : null;
+                        // Média do Mês = ponderada por kg de TODOS os lançamentos do mês
+                        // (mesma base da matriz anual, garantindo consistência entre painéis)
+                        let monthQ = 0, monthD = 0;
+                        enriched.forEach(r => {
+                          if (!r.data_registro || r.material !== row.material) return;
+                          if (tipoFilter && r.tipo !== tipoFilter) return;
+                          const d = new Date(r.data_registro);
+                          if (String(d.getFullYear()) !== yearSel) return;
+                          if (String(d.getMonth() + 1).padStart(2, "0") !== activeMonth) return;
+                          const dow = d.getDay();
+                          if (dow === 0 || dow === 6) return;
+                          monthQ += r.qtde_kg;
+                          monthD += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
+                        });
+                        const mediaMes = monthQ > 0 ? +(monthD / monthQ * 100).toFixed(2) : null;
                         return (
                           <tr key={row.key} className="border-t border-border bg-secondary/30">
                             <td className="px-3 py-2.5 whitespace-nowrap font-bold uppercase text-xs tracking-wider">
@@ -699,6 +708,7 @@ export function Dashboard() {
                           </tr>
                         );
                       })}
+
                     </tbody>
                   </table>
                 </div>
