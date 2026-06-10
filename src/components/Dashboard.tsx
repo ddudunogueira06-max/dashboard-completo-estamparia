@@ -58,6 +58,39 @@ const MATERIAL_COLOR: Record<MaterialKind, string> = {
 
 const MONTH_NAMES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
+// === FONTE ÚNICA DA VERDADE PARA MÉDIA DE PERDA ===
+// Média simples dos valores de fator_perda lançados. Quando, dentro da MESMA FPP/FPG,
+// o material+espessura se repete com o MESMO fator, esse valor é contado apenas 1×.
+// Entre FPPs diferentes, mesmo que o valor coincida, conta separadamente.
+// Esta função é usada em TODOS os indicadores (pílula, matriz anual, semanal, mês,
+// tabela de detalhamento) para garantir consistência total.
+type FatorRow = { tipo: string | null; numero: number | null; id: string; detKey: string; fator_perda: number | null };
+function fppKey(r: { tipo: string | null; numero: number | null; id: string }): string {
+  return r.numero !== null ? `${(r.tipo ?? "").toUpperCase()}#${r.numero}` : `__solo__${r.id}`;
+}
+function uniqueFatores(rows: FatorRow[]): number[] {
+  const seen = new Set<string>();
+  const out: number[] = [];
+  for (const r of rows) {
+    if (r.fator_perda === null || !r.detKey) continue;
+    const k = `${fppKey(r)}|${r.detKey}|${r.fator_perda}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(r.fator_perda);
+  }
+  return out;
+}
+function meanOf(arr: number[]): number {
+  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+}
+function uniqueFppList(rows: FatorRow[]): string[] {
+  const set = new Set<string>();
+  rows.forEach(r => {
+    if (r.numero !== null) set.add(`${(r.tipo ?? "").toUpperCase()} ${r.numero}`);
+  });
+  return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+}
+
 function EmptyChart() {
   return (
     <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
@@ -101,7 +134,7 @@ export function Dashboard() {
   const [matrixYear, setMatrixYear] = useState<string>("");
   const [monthSel, setMonthSel] = useState<string>(""); // "" = mês atual com dados (1-12)
 
-  const [kpiDetail, setKpiDetail] = useState<null | { title: string; kg?: number; m2?: number; pct?: number; count?: number; hint?: string }>(null);
+  const [kpiDetail, setKpiDetail] = useState<null | { title: string; kg?: number; m2?: number; pct?: number; count?: number; hint?: string; fpps?: string[] }>(null);
 
   const addNumeroFilter = () => {
     const v = search.trim();
@@ -203,24 +236,18 @@ export function Dashboard() {
     });
     const totalProcessado = totalSolic - totalDesperd;
     const totalProcessado_m2 = totalSolic_m2 - totalDesperd_m2;
-    // Média simples de perda: deduplica por (detKey + fator_perda) — mesmo material/espessura com mesmo % conta 1x
-    const seen = new Set<string>();
-    const fatores: number[] = [];
-    filtered.forEach(r => {
-      if (r.fator_perda === null || !r.detKey) return;
-      const k = `${r.detKey}|${r.fator_perda}`;
-      if (seen.has(k)) return;
-      seen.add(k);
-      fatores.push(r.fator_perda);
-    });
-    const mediaPerda = fatores.length > 0 ? fatores.reduce((a, b) => a + b, 0) / fatores.length : 0;
+    // Média simples de perda — fonte única da verdade (ver uniqueFatores no topo do arquivo)
+    const mediaPerda = meanOf(uniqueFatores(filtered));
+    const fppList = uniqueFppList(filtered);
     const totalFPP = new Set(
       filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").map(r => r.numero).filter(n => n !== null)
     ).size;
+    const fppListFPPonly = uniqueFppList(filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP"));
     return {
       totalSolic, totalDesperd, totalProcessado, totalRetalho,
       totalSolic_m2, totalDesperd_m2, totalProcessado_m2, totalRetalho_m2,
       mediaPerda, totalFPP, estoqueBR0140_kg, estoqueBR0140_m2,
+      fppList, fppListFPPonly,
     };
   }, [filtered, groups]);
 
@@ -239,40 +266,27 @@ export function Dashboard() {
 
   const matrix = useMemo(() => {
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
-    // Para cada (material, mês) e (material, ano) — coletar fatores únicos por (detKey+fator)
-    const monthSeen = new Map<string, Set<string>>(); // key: mat|m
-    const monthVals = new Map<string, number[]>();
-    const yearSeen = new Map<MaterialKind, Set<string>>();
-    const yearVals = new Map<MaterialKind, number[]>();
-    materials.forEach(m => { yearSeen.set(m, new Set()); yearVals.set(m, []); });
-
+    // Agrupa por (material, mês) e (material, ano) — usa fonte única uniqueFatores
+    const buckets = new Map<string, FatorRow[]>(); // key: mat|m  ou  mat|year
     enriched.forEach(r => {
       if (!r.data_registro || !materials.includes(r.material)) return;
       if (tipoFilter && r.tipo !== tipoFilter) return;
-      if (r.fator_perda === null || !r.detKey) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
       const m = d.getMonth();
       const mKey = `${r.material}|${m}`;
-      const dedupKey = `${r.detKey}|${r.fator_perda}`;
-      let ms = monthSeen.get(mKey);
-      if (!ms) { ms = new Set(); monthSeen.set(mKey, ms); monthVals.set(mKey, []); }
-      if (!ms.has(dedupKey)) {
-        ms.add(dedupKey);
-        monthVals.get(mKey)!.push(r.fator_perda);
-      }
-      const ys = yearSeen.get(r.material)!;
-      if (!ys.has(dedupKey)) {
-        ys.add(dedupKey);
-        yearVals.get(r.material)!.push(r.fator_perda);
-      }
+      const yKey = `${r.material}|Y`;
+      (buckets.get(mKey) ?? buckets.set(mKey, []).get(mKey)!).push(r);
+      (buckets.get(yKey) ?? buckets.set(yKey, []).get(yKey)!).push(r);
     });
-
-    const avg = (arr: number[]) => arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : null;
-
+    const avg = (rows: FatorRow[] | undefined) => {
+      if (!rows || rows.length === 0) return null;
+      const v = uniqueFatores(rows);
+      return v.length ? +meanOf(v).toFixed(2) : null;
+    };
     return materials.map(mat => {
-      const monthly = Array.from({ length: 12 }, (_, i) => avg(monthVals.get(`${mat}|${i}`) ?? []));
-      const acumulada = avg(yearVals.get(mat) ?? []);
+      const monthly = Array.from({ length: 12 }, (_, i) => avg(buckets.get(`${mat}|${i}`)));
+      const acumulada = avg(buckets.get(`${mat}|Y`));
       return { key: mat, material: mat, label: MATERIAL_LABEL[mat].toUpperCase(), monthly, acumulada, isSummary: true };
     }).filter(r => r.acumulada !== null);
   }, [enriched, yearSel, tipoFilter]);
@@ -288,13 +302,12 @@ export function Dashboard() {
       return x;
     };
 
-    type Wk = { start: Date; perMat: Map<MaterialKind, { seen: Set<string>; vals: number[] }> };
-    const weekData = new Map<string, Wk>();
+    // Agrupa registros brutos por semana+material e roda uniqueFatores em cada bucket
+    const weekData = new Map<string, { start: Date; perMat: Map<MaterialKind, FatorRow[]> }>();
 
     enriched.forEach(r => {
       if (!r.data_registro || !materials.includes(r.material)) return;
       if (tipoFilter && r.tipo !== tipoFilter) return;
-      if (r.fator_perda === null || !r.detKey) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
       const dow = d.getDay();
@@ -304,15 +317,10 @@ export function Dashboard() {
       let wk = weekData.get(wkKey);
       if (!wk) {
         wk = { start: mon, perMat: new Map() };
-        materials.forEach(m => wk!.perMat.set(m, { seen: new Set(), vals: [] }));
+        materials.forEach(m => wk!.perMat.set(m, []));
         weekData.set(wkKey, wk);
       }
-      const cell = wk.perMat.get(r.material)!;
-      const dedupKey = `${r.detKey}|${r.fator_perda}`;
-      if (!cell.seen.has(dedupKey)) {
-        cell.seen.add(dedupKey);
-        cell.vals.push(r.fator_perda);
-      }
+      wk.perMat.get(r.material)!.push(r);
     });
 
     const weeks = Array.from(weekData.entries())
@@ -324,28 +332,18 @@ export function Dashboard() {
         return { key, label: `${fmt(w.start)}–${fmt(fri)}`, perMat: w.perMat };
       });
 
-    const avg = (arr: number[]) => arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : null;
+    const avg = (rows: FatorRow[]) => {
+      if (rows.length === 0) return null;
+      const v = uniqueFatores(rows);
+      return v.length ? +meanOf(v).toFixed(2) : null;
+    };
 
     const rows = materials.map(mat => {
-      const weekly = weeks.map(w => avg(w.perMat.get(mat)!.vals));
-      // Acumulada da janela: dedup global no período exibido
-      const seen = new Set<string>();
-      const vals: number[] = [];
-      weeks.forEach(w => {
-        const c = w.perMat.get(mat)!;
-        c.seen.forEach(k => { if (!seen.has(k)) { seen.add(k); vals.push(c.vals[Array.from(c.seen).indexOf(k)]); } });
-      });
-      // Recalcula vals de forma estável a partir dos pares (key,val)
-      const allVals: number[] = [];
-      const allSeen = new Set<string>();
-      weeks.forEach(w => {
-        const c = w.perMat.get(mat)!;
-        const keys = Array.from(c.seen);
-        keys.forEach((k, idx) => {
-          if (!allSeen.has(k)) { allSeen.add(k); allVals.push(c.vals[idx]); }
-        });
-      });
-      const acumulada = avg(allVals);
+      const weekly = weeks.map(w => avg(w.perMat.get(mat)!));
+      // Acumulada da janela: aplica uniqueFatores em TODAS as semanas do material (mesma fonte)
+      const allRows: FatorRow[] = [];
+      weeks.forEach(w => allRows.push(...w.perMat.get(mat)!));
+      const acumulada = avg(allRows);
       return { key: mat, material: mat, label: MATERIAL_LABEL[mat].toUpperCase(), weekly, acumulada };
     }).filter(r => r.acumulada !== null);
 
