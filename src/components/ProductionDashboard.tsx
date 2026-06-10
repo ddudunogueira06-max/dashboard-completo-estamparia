@@ -470,7 +470,7 @@ export function ProductionDashboard() {
             <h3 className="font-bold text-base uppercase tracking-wider text-foreground inline-flex items-center gap-2">
               <GaugeIcon className="size-5 text-primary" /> Atravessamento
             </h3>
-            <span className="text-xs text-muted-foreground">Meta: {ATRAVESSAMENTO_META_DIAS} dias úteis</span>
+            <span className="text-xs text-muted-foreground">Meta: {ATRAVESSAMENTO_META_DIAS} dias</span>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center">
             <Gauge value={atravess.pct} goal={META_ATRAVESSAMENTO} size={320} />
