@@ -672,24 +672,21 @@ export function Dashboard() {
                     <tbody>
                       {weeklyMatrix.rows.map(row => {
                         const meta = META_POR_MATERIAL[row.material as Exclude<MaterialKind, "outro">];
-                        // Média do Mês = média simples por (material+espessura+fator) deduplicado dentro do mês
-                        const seen = new Set<string>();
-                        const vals: number[] = [];
-                        enriched.forEach(r => {
-                          if (!r.data_registro || r.material !== row.material) return;
-                          if (tipoFilter && r.tipo !== tipoFilter) return;
-                          if (r.fator_perda === null || !r.detKey) return;
+                        // Média do Mês — mesma fonte única (uniqueFatores). Considera todos os
+                        // dias do mês (inclui registros lançados em fim-de-semana, se houver),
+                        // garantindo que esta média seja exatamente a média das semanas do mês.
+                        const rowsMes = enriched.filter(r => {
+                          if (!r.data_registro || r.material !== row.material) return false;
+                          if (tipoFilter && r.tipo !== tipoFilter) return false;
                           const d = new Date(r.data_registro);
-                          if (String(d.getFullYear()) !== yearSel) return;
-                          if (String(d.getMonth() + 1).padStart(2, "0") !== activeMonth) return;
+                          if (String(d.getFullYear()) !== yearSel) return false;
+                          if (String(d.getMonth() + 1).padStart(2, "0") !== activeMonth) return false;
                           const dow = d.getDay();
-                          if (dow === 0 || dow === 6) return;
-                          const k = `${r.detKey}|${r.fator_perda}`;
-                          if (seen.has(k)) return;
-                          seen.add(k);
-                          vals.push(r.fator_perda);
+                          if (dow === 0 || dow === 6) return false;
+                          return true;
                         });
-                        const mediaMes = vals.length > 0 ? +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : null;
+                        const valsMes = uniqueFatores(rowsMes);
+                        const mediaMes = valsMes.length > 0 ? +meanOf(valsMes).toFixed(2) : null;
                         return (
                           <tr key={row.key} className="border-t border-border bg-secondary/30">
                             <td className="px-3 py-2.5 whitespace-nowrap font-bold uppercase text-xs tracking-wider">
