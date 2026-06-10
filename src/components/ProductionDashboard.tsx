@@ -605,7 +605,7 @@ export function ProductionDashboard() {
 
       <div className="text-xs text-muted-foreground">
         * Capacidade considera o intervalo de datas selecionado (por Data Prog.) e o campo TEMPO FPP da planilha (75h/semana por máquina).
-        Urgente = PRODUTO contém "URGENTE". Atravessamento (dias úteis) = Data Fim Estamparia (col. K, prazo) − Data Prog. (col. B, data atual): valor positivo = adiantado, negativo = atrasado, zero = no prazo (Ok). Descontados fins de semana, feriados de Curitiba e dias ponte. Meta de atravessamento: {ATRAVESSAMENTO_META_DIAS} dias úteis.
+        Urgente = PRODUTO contém "URGENTE". Atravessamento (dias corridos) = Data Fim Estamparia (col. K) − Data Prog. (col. B): positivo = adiantado, negativo = atrasado, zero = no prazo (Ok). Meta de atravessamento: {ATRAVESSAMENTO_META_DIAS} dias.
         Sem datas selecionadas, mostra todo o período disponível.
         Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
       </div>
