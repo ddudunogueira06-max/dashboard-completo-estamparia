@@ -584,45 +584,76 @@ export function ProductionDashboard() {
           {showTable ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </button>
         {showTable && (
-          <div className="overflow-auto max-h-[420px] border-t border-border">
+          <div className="overflow-auto max-h-[480px] border-t border-border">
             <table className="w-full text-sm">
               <thead className="bg-secondary/40 sticky top-0">
                 <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                   <th className="px-3 py-2">FPP</th>
                   <th className="px-3 py-2">Data Prog. (B)</th>
-                  <th className="px-3 py-2">Data Fim Estamparia (K)</th>
+                  <th className="px-3 py-2">DT Fim Programação (K)</th>
                   <th className="px-3 py-2 text-right">Máquina</th>
                   <th className="px-3 py-2 text-right">Tempo FPP</th>
                   <th className="px-3 py-2 text-right">Atravess. (dias)</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>
+                <tr className="bg-card/60">
+                  <th className="px-2 py-1.5"><input value={fFpp} onChange={(e) => setFFpp(e.target.value)} placeholder="Filtrar…" className="w-full rounded border border-input bg-input/40 px-2 py-1 text-xs" /></th>
+                  <th className="px-2 py-1.5" />
+                  <th className="px-2 py-1.5" />
+                  <th className="px-2 py-1.5">
+                    <select value={fMaq} onChange={(e) => setFMaq(e.target.value)} className="w-full rounded border border-input bg-input/40 px-2 py-1 text-xs">
+                      <option value="">Todas</option>
+                      {MACHINES.map(m => <option key={m} value={String(m)}>{m}</option>)}
+                    </select>
+                  </th>
+                  <th className="px-2 py-1.5" />
+                  <th className="px-2 py-1.5" />
+                  <th className="px-2 py-1.5">
+                    <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className="w-full rounded border border-input bg-input/40 px-2 py-1 text-xs">
+                      <option value="">Todos</option>
+                      <option value="adiantado">Adiantado</option>
+                      <option value="ok">Ok</option>
+                      <option value="atrasado">Atrasado</option>
+                    </select>
+                  </th>
+                </tr>
               </thead>
               <tbody>
-                {atravess.detalhes.slice(0, 500).map((d, i) => {
-                  const status = d.dias > 0 ? "Adiantado" : d.dias < 0 ? "Atrasado" : "Ok";
-                  const cls = d.dias > 0 ? "text-success" : d.dias < 0 ? "text-destructive" : "text-muted-foreground";
-                  return (
-                    <tr key={i} className="border-t border-border hover:bg-secondary/30">
-                      <td className="px-3 py-2 font-mono text-xs">{d.fpp}</td>
-                      <td className="px-3 py-2 text-xs">{fmtDate(d.dt_prog)}</td>
-                      <td className="px-3 py-2 text-xs">{fmtDate(d.dt_fim_est)}</td>
-                      <td className="px-3 py-2 text-right text-xs">{d.maquina ?? "—"}</td>
-                      <td className="px-3 py-2 text-right text-xs font-mono">{d.tempo ? fmtHM(d.tempo) : "—"}</td>
-                      <td className={`px-3 py-2 text-right font-mono font-semibold ${cls}`}>{d.dias > 0 ? "+" : ""}{d.dias}</td>
-                      <td className="px-3 py-2">
-                        <span className={`text-xs font-semibold ${cls}`}>{status}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {atravess.detalhes.length === 0 && (
-                  <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">Sem dados para avaliação.</td></tr>
-                )}
+                {(() => {
+                  const filteredDet = atravess.detalhes.filter((d) => {
+                    if (fFpp && !(d.fpp ?? "").toLowerCase().includes(fFpp.toLowerCase())) return false;
+                    if (fMaq && String(d.maquina ?? "") !== fMaq) return false;
+                    if (fStatus) {
+                      const st = d.dias > 0 ? "adiantado" : d.dias < 0 ? "atrasado" : "ok";
+                      if (st !== fStatus) return false;
+                    }
+                    return true;
+                  });
+                  if (filteredDet.length === 0) {
+                    return <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">Sem dados para avaliação.</td></tr>;
+                  }
+                  return filteredDet.slice(0, 500).map((d, i) => {
+                    const status = d.dias > 0 ? "Adiantado" : d.dias < 0 ? "Atrasado" : "Ok";
+                    const cls = d.dias > 0 ? "text-success" : d.dias < 0 ? "text-destructive" : "text-muted-foreground";
+                    return (
+                      <tr key={i} className="border-t border-border hover:bg-secondary/30">
+                        <td className="px-3 py-2 font-mono text-xs">{d.fpp}</td>
+                        <td className="px-3 py-2 text-xs">{fmtDate(d.dt_prog)}</td>
+                        <td className="px-3 py-2 text-xs">{fmtDate(d.dt_fim_est)}</td>
+                        <td className="px-3 py-2 text-right text-xs">{d.maquina ?? "—"}</td>
+                        <td className="px-3 py-2 text-right text-xs font-mono">{d.tempo ? fmtHM(d.tempo) : "—"}</td>
+                        <td className={`px-3 py-2 text-right font-mono font-semibold ${cls}`}>{d.dias > 0 ? "+" : ""}{d.dias}</td>
+                        <td className="px-3 py-2"><span className={`text-xs font-semibold ${cls}`}>{status}</span></td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
         )}
       </section>
+
 
       <div className="text-xs text-muted-foreground">
         * Capacidade considera o intervalo de datas selecionado (por Data Prog.) e o campo TEMPO FPP da planilha (75h/semana por máquina).
