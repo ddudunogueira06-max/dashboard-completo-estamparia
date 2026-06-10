@@ -179,7 +179,8 @@ export function ProductionDashboard() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [showTable, setShowTable] = useState(false);
-  const [detail, setDetail] = useState<null | { title: string; rows: { label: string; value: string }[] }>(null);
+  const [detail, setDetail] = useState<null | { title: string; rows: { label: string; value: string }[]; fppLists?: { label: string; fpps: string[] }[] }>(null);
+  const [capModalOpen, setCapModalOpen] = useState(false);
   const [fFpp, setFFpp] = useState("");
   const [fMaq, setFMaq] = useState("");
   const [fStatus, setFStatus] = useState("");
@@ -347,8 +348,21 @@ export function ProductionDashboard() {
       mm.forEach(s => { t += s.size; });
       return { machine: m, avg: mm.size > 0 ? t / mm.size : 0, days: mm.size };
     }).sort((a, b) => a.machine - b.machine);
-    return { avg: days > 0 ? total / days : 0, days, total, perMachine };
+    const series = Array.from(byDay.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([dk, s]) => ({ date: dk, label: dk.slice(8) + "/" + dk.slice(5, 7), count: s.size, fpps: Array.from(s) }));
+    return { avg: days > 0 ? total / days : 0, days, total, perMachine, series };
   }, [inPeriod]);
+
+  // Série da semana atual (ou últimos 7 dias úteis registrados se semana atual sem dados)
+  const weekSeries = useMemo(() => {
+    if (perDay.series.length === 0) return [] as typeof perDay.series;
+    const monday = startOfWeek(now);
+    const start = ymd(monday);
+    const end = ymd(addDays(monday, 4));
+    const wk = perDay.series.filter(p => p.date >= start && p.date <= end);
+    return wk.length > 0 ? wk : perDay.series.slice(-7);
+  }, [perDay.series, now]);
 
 
 
