@@ -138,17 +138,32 @@ function isWorkingDay(date: Date) {
 }
 
 /**
- * Atravessamento (em dias corridos) = Data Fim Estamparia (col. K) − Data Prog. (col. B).
- * POSITIVO  → termina antes do prazo (adiantado).
+ * Atravessamento (em dias úteis) = Data Fim Estamparia (col. K) − Data Prog. (col. B),
+ * desconsiderando finais de semana, feriados de Curitiba e dias-ponte.
+ * POSITIVO  → terminou antes do prazo (adiantado).
  * NEGATIVO  → atrasado.
  * ZERO      → no prazo (Ok).
  */
+function businessDaysBetween(a: Date, b: Date): number {
+  // dias úteis estritamente entre a e b (a < b), contando o dia final mas não o inicial
+  let cnt = 0;
+  const d = new Date(a);
+  while (d.getTime() < b.getTime()) {
+    d.setDate(d.getDate() + 1);
+    if (isWorkingDay(d)) cnt++;
+  }
+  return cnt;
+}
 function atravessDias(dtProg: string | null, dtFimEst: string | null): number | null {
   const start = parseLocalDate(dtProg);
   const end = parseLocalDate(dtFimEst);
   if (!start || !end) return null;
-  return Math.round((end.getTime() - start.getTime()) / 86400000);
+  if (start.getTime() === end.getTime()) return 0;
+  return end.getTime() > start.getTime()
+    ? -businessDaysBetween(start, end) // entregou depois do programado → atrasado
+    : businessDaysBetween(end, start); // entregou antes → adiantado
 }
+
 
 export function ProductionDashboard() {
   const { data: records = [], isLoading, refetch, isFetching } = useQuery({
