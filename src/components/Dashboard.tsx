@@ -59,27 +59,19 @@ const MATERIAL_COLOR: Record<MaterialKind, string> = {
 const MONTH_NAMES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
 // === FONTE ÚNICA DA VERDADE PARA MÉDIA DE PERDA ===
-// Média simples dos valores de fator_perda lançados. Quando, dentro da MESMA FPP/FPG,
-// o material+espessura se repete com o MESMO fator, esse valor é contado apenas 1×.
-// Entre FPPs diferentes, mesmo que o valor coincida, conta separadamente.
-// Esta função é usada em TODOS os indicadores (pílula, matriz anual, semanal, mês,
-// tabela de detalhamento) para garantir consistência total.
+// Média ARITMÉTICA SIMPLES de TODOS os valores de fator_perda (coluna O) lançados.
+// Sem ponderação por peso, sem dedupe — cada linha lançada conta 1×.
+// Replica exatamente o cálculo de MÉDIA do Excel sobre a coluna O.
 type FatorRow = { tipo: string | null; numero: number | null; id: string; detKey: string; fator_perda: number | null };
-function fppKey(r: { tipo: string | null; numero: number | null; id: string }): string {
-  return r.numero !== null ? `${(r.tipo ?? "").toUpperCase()}#${r.numero}` : `__solo__${r.id}`;
-}
 function uniqueFatores(rows: FatorRow[]): number[] {
-  const seen = new Set<string>();
   const out: number[] = [];
   for (const r of rows) {
-    if (r.fator_perda === null || !r.detKey) continue;
-    const k = `${fppKey(r)}|${r.detKey}|${r.fator_perda}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
+    if (r.fator_perda === null) continue;
     out.push(r.fator_perda);
   }
   return out;
 }
+
 function meanOf(arr: number[]): number {
   return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 }
@@ -551,7 +543,7 @@ export function Dashboard() {
         <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2, fpps: metrics.fppList, hint: `${metrics.fppList.length} FPP/FPG distintas` })} />
         <KpiCard label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} icon={CheckCircle2} accent="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2, fpps: metrics.fppList, hint: `${metrics.fppList.length} FPP/FPG distintas` })} />
         <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2, fpps: metrics.fppList, hint: `${metrics.fppList.length} FPP/FPG com desperdício` })} />
-        <KpiCard label="Média de Perda (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média de Perda — média simples dos valores lançados", pct: metrics.mediaPerda, fpps: metrics.fppList, hint: `Meta: ${META_PERDA}% · dedup por FPP+material+espessura+fator` })} />
+        <KpiCard label="Média de Perda (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média de Perda — média aritmética simples (coluna O)", pct: metrics.mediaPerda, fpps: metrics.fppList, hint: `Meta: ${META_PERDA}% · média simples de todos os fatores lançados` })} />
         <KpiCard label="Qtd estoque BR0140 (kg)" value={fmtNum(metrics.estoqueBR0140_kg)} icon={Package} accent="success" onClick={() => setKpiDetail({ title: "Qtd estoque BR0140", kg: metrics.estoqueBR0140_kg, m2: metrics.estoqueBR0140_m2, hint: "Total de retalho enviado ao armazém BR0140 (conforme filtros)" })} />
         <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, fpps: metrics.fppListFPPonly, hint: "Ordens distintas do tipo FPP" })} />
       </section>
