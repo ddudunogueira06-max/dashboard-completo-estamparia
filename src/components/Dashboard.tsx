@@ -59,27 +59,19 @@ const MATERIAL_COLOR: Record<MaterialKind, string> = {
 const MONTH_NAMES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
 // === FONTE ÚNICA DA VERDADE PARA MÉDIA DE PERDA ===
-// Média simples dos valores de fator_perda lançados. Quando, dentro da MESMA FPP/FPG,
-// o material+espessura se repete com o MESMO fator, esse valor é contado apenas 1×.
-// Entre FPPs diferentes, mesmo que o valor coincida, conta separadamente.
-// Esta função é usada em TODOS os indicadores (pílula, matriz anual, semanal, mês,
-// tabela de detalhamento) para garantir consistência total.
+// Média ARITMÉTICA SIMPLES de TODOS os valores de fator_perda (coluna O) lançados.
+// Sem ponderação por peso, sem dedupe — cada linha lançada conta 1×.
+// Replica exatamente o cálculo de MÉDIA do Excel sobre a coluna O.
 type FatorRow = { tipo: string | null; numero: number | null; id: string; detKey: string; fator_perda: number | null };
-function fppKey(r: { tipo: string | null; numero: number | null; id: string }): string {
-  return r.numero !== null ? `${(r.tipo ?? "").toUpperCase()}#${r.numero}` : `__solo__${r.id}`;
-}
 function uniqueFatores(rows: FatorRow[]): number[] {
-  const seen = new Set<string>();
   const out: number[] = [];
   for (const r of rows) {
-    if (r.fator_perda === null || !r.detKey) continue;
-    const k = `${fppKey(r)}|${r.detKey}|${r.fator_perda}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
+    if (r.fator_perda === null) continue;
     out.push(r.fator_perda);
   }
   return out;
 }
+
 function meanOf(arr: number[]): number {
   return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 }
