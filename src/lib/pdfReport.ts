@@ -53,6 +53,26 @@ const META: Record<Exclude<MaterialKind, "outro">, number> = {
   inox: 27,
 };
 
+// === MESMA FONTE ÚNICA DO DASHBOARD ===
+// Média ARITMÉTICA SIMPLES dos fatores de perda (coluna O), com dedupe:
+// mesma FPP + mesma espessura/material + mesmo fator = conta 1×. Sem ponderação por peso.
+function uniqueFatores(rows: ReportRecord[]): number[] {
+  const seen = new Set<string>();
+  const out: number[] = [];
+  rows.forEach((r, i) => {
+    if (r.fator_perda === null) return;
+    const fppId = r.numero !== null ? `${(r.tipo ?? "").toUpperCase()}|${r.numero}` : `__row__|${i}`;
+    const k = `${fppId}|${r.detLabel}|${r.fator_perda}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push(r.fator_perda);
+  });
+  return out;
+}
+function meanOf(arr: number[]): number | null {
+  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+}
+
 export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, filtroResumo: string) {
   const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -90,7 +110,7 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
       ["Total Processado", fmtNum(totals.proc_kg), fmtNum(totals.proc_m2)],
       ["Desperdício Total", fmtNum(totals.desp_kg), fmtNum(totals.desp_m2)],
       ["Retalho Total", fmtNum(totals.retalho_kg), fmtNum(totals.retalho_m2)],
-      ["Média Ponderada de Perda", fmtPct(totals.mediaPerda), "—"],
+      ["Média de Perda (média simples)", fmtPct(totals.mediaPerda), "—"],
       ["Quantidade de Itens Únicos", fmtInt(totals.itens), "—"],
       ["Total de FPPs", fmtInt(totals.fpps), "—"],
       ["Total de Registros", fmtInt(totals.registros), "—"],
@@ -103,27 +123,31 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
   // @ts-expect-error
   y = doc.lastAutoTable.finalY + 20;
 
-  // Resumo por material
-  const matAgg = new Map<MaterialKind, { kg: number; m2: number; desp_kg: number; desp_m2: number }>();
+  // Resumo por material — Média % = média simples (uniqueFatores), igual ao dashboard
+  const matAgg = new Map<MaterialKind, { kg: number; m2: number; desp_kg: number; desp_m2: number; rows: ReportRecord[] }>();
   records.forEach(r => {
-    const cur = matAgg.get(r.material) ?? { kg: 0, m2: 0, desp_kg: 0, desp_m2: 0 };
+    const cur = matAgg.get(r.material) ?? { kg: 0, m2: 0, desp_kg: 0, desp_m2: 0, rows: [] };
     cur.kg += r.qtde_kg;
     cur.m2 += r.qtde_m2;
     cur.desp_kg += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
     cur.desp_m2 += r.qtde_m2 * ((r.fator_perda ?? 0) / 100);
+    cur.rows.push(r);
     matAgg.set(r.material, cur);
   });
   const matRows = Array.from(matAgg.entries())
     .filter(([m]) => m !== "outro")
     .sort((a, b) => b[1].desp_kg - a[1].desp_kg)
-    .map(([m, v]) => [
-      MATERIAL_LABEL[m],
-      fmtNum(v.kg),
-      fmtNum(v.m2),
-      fmtNum(v.desp_kg),
-      fmtNum(v.desp_m2),
-      v.kg > 0 ? fmtPct((v.desp_kg / v.kg) * 100) : "—",
-    ]);
+    .map(([m, v]) => {
+      const media = meanOf(uniqueFatores(v.rows));
+      return [
+        MATERIAL_LABEL[m],
+        fmtNum(v.kg),
+        fmtNum(v.m2),
+        fmtNum(v.desp_kg),
+        fmtNum(v.desp_m2),
+        media !== null ? fmtPct(media) : "—",
+      ];
+    });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
