@@ -164,20 +164,21 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
   // @ts-expect-error
   y = doc.lastAutoTable.finalY + 20;
 
-  // Top 10 itens
-  const itemAgg = new Map<string, { qtde_kg: number; qtde_m2: number; desp_kg: number; desp_m2: number; descricao: string }>();
+  // Top 10 itens — Média % = média simples dos fatores (uniqueFatores), igual ao dashboard
+  const itemAgg = new Map<string, { qtde_kg: number; qtde_m2: number; desp_kg: number; desp_m2: number; descricao: string; rows: ReportRecord[] }>();
   records.forEach(r => {
     if (!r.codigo_item || r.fator_perda === null) return;
-    const cur = itemAgg.get(r.codigo_item) ?? { qtde_kg: 0, qtde_m2: 0, desp_kg: 0, desp_m2: 0, descricao: r.descricao ?? "" };
+    const cur = itemAgg.get(r.codigo_item) ?? { qtde_kg: 0, qtde_m2: 0, desp_kg: 0, desp_m2: 0, descricao: r.descricao ?? "", rows: [] };
     cur.qtde_kg += r.qtde_kg;
     cur.qtde_m2 += r.qtde_m2;
     cur.desp_kg += r.qtde_kg * (r.fator_perda / 100);
     cur.desp_m2 += r.qtde_m2 * (r.fator_perda / 100);
     if (!cur.descricao && r.descricao) cur.descricao = r.descricao;
+    cur.rows.push(r);
     itemAgg.set(r.codigo_item, cur);
   });
   const top10 = Array.from(itemAgg.entries())
-    .map(([cod, v]) => ({ cod, ...v, media: v.qtde_kg > 0 ? (v.desp_kg / v.qtde_kg) * 100 : 0 }))
+    .map(([cod, v]) => ({ cod, ...v, media: meanOf(uniqueFatores(v.rows)) ?? 0 }))
     .sort((a, b) => b.desp_kg - a.desp_kg)
     .slice(0, 10);
 
@@ -254,23 +255,24 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
     doc.text(k.sub, x + 14, kpiY + 62);
   });
 
-  // Matriz mensal por ano (estilo dashboard)
-  const yearMonthly = new Map<number, Record<MaterialKind, Array<{ qtde_kg: number; desp_kg: number }>>>();
+  // Matriz mensal por ano (estilo dashboard) — média simples (uniqueFatores) por mês/ano
+  const yearMonthly = new Map<number, Record<MaterialKind, ReportRecord[][]>>();
+  const yearAll = new Map<number, Record<MaterialKind, ReportRecord[]>>();
   records.forEach(r => {
     if (!r.data_registro || r.material === "outro") return;
     const d = new Date(r.data_registro);
     const yr = d.getFullYear();
     if (!yearMonthly.has(yr)) {
       yearMonthly.set(yr, {
-        inox: Array.from({ length: 12 }, () => ({ qtde_kg: 0, desp_kg: 0 })),
-        galvanizado: Array.from({ length: 12 }, () => ({ qtde_kg: 0, desp_kg: 0 })),
-        aluminio: Array.from({ length: 12 }, () => ({ qtde_kg: 0, desp_kg: 0 })),
-        outro: Array.from({ length: 12 }, () => ({ qtde_kg: 0, desp_kg: 0 })),
+        inox: Array.from({ length: 12 }, () => []),
+        galvanizado: Array.from({ length: 12 }, () => []),
+        aluminio: Array.from({ length: 12 }, () => []),
+        outro: Array.from({ length: 12 }, () => []),
       });
+      yearAll.set(yr, { inox: [], galvanizado: [], aluminio: [], outro: [] });
     }
-    const m = yearMonthly.get(yr)![r.material];
-    m[d.getMonth()].qtde_kg += r.qtde_kg;
-    m[d.getMonth()].desp_kg += r.qtde_kg * ((r.fator_perda ?? 0) / 100);
+    yearMonthly.get(yr)![r.material][d.getMonth()].push(r);
+    yearAll.get(yr)![r.material].push(r);
   });
 
   const years = Array.from(yearMonthly.keys()).sort((a, b) => b - a);
@@ -324,11 +326,9 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
       doc.text(MATERIAL_LABEL[mat], margin + 22, ry + rowH / 2 + 3);
 
       const cells = yearMonthly.get(yr)![mat];
-      let tq = 0, td = 0;
       const meta = META[mat as Exclude<MaterialKind, "outro">];
-      cells.forEach((c, i) => {
-        tq += c.qtde_kg; td += c.desp_kg;
-        const pct = c.qtde_kg > 0 ? (c.desp_kg / c.qtde_kg) * 100 : null;
+      cells.forEach((rows, i) => {
+        const pct = rows.length ? meanOf(uniqueFatores(rows)) : null;
         const cx = margin + 100 + i * colW;
         if (pct !== null) {
           // No background — just text color based on target
@@ -344,9 +344,9 @@ export function generateWasteReportPDF(records: ReportRecord[], totals: Totals, 
           doc.text("—", cx + colW / 2, ry + rowH / 2 + 3, { align: "center" });
         }
       });
-      // Acum.
+      // Acum. — uniqueFatores sobre TODOS os registros do ano do material (mesma fonte)
       const ax = margin + 100 + 12 * colW;
-      const acumPct = tq > 0 ? (td / tq) * 100 : null;
+      const acumPct = meanOf(uniqueFatores(yearAll.get(yr)![mat]));
       const acumHit = acumPct !== null && acumPct <= meta;
       doc.setTextColor(acumHit ? 34 : 220, acumHit ? 197 : 38, acumHit ? 94 : 38);
       doc.setFont("helvetica", "bold");
