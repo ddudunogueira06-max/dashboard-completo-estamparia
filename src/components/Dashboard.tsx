@@ -59,14 +59,19 @@ const MATERIAL_COLOR: Record<MaterialKind, string> = {
 const MONTH_NAMES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
 // === FONTE ÚNICA DA VERDADE PARA MÉDIA DE PERDA ===
-// Média ARITMÉTICA SIMPLES de TODOS os valores de fator_perda (coluna O) lançados.
-// Sem ponderação por peso, sem dedupe — cada linha lançada conta 1×.
-// Replica exatamente o cálculo de MÉDIA do Excel sobre a coluna O.
+// Média ARITMÉTICA SIMPLES dos valores de fator_perda (coluna O).
+// Dedupe: quando a MESMA FPP repete a MESMA espessura/material com o MESMO fator,
+// conta apenas 1× (ex.: fpp123 0,65-10 três vezes = 1 entrada). Sem ponderação por peso.
 type FatorRow = { tipo: string | null; numero: number | null; id: string; detKey: string; fator_perda: number | null };
 function uniqueFatores(rows: FatorRow[]): number[] {
+  const seen = new Set<string>();
   const out: number[] = [];
   for (const r of rows) {
     if (r.fator_perda === null) continue;
+    const fppId = r.numero !== null ? `${(r.tipo ?? "").toUpperCase()}|${r.numero}` : `__row__|${r.id}`;
+    const k = `${fppId}|${r.detKey}|${r.fator_perda}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
     out.push(r.fator_perda);
   }
   return out;
