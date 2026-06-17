@@ -686,8 +686,8 @@ export function Dashboard() {
                           if (dow === 0 || dow === 6) return false;
                           return true;
                         });
-                        const valsMes = uniqueFatores(rowsMes);
-                        const mediaMes = valsMes.length > 0 ? +meanOf(valsMes).toFixed(2) : null;
+                        const wAvg = weightedAvg(rowsMes);
+                        const mediaMes = wAvg > 0 ? +wAvg.toFixed(2) : null;
                         return (
                           <tr key={row.key} className="border-t border-border bg-secondary/30">
                             <td className="px-3 py-2.5 whitespace-nowrap font-bold uppercase text-xs tracking-wider">
