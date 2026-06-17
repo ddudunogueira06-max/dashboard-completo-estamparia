@@ -396,7 +396,7 @@ export function Dashboard() {
   }, [filtered]);
 
   const clearFilters = () => {
-    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setStatusFilter(""); setSearch(""); setNumeroFilters([]);
+    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setStatusFilter(""); setSearch(""); setNumeroFilters([]); setQtyMin(""); setQtyMax("");
   };
 
   const handleExport = () => {
