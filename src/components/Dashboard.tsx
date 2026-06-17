@@ -335,8 +335,8 @@ export function Dashboard() {
 
     const avg = (rows: FatorRow[]) => {
       if (rows.length === 0) return null;
-      const v = uniqueFatores(rows);
-      return v.length ? +meanOf(v).toFixed(2) : null;
+      const v = weightedAvg(rows);
+      return v > 0 ? +v.toFixed(2) : null;
     };
 
     const rows = materials.map(mat => {
