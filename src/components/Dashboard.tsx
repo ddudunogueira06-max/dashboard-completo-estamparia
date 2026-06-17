@@ -946,7 +946,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
         <table className="w-full text-sm">
           <thead className="bg-secondary/40 sticky top-0 z-10">
             <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-              {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Qtde (kg)", "Data", "Status"].map(h => (
+              {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Desperdício %", "Qtde (kg)", "Data", "Status"].map(h => (
                 <th key={h} className="px-3 py-2 font-medium">{h}</th>
               ))}
             </tr>
@@ -970,6 +970,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
               <th className="px-2 py-1.5"></th>
               <th className="px-2 py-1.5"></th>
               <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5"></th>
               <th className="px-2 py-1.5">
                 <select value={fStatus} onChange={e => setFStatus(e.target.value)} className={filtCls}>
                   <option value="">Todos</option>
@@ -988,13 +989,14 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
                 <td className="px-3 py-2"><span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${MATERIAL_COLOR[r.material]} 18%, transparent)`, color: MATERIAL_COLOR[r.material] }}>{r.detLabel || MATERIAL_LABEL[r.material]}</span></td>
                 <td className="px-3 py-2 font-medium">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 0)}%` : "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
+                <td className="px-3 py-2 font-mono font-semibold text-warning">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 2)}%` : "—"}</td>
                 <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground text-xs">{fmtDate(r.data_registro)}</td>
                 <td className="px-3 py-2"><span className="text-xs text-success">{r.status}</span></td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro com esses filtros.</td></tr>
+              <tr><td colSpan={11} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro com esses filtros.</td></tr>
             )}
           </tbody>
           {rows.length > 0 && (
