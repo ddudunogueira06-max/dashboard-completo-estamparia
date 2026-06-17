@@ -217,6 +217,9 @@ export function Dashboard() {
   const metrics = useMemo(() => {
     let totalSolic = 0, totalSolic_m2 = 0, totalRetalho = 0, totalRetalho_m2 = 0;
     let estoqueBR0140_kg = 0, estoqueBR0140_m2 = 0;
+    let totalDesperd = 0, totalDesperd_m2 = 0;
+    let pesoFator = 0; // Σ(qtde_kg) considerado para média ponderada
+    let acumFator = 0; // Σ(qtde_kg × fator_perda)
     filtered.forEach(r => {
       totalSolic += r.qtde_kg;
       totalSolic_m2 += r.qtde_m2;
@@ -224,32 +227,30 @@ export function Dashboard() {
       totalRetalho_m2 += r.retalho_m2;
       estoqueBR0140_kg += r.retalho_kg;
       estoqueBR0140_m2 += r.retalho_m2;
-    });
-    let totalDesperd = 0, totalDesperd_m2 = 0;
-    groups.forEach(rows => {
-      const first = rows[0];
-      const fator = (first.fator_perda ?? 0) / 100;
-      const gKg = rows.reduce((a, r) => a + r.qtde_kg, 0);
-      const gM2 = rows.reduce((a, r) => a + r.qtde_m2, 0);
-      totalDesperd += gKg * fator;
-      totalDesperd_m2 += gM2 * fator;
+      const fator = (r.fator_perda ?? 0) / 100;
+      totalDesperd += r.qtde_kg * fator;
+      totalDesperd_m2 += r.qtde_m2 * fator;
+      if (r.fator_perda !== null && r.qtde_kg > 0) {
+        pesoFator += r.qtde_kg;
+        acumFator += r.qtde_kg * r.fator_perda;
+      }
     });
     const totalProcessado = totalSolic - totalDesperd;
     const totalProcessado_m2 = totalSolic_m2 - totalDesperd_m2;
-    // Média simples de perda — fonte única da verdade (ver uniqueFatores no topo do arquivo)
-    const mediaPerda = meanOf(uniqueFatores(filtered));
-    const fppList = uniqueFppList(filtered);
+    // Média PONDERADA pela quantidade — Σ(qty × fator) / Σ(qty)
+    const mediaPerda = pesoFator > 0 ? acumFator / pesoFator : 0;
+    const fppList = uniqueFppList(filtered.map(r => ({ tipo: r.tipo, numero: r.numero, id: r.id, detKey: r.detLabel, fator_perda: r.fator_perda, qtde_kg: r.qtde_kg })));
     const totalFPP = new Set(
       filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").map(r => r.numero).filter(n => n !== null)
     ).size;
-    const fppListFPPonly = uniqueFppList(filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP"));
+    const fppListFPPonly = uniqueFppList(filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").map(r => ({ tipo: r.tipo, numero: r.numero, id: r.id, detKey: r.detLabel, fator_perda: r.fator_perda, qtde_kg: r.qtde_kg })));
     return {
       totalSolic, totalDesperd, totalProcessado, totalRetalho,
       totalSolic_m2, totalDesperd_m2, totalProcessado_m2, totalRetalho_m2,
       mediaPerda, totalFPP, estoqueBR0140_kg, estoqueBR0140_m2,
       fppList, fppListFPPonly,
     };
-  }, [filtered, groups]);
+  }, [filtered]);
 
   // === Matriz mensal — base = TODOS os registros (independe dos filtros do topo)
   const availableYears = useMemo(() => {
