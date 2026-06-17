@@ -125,6 +125,8 @@ export function Dashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [search, setSearch] = useState("");
   const [numeroFilters, setNumeroFilters] = useState<string[]>([]);
+  const [qtyMin, setQtyMin] = useState<string>("");
+  const [qtyMax, setQtyMax] = useState<string>("");
   const [matrixYear, setMatrixYear] = useState<string>("");
   const [monthSel, setMonthSel] = useState<string>(""); // "" = mês atual com dados (1-12)
 
