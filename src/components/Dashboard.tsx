@@ -924,9 +924,9 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
   }), [filtered, fTipo, fNumero, fCodigo, fDesc, fCat, fStatus]);
 
   const avgFator = useMemo(() => {
-    // Mesma fonte única (uniqueFatores) — usa detLabel como chave de material+espessura
-    const mapped: FatorRow[] = rows.map(r => ({ tipo: r.tipo, numero: r.numero, id: r.id, detKey: r.detLabel, fator_perda: r.fator_perda }));
-    return meanOf(uniqueFatores(mapped));
+    // Média PONDERADA pela quantidade — Σ(qty × fator) / Σ(qty)
+    const mapped: FatorRow[] = rows.map(r => ({ tipo: r.tipo, numero: r.numero, id: r.id, detKey: r.detLabel, fator_perda: r.fator_perda, qtde_kg: r.qtde_kg }));
+    return weightedAvg(mapped);
   }, [rows]);
   const avgKg = useMemo(() => {
     const v = rows.filter(r => r.qtde_kg > 0).map(r => r.qtde_kg);
