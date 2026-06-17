@@ -59,27 +59,24 @@ const MATERIAL_COLOR: Record<MaterialKind, string> = {
 const MONTH_NAMES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
 // === FONTE ÚNICA DA VERDADE PARA MÉDIA DE PERDA ===
-// Média ARITMÉTICA SIMPLES dos valores de fator_perda (coluna O).
-// Dedupe: quando a MESMA FPP repete a MESMA espessura/material com o MESMO fator,
-// conta apenas 1× (ex.: fpp123 0,65-10 três vezes = 1 entrada). Sem ponderação por peso.
-type FatorRow = { tipo: string | null; numero: number | null; id: string; detKey: string; fator_perda: number | null };
-function uniqueFatores(rows: FatorRow[]): number[] {
-  const seen = new Set<string>();
-  const out: number[] = [];
+// Média PONDERADA pela quantidade solicitada (kg):
+//   % perda = Σ(qtde_kg × fator_perda) / Σ(qtde_kg)
+// Aplica-se em todos os KPIs, gráficos, matrizes e na tabela detalhada,
+// sempre respeitando os filtros ativos.
+type FatorRow = { tipo: string | null; numero: number | null; id: string; detKey: string; fator_perda: number | null; qtde_kg: number };
+
+function weightedAvg(rows: FatorRow[]): number {
+  let num = 0, den = 0;
   for (const r of rows) {
     if (r.fator_perda === null) continue;
-    const fppId = r.numero !== null ? `${(r.tipo ?? "").toUpperCase()}|${r.numero}` : `__row__|${r.id}`;
-    const k = `${fppId}|${r.detKey}|${r.fator_perda}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(r.fator_perda);
+    const q = r.qtde_kg || 0;
+    if (q <= 0) continue;
+    num += q * r.fator_perda;
+    den += q;
   }
-  return out;
+  return den > 0 ? num / den : 0;
 }
 
-function meanOf(arr: number[]): number {
-  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-}
 function uniqueFppList(rows: FatorRow[]): string[] {
   const set = new Set<string>();
   rows.forEach(r => {
