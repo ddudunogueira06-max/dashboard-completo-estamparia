@@ -59,27 +59,24 @@ const MATERIAL_COLOR: Record<MaterialKind, string> = {
 const MONTH_NAMES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
 // === FONTE ÚNICA DA VERDADE PARA MÉDIA DE PERDA ===
-// Média ARITMÉTICA SIMPLES dos valores de fator_perda (coluna O).
-// Dedupe: quando a MESMA FPP repete a MESMA espessura/material com o MESMO fator,
-// conta apenas 1× (ex.: fpp123 0,65-10 três vezes = 1 entrada). Sem ponderação por peso.
-type FatorRow = { tipo: string | null; numero: number | null; id: string; detKey: string; fator_perda: number | null };
-function uniqueFatores(rows: FatorRow[]): number[] {
-  const seen = new Set<string>();
-  const out: number[] = [];
+// Média PONDERADA pela quantidade solicitada (kg):
+//   % perda = Σ(qtde_kg × fator_perda) / Σ(qtde_kg)
+// Aplica-se em todos os KPIs, gráficos, matrizes e na tabela detalhada,
+// sempre respeitando os filtros ativos.
+type FatorRow = { tipo: string | null; numero: number | null; id: string; detKey: string; fator_perda: number | null; qtde_kg: number };
+
+function weightedAvg(rows: FatorRow[]): number {
+  let num = 0, den = 0;
   for (const r of rows) {
     if (r.fator_perda === null) continue;
-    const fppId = r.numero !== null ? `${(r.tipo ?? "").toUpperCase()}|${r.numero}` : `__row__|${r.id}`;
-    const k = `${fppId}|${r.detKey}|${r.fator_perda}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(r.fator_perda);
+    const q = r.qtde_kg || 0;
+    if (q <= 0) continue;
+    num += q * r.fator_perda;
+    den += q;
   }
-  return out;
+  return den > 0 ? num / den : 0;
 }
 
-function meanOf(arr: number[]): number {
-  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-}
 function uniqueFppList(rows: FatorRow[]): string[] {
   const set = new Set<string>();
   rows.forEach(r => {
@@ -128,6 +125,8 @@ export function Dashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [search, setSearch] = useState("");
   const [numeroFilters, setNumeroFilters] = useState<string[]>([]);
+  const [qtyMin, setQtyMin] = useState<string>("");
+  const [qtyMax, setQtyMax] = useState<string>("");
   const [matrixYear, setMatrixYear] = useState<string>("");
   const [monthSel, setMonthSel] = useState<string>(""); // "" = mês atual com dados (1-12)
 
@@ -180,12 +179,16 @@ export function Dashboard() {
     const e = endDate ? new Date(endDate).getTime() + 86400000 : Infinity;
     const q = search.toLowerCase().trim();
     const nums = numeroFilters.map(n => n.toLowerCase());
+    const qMin = qtyMin.trim() !== "" ? Number(qtyMin.replace(",", ".")) : null;
+    const qMax = qtyMax.trim() !== "" ? Number(qtyMax.replace(",", ".")) : null;
     return enriched.filter((r) => {
       const t = r.data_registro ? new Date(r.data_registro).getTime() : 0;
       if (t < s || t > e) return false;
       if (tipoFilter && r.tipo !== tipoFilter) return false;
       if (materialFilter && r.matKey !== materialFilter) return false;
       if (statusFilter && r.status !== statusFilter) return false;
+      if (qMin !== null && !Number.isNaN(qMin) && r.qtde_kg < qMin) return false;
+      if (qMax !== null && !Number.isNaN(qMax) && r.qtde_kg > qMax) return false;
       if (nums.length > 0) {
         const numStr = String(r.numero ?? "").toLowerCase();
         if (!nums.some(n => numStr === n || numStr.includes(n))) return false;
@@ -196,7 +199,7 @@ export function Dashboard() {
       }
       return true;
     });
-  }, [enriched, startDate, endDate, tipoFilter, materialFilter, statusFilter, search, numeroFilters]);
+  }, [enriched, startDate, endDate, tipoFilter, materialFilter, statusFilter, search, numeroFilters, qtyMin, qtyMax]);
 
   // Agrupa por (tipo+numero). Para perda usamos somente a 1ª linha (menor "linha"),
   // mas os kg/m² somam todas as linhas do grupo.
@@ -214,6 +217,9 @@ export function Dashboard() {
   const metrics = useMemo(() => {
     let totalSolic = 0, totalSolic_m2 = 0, totalRetalho = 0, totalRetalho_m2 = 0;
     let estoqueBR0140_kg = 0, estoqueBR0140_m2 = 0;
+    let totalDesperd = 0, totalDesperd_m2 = 0;
+    let pesoFator = 0; // Σ(qtde_kg) considerado para média ponderada
+    let acumFator = 0; // Σ(qtde_kg × fator_perda)
     filtered.forEach(r => {
       totalSolic += r.qtde_kg;
       totalSolic_m2 += r.qtde_m2;
@@ -221,32 +227,30 @@ export function Dashboard() {
       totalRetalho_m2 += r.retalho_m2;
       estoqueBR0140_kg += r.retalho_kg;
       estoqueBR0140_m2 += r.retalho_m2;
-    });
-    let totalDesperd = 0, totalDesperd_m2 = 0;
-    groups.forEach(rows => {
-      const first = rows[0];
-      const fator = (first.fator_perda ?? 0) / 100;
-      const gKg = rows.reduce((a, r) => a + r.qtde_kg, 0);
-      const gM2 = rows.reduce((a, r) => a + r.qtde_m2, 0);
-      totalDesperd += gKg * fator;
-      totalDesperd_m2 += gM2 * fator;
+      const fator = (r.fator_perda ?? 0) / 100;
+      totalDesperd += r.qtde_kg * fator;
+      totalDesperd_m2 += r.qtde_m2 * fator;
+      if (r.fator_perda !== null && r.qtde_kg > 0) {
+        pesoFator += r.qtde_kg;
+        acumFator += r.qtde_kg * r.fator_perda;
+      }
     });
     const totalProcessado = totalSolic - totalDesperd;
     const totalProcessado_m2 = totalSolic_m2 - totalDesperd_m2;
-    // Média simples de perda — fonte única da verdade (ver uniqueFatores no topo do arquivo)
-    const mediaPerda = meanOf(uniqueFatores(filtered));
-    const fppList = uniqueFppList(filtered);
+    // Média PONDERADA pela quantidade — Σ(qty × fator) / Σ(qty)
+    const mediaPerda = pesoFator > 0 ? acumFator / pesoFator : 0;
+    const fppList = uniqueFppList(filtered.map(r => ({ tipo: r.tipo, numero: r.numero, id: r.id, detKey: r.detLabel, fator_perda: r.fator_perda, qtde_kg: r.qtde_kg })));
     const totalFPP = new Set(
       filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").map(r => r.numero).filter(n => n !== null)
     ).size;
-    const fppListFPPonly = uniqueFppList(filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP"));
+    const fppListFPPonly = uniqueFppList(filtered.filter(r => (r.tipo ?? "").toUpperCase() === "FPP").map(r => ({ tipo: r.tipo, numero: r.numero, id: r.id, detKey: r.detLabel, fator_perda: r.fator_perda, qtde_kg: r.qtde_kg })));
     return {
       totalSolic, totalDesperd, totalProcessado, totalRetalho,
       totalSolic_m2, totalDesperd_m2, totalProcessado_m2, totalRetalho_m2,
       mediaPerda, totalFPP, estoqueBR0140_kg, estoqueBR0140_m2,
       fppList, fppListFPPonly,
     };
-  }, [filtered, groups]);
+  }, [filtered]);
 
   // === Matriz mensal — base = TODOS os registros (independe dos filtros do topo)
   const availableYears = useMemo(() => {
@@ -278,8 +282,8 @@ export function Dashboard() {
     });
     const avg = (rows: FatorRow[] | undefined) => {
       if (!rows || rows.length === 0) return null;
-      const v = uniqueFatores(rows);
-      return v.length ? +meanOf(v).toFixed(2) : null;
+      const v = weightedAvg(rows);
+      return v > 0 ? +v.toFixed(2) : null;
     };
     return materials.map(mat => {
       const monthly = Array.from({ length: 12 }, (_, i) => avg(buckets.get(`${mat}|${i}`)));
@@ -331,8 +335,8 @@ export function Dashboard() {
 
     const avg = (rows: FatorRow[]) => {
       if (rows.length === 0) return null;
-      const v = uniqueFatores(rows);
-      return v.length ? +meanOf(v).toFixed(2) : null;
+      const v = weightedAvg(rows);
+      return v > 0 ? +v.toFixed(2) : null;
     };
 
     const rows = materials.map(mat => {
@@ -392,7 +396,7 @@ export function Dashboard() {
   }, [filtered]);
 
   const clearFilters = () => {
-    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setStatusFilter(""); setSearch(""); setNumeroFilters([]);
+    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setStatusFilter(""); setSearch(""); setNumeroFilters([]); setQtyMin(""); setQtyMax("");
   };
 
   const handleExport = () => {
@@ -517,9 +521,15 @@ export function Dashboard() {
               />
             </div>
           </Field>
+          <Field label="Qtde mín. (kg)">
+            <input type="number" inputMode="decimal" min={0} step="any" value={qtyMin} onChange={(e) => setQtyMin(e.target.value)} placeholder="ex: 10" className={inputCls} />
+          </Field>
+          <Field label="Qtde máx. (kg)">
+            <input type="number" inputMode="decimal" min={0} step="any" value={qtyMax} onChange={(e) => setQtyMax(e.target.value)} placeholder="ex: 50" className={inputCls} />
+          </Field>
           <Field label="Ação">
             <button onClick={addNumeroFilter} type="button" className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
-              + Adicionar ao filtro
+              + Adicionar FPP
             </button>
           </Field>
         </div>
@@ -548,7 +558,7 @@ export function Dashboard() {
         <KpiCard label="Total Solicitado (kg)" value={fmtNum(metrics.totalSolic)} icon={ClipboardList} accent="primary" onClick={() => setKpiDetail({ title: "Total Solicitado", kg: metrics.totalSolic, m2: metrics.totalSolic_m2, fpps: metrics.fppList, hint: `${metrics.fppList.length} FPP/FPG distintas` })} />
         <KpiCard label="Total Processado (kg)" value={fmtNum(metrics.totalProcessado)} icon={CheckCircle2} accent="success" onClick={() => setKpiDetail({ title: "Total Processado", kg: metrics.totalProcessado, m2: metrics.totalProcessado_m2, fpps: metrics.fppList, hint: `${metrics.fppList.length} FPP/FPG distintas` })} />
         <KpiCard label="Desperdício Total (kg)" value={fmtNum(metrics.totalDesperd)} icon={Trash2} accent="destructive" onClick={() => setKpiDetail({ title: "Desperdício Total", kg: metrics.totalDesperd, m2: metrics.totalDesperd_m2, fpps: metrics.fppList, hint: `${metrics.fppList.length} FPP/FPG com desperdício` })} />
-        <KpiCard label="Média de Perda (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média de Perda — média aritmética simples (coluna O)", pct: metrics.mediaPerda, fpps: metrics.fppList, hint: `Meta: ${META_PERDA}% · média simples de todos os fatores lançados` })} />
+        <KpiCard label="Média de Perda (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média de Perda — ponderada por quantidade (kg)", pct: metrics.mediaPerda, fpps: metrics.fppList, hint: `Meta: ${META_PERDA}% · Σ(qtde × fator) ÷ Σ(qtde) — respeita todos os filtros ativos` })} />
         <KpiCard label="Qtd estoque BR0140 (kg)" value={fmtNum(metrics.estoqueBR0140_kg)} icon={Package} accent="success" onClick={() => setKpiDetail({ title: "Qtd estoque BR0140", kg: metrics.estoqueBR0140_kg, m2: metrics.estoqueBR0140_m2, hint: "Total de retalho enviado ao armazém BR0140 (conforme filtros)" })} />
         <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, fpps: metrics.fppListFPPonly, hint: "Ordens distintas do tipo FPP" })} />
       </section>
@@ -682,8 +692,8 @@ export function Dashboard() {
                           if (dow === 0 || dow === 6) return false;
                           return true;
                         });
-                        const valsMes = uniqueFatores(rowsMes);
-                        const mediaMes = valsMes.length > 0 ? +meanOf(valsMes).toFixed(2) : null;
+                        const wAvg = weightedAvg(rowsMes);
+                        const mediaMes = wAvg > 0 ? +wAvg.toFixed(2) : null;
                         return (
                           <tr key={row.key} className="border-t border-border bg-secondary/30">
                             <td className="px-3 py-2.5 whitespace-nowrap font-bold uppercase text-xs tracking-wider">
@@ -920,9 +930,9 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
   }), [filtered, fTipo, fNumero, fCodigo, fDesc, fCat, fStatus]);
 
   const avgFator = useMemo(() => {
-    // Mesma fonte única (uniqueFatores) — usa detLabel como chave de material+espessura
-    const mapped: FatorRow[] = rows.map(r => ({ tipo: r.tipo, numero: r.numero, id: r.id, detKey: r.detLabel, fator_perda: r.fator_perda }));
-    return meanOf(uniqueFatores(mapped));
+    // Média PONDERADA pela quantidade — Σ(qty × fator) / Σ(qty)
+    const mapped: FatorRow[] = rows.map(r => ({ tipo: r.tipo, numero: r.numero, id: r.id, detKey: r.detLabel, fator_perda: r.fator_perda, qtde_kg: r.qtde_kg }));
+    return weightedAvg(mapped);
   }, [rows]);
   const avgKg = useMemo(() => {
     const v = rows.filter(r => r.qtde_kg > 0).map(r => r.qtde_kg);
@@ -942,7 +952,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
         <table className="w-full text-sm">
           <thead className="bg-secondary/40 sticky top-0 z-10">
             <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-              {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Qtde (kg)", "Data", "Status"].map(h => (
+              {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Desperdício %", "Qtde (kg)", "Data", "Status"].map(h => (
                 <th key={h} className="px-3 py-2 font-medium">{h}</th>
               ))}
             </tr>
@@ -966,6 +976,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
               <th className="px-2 py-1.5"></th>
               <th className="px-2 py-1.5"></th>
               <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5"></th>
               <th className="px-2 py-1.5">
                 <select value={fStatus} onChange={e => setFStatus(e.target.value)} className={filtCls}>
                   <option value="">Todos</option>
@@ -984,21 +995,23 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
                 <td className="px-3 py-2"><span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${MATERIAL_COLOR[r.material]} 18%, transparent)`, color: MATERIAL_COLOR[r.material] }}>{r.detLabel || MATERIAL_LABEL[r.material]}</span></td>
                 <td className="px-3 py-2 font-medium">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 0)}%` : "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
+                <td className="px-3 py-2 font-mono font-semibold text-warning">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 2)}%` : "—"}</td>
                 <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground text-xs">{fmtDate(r.data_registro)}</td>
                 <td className="px-3 py-2"><span className="text-xs text-success">{r.status}</span></td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro com esses filtros.</td></tr>
+              <tr><td colSpan={11} className="px-3 py-10 text-center text-muted-foreground">Nenhum registro com esses filtros.</td></tr>
             )}
           </tbody>
           {rows.length > 0 && (
             <tfoot className="bg-secondary/60 border-t-2 border-border sticky bottom-0">
               <tr className="text-xs uppercase tracking-wider font-bold">
-                <td className="px-3 py-2.5" colSpan={5}>Média / Soma</td>
+                <td className="px-3 py-2.5" colSpan={5}>Média ponderada / Soma</td>
                 <td className="px-3 py-2.5 font-mono">{fmtPct(avgFator)}</td>
                 <td className="px-3 py-2.5"></td>
+                <td className="px-3 py-2.5 font-mono text-warning">{fmtPct(avgFator)}</td>
                 <td className="px-3 py-2.5 font-mono">
                   <div>μ {fmtNum(avgKg)}</div>
                   <div className="text-[10px] font-normal text-muted-foreground">Σ {fmtNum(sumKg)}</div>
