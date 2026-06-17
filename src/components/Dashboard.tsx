@@ -521,9 +521,15 @@ export function Dashboard() {
               />
             </div>
           </Field>
+          <Field label="Qtde mín. (kg)">
+            <input type="number" inputMode="decimal" min={0} step="any" value={qtyMin} onChange={(e) => setQtyMin(e.target.value)} placeholder="ex: 10" className={inputCls} />
+          </Field>
+          <Field label="Qtde máx. (kg)">
+            <input type="number" inputMode="decimal" min={0} step="any" value={qtyMax} onChange={(e) => setQtyMax(e.target.value)} placeholder="ex: 50" className={inputCls} />
+          </Field>
           <Field label="Ação">
             <button onClick={addNumeroFilter} type="button" className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
-              + Adicionar ao filtro
+              + Adicionar FPP
             </button>
           </Field>
         </div>
