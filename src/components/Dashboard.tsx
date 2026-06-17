@@ -282,8 +282,8 @@ export function Dashboard() {
     });
     const avg = (rows: FatorRow[] | undefined) => {
       if (!rows || rows.length === 0) return null;
-      const v = uniqueFatores(rows);
-      return v.length ? +meanOf(v).toFixed(2) : null;
+      const v = weightedAvg(rows);
+      return v > 0 ? +v.toFixed(2) : null;
     };
     return materials.map(mat => {
       const monthly = Array.from({ length: 12 }, (_, i) => avg(buckets.get(`${mat}|${i}`)));
