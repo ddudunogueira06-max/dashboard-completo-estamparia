@@ -163,7 +163,7 @@ export function Dashboard() {
     };
   }), [records]);
 
-  const statuses = useMemo(() => Array.from(new Set(enriched.map(r => r.status).filter(Boolean))) as string[], [enriched]);
+  
 
   const materialThickOptions = useMemo(() => {
     const map = new Map<string, string>();
