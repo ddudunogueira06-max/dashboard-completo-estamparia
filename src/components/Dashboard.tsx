@@ -963,6 +963,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
     return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
   }, [rows]);
   const sumKg = useMemo(() => rows.reduce((a, r) => a + r.qtde_kg, 0), [rows]);
+  const sumDespKg = useMemo(() => rows.reduce((a, r) => a + (r.qtde_kg * ((r.fator_perda ?? 0) / 100)), 0), [rows]);
 
   const filtCls = "w-full rounded border border-input bg-background/50 px-2 py-1 text-[11px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring";
 
