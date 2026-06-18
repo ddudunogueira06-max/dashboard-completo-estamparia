@@ -182,14 +182,16 @@ export function Dashboard() {
     const nums = numeroFilters.map(n => n.toLowerCase());
     const qMin = qtyMin.trim() !== "" ? Number(qtyMin.replace(",", ".")) : null;
     const qMax = qtyMax.trim() !== "" ? Number(qtyMax.replace(",", ".")) : null;
+    const fMin = fatorMin.trim() !== "" ? Number(fatorMin.replace(",", ".")) : null;
     return enriched.filter((r) => {
       const t = r.data_registro ? new Date(r.data_registro).getTime() : 0;
       if (t < s || t > e) return false;
       if (tipoFilter && r.tipo !== tipoFilter) return false;
       if (materialFilter && r.matKey !== materialFilter) return false;
-      if (statusFilter && r.status !== statusFilter) return false;
+      if (materialKindFilter && r.material !== materialKindFilter) return false;
       if (qMin !== null && !Number.isNaN(qMin) && r.qtde_kg < qMin) return false;
       if (qMax !== null && !Number.isNaN(qMax) && r.qtde_kg > qMax) return false;
+      if (fMin !== null && !Number.isNaN(fMin) && (r.fator_perda ?? -Infinity) < fMin) return false;
       if (nums.length > 0) {
         const numStr = String(r.numero ?? "").toLowerCase();
         if (!nums.some(n => numStr === n || numStr.includes(n))) return false;
@@ -200,7 +202,7 @@ export function Dashboard() {
       }
       return true;
     });
-  }, [enriched, startDate, endDate, tipoFilter, materialFilter, statusFilter, search, numeroFilters, qtyMin, qtyMax]);
+  }, [enriched, startDate, endDate, tipoFilter, materialFilter, materialKindFilter, fatorMin, search, numeroFilters, qtyMin, qtyMax]);
 
   // Agrupa por (tipo+numero). Para perda usamos somente a 1ª linha (menor "linha"),
   // mas os kg/m² somam todas as linhas do grupo.
