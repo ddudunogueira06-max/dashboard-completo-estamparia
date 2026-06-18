@@ -122,7 +122,8 @@ export function Dashboard() {
   const [endDate, setEndDate] = useState("");
   const [tipoFilter, setTipoFilter] = useState<string>("");
   const [materialFilter, setMaterialFilter] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [materialKindFilter, setMaterialKindFilter] = useState<string>(""); // "", inox, galvanizado, aluminio
+  const [fatorMin, setFatorMin] = useState<string>("");
   const [search, setSearch] = useState("");
   const [numeroFilters, setNumeroFilters] = useState<string[]>([]);
   const [qtyMin, setQtyMin] = useState<string>("");
