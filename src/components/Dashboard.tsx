@@ -522,11 +522,16 @@ export function Dashboard() {
               {materialThickOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
           </Field>
-          <Field label="Status">
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={inputCls}>
+          <Field label="Tipo de Material">
+            <select value={materialKindFilter} onChange={(e) => setMaterialKindFilter(e.target.value)} className={inputCls}>
               <option value="">Todos</option>
-              {statuses.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value="inox">Inox</option>
+              <option value="galvanizado">Galvanizado</option>
+              <option value="aluminio">Alumínio</option>
             </select>
+          </Field>
+          <Field label="Fator % mín. (≥)">
+            <input type="number" inputMode="decimal" min={0} step="any" value={fatorMin} onChange={(e) => setFatorMin(e.target.value)} placeholder="ex: 20" className={inputCls} />
           </Field>
           <Field label="FPP / FPG (Enter p/ adicionar)">
             <div className="relative">
