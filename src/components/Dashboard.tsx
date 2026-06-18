@@ -414,7 +414,7 @@ export function Dashboard() {
   }, [filtered]);
 
   const clearFilters = () => {
-    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setStatusFilter(""); setSearch(""); setNumeroFilters([]); setQtyMin(""); setQtyMax("");
+    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setMaterialKindFilter(""); setFatorMin(""); setSearch(""); setNumeroFilters([]); setQtyMin(""); setQtyMax("");
   };
 
   const handleExport = () => {
