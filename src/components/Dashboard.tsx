@@ -1036,7 +1036,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
                 <td className="px-3 py-2.5" colSpan={5}>Média ponderada / Soma</td>
                 <td className="px-3 py-2.5 font-mono">{fmtPct(avgFator)}</td>
                 <td className="px-3 py-2.5"></td>
-                <td className="px-3 py-2.5 font-mono text-warning">{fmtPct(avgFator)}</td>
+                <td className="px-3 py-2.5 font-mono text-warning">Σ {fmtNum(sumDespKg)}</td>
                 <td className="px-3 py-2.5 font-mono">
                   <div>μ {fmtNum(avgKg)}</div>
                   <div className="text-[10px] font-normal text-muted-foreground">Σ {fmtNum(sumKg)}</div>
