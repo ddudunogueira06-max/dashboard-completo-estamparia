@@ -977,7 +977,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
         <table className="w-full text-sm">
           <thead className="bg-secondary/40 sticky top-0 z-10">
             <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-              {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Desperdício %", "Qtde (kg)", "Data", "Status"].map(h => (
+              {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Desperdício (kg)", "Qtde (kg)", "Data", "Status"].map(h => (
                 <th key={h} className="px-3 py-2 font-medium">{h}</th>
               ))}
             </tr>
