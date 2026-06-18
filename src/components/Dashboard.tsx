@@ -432,7 +432,8 @@ export function Dashboard() {
       startDate || endDate ? `Período: ${startDate || "início"} → ${endDate || "hoje"}` : "Período: todos",
       tipoFilter && `Tipo: ${tipoFilter}`,
       materialFilter && `Material: ${materialFilter}`,
-      statusFilter && `Status: ${statusFilter}`,
+      materialKindFilter && `Material: ${MATERIAL_LABEL[materialKindFilter as MaterialKind]}`,
+      fatorMin && `Fator ≥ ${fatorMin}%`,
       search && `Busca: "${search}"`,
     ].filter(Boolean).join("  ·  ");
     generateWasteReportPDF(
