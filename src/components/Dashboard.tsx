@@ -268,13 +268,29 @@ export function Dashboard() {
   // ano padrão = mais recente
   const yearSel = matrixYear || availableYears[0] || String(new Date().getFullYear());
 
+  // Helper: cross-cutting filters (qty, fator, material kind, material/espessura)
+  // aplicados também às matrizes anual e semanal (que mantêm o seletor de ano próprio).
+  const passesCross = useMemo(() => {
+    const qMin = qtyMin.trim() !== "" ? Number(qtyMin.replace(",", ".")) : null;
+    const qMax = qtyMax.trim() !== "" ? Number(qtyMax.replace(",", ".")) : null;
+    const fMin = fatorMin.trim() !== "" ? Number(fatorMin.replace(",", ".")) : null;
+    return (r: typeof enriched[number]) => {
+      if (materialFilter && r.matKey !== materialFilter) return false;
+      if (materialKindFilter && r.material !== materialKindFilter) return false;
+      if (qMin !== null && !Number.isNaN(qMin) && r.qtde_kg < qMin) return false;
+      if (qMax !== null && !Number.isNaN(qMax) && r.qtde_kg > qMax) return false;
+      if (fMin !== null && !Number.isNaN(fMin) && (r.fator_perda ?? -Infinity) < fMin) return false;
+      return true;
+    };
+  }, [qtyMin, qtyMax, fatorMin, materialFilter, materialKindFilter]);
+
   const matrix = useMemo(() => {
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
-    // Agrupa por (material, mês) e (material, ano) — usa fonte única uniqueFatores
-    const buckets = new Map<string, FatorRow[]>(); // key: mat|m  ou  mat|year
+    const buckets = new Map<string, FatorRow[]>();
     enriched.forEach(r => {
       if (!r.data_registro || !materials.includes(r.material)) return;
       if (tipoFilter && r.tipo !== tipoFilter) return;
+      if (!passesCross(r)) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
       const m = d.getMonth();
@@ -293,9 +309,9 @@ export function Dashboard() {
       const acumulada = avg(buckets.get(`${mat}|Y`));
       return { key: mat, material: mat, label: MATERIAL_LABEL[mat].toUpperCase(), monthly, acumulada, isSummary: true };
     }).filter(r => r.acumulada !== null);
-  }, [enriched, yearSel, tipoFilter]);
+  }, [enriched, yearSel, tipoFilter, passesCross]);
 
-  // === MATRIZ SEMANAL (Segunda a Sexta) por material — média simples por (material+espessura+fator) deduplicado por semana
+  // === MATRIZ SEMANAL (Segunda a Sexta) por material
   const weeklyMatrix = useMemo(() => {
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
     const getMonday = (d: Date) => {
@@ -306,12 +322,12 @@ export function Dashboard() {
       return x;
     };
 
-    // Agrupa registros brutos por semana+material e roda uniqueFatores em cada bucket
     const weekData = new Map<string, { start: Date; perMat: Map<MaterialKind, FatorRow[]> }>();
 
     enriched.forEach(r => {
       if (!r.data_registro || !materials.includes(r.material)) return;
       if (tipoFilter && r.tipo !== tipoFilter) return;
+      if (!passesCross(r)) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
       const dow = d.getDay();
@@ -344,7 +360,6 @@ export function Dashboard() {
 
     const rows = materials.map(mat => {
       const weekly = weeks.map(w => avg(w.perMat.get(mat)!));
-      // Acumulada da janela: aplica uniqueFatores em TODAS as semanas do material (mesma fonte)
       const allRows: FatorRow[] = [];
       weeks.forEach(w => allRows.push(...w.perMat.get(mat)!));
       const acumulada = avg(allRows);
@@ -352,7 +367,7 @@ export function Dashboard() {
     }).filter(r => r.acumulada !== null);
 
     return { weeks, rows };
-  }, [enriched, yearSel, tipoFilter]);
+  }, [enriched, yearSel, tipoFilter, passesCross]);
 
   // Top 10 — Materiais com MAIOR FREQUÊNCIA de saída
   // (conta nº de ordens FPP/FPG distintas em que o código aparece)
