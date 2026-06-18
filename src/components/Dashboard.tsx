@@ -271,16 +271,14 @@ export function Dashboard() {
   const passesCross = useMemo(() => {
     const qMin = qtyMin.trim() !== "" ? Number(qtyMin.replace(",", ".")) : null;
     const qMax = qtyMax.trim() !== "" ? Number(qtyMax.replace(",", ".")) : null;
-    const fMin = fatorMin.trim() !== "" ? Number(fatorMin.replace(",", ".")) : null;
     return (r: typeof enriched[number]) => {
       if (materialFilter && r.matKey !== materialFilter) return false;
       if (materialKindFilter && r.material !== materialKindFilter) return false;
       if (qMin !== null && !Number.isNaN(qMin) && r.qtde_kg < qMin) return false;
       if (qMax !== null && !Number.isNaN(qMax) && r.qtde_kg > qMax) return false;
-      if (fMin !== null && !Number.isNaN(fMin) && (r.fator_perda ?? -Infinity) < fMin) return false;
       return true;
     };
-  }, [qtyMin, qtyMax, fatorMin, materialFilter, materialKindFilter]);
+  }, [qtyMin, qtyMax, materialFilter, materialKindFilter]);
 
   const matrix = useMemo(() => {
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
