@@ -924,7 +924,7 @@ interface DetailRow {
   detLabel: string;
 }
 
-function DetailTable({ filtered }: { filtered: DetailRow[] }) {
+function DetailTable({ filtered, fatorMin, onFatorMinChange }: { filtered: DetailRow[]; fatorMin: string; onFatorMinChange: (v: string) => void }) {
   const [fTipo, setFTipo] = useState("");
   const [fNumero, setFNumero] = useState("");
   const [fCodigo, setFCodigo] = useState("");
@@ -936,6 +936,8 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
   const cats = useMemo(() => Array.from(new Set(filtered.map(r => r.detLabel).filter(Boolean))).sort(), [filtered]);
   const statuses2 = useMemo(() => Array.from(new Set(filtered.map(r => r.status).filter(Boolean))) as string[], [filtered]);
 
+  const fMinVal = fatorMin.trim() !== "" ? Number(fatorMin.replace(",", ".")) : null;
+
   const rows = useMemo(() => filtered.filter(r => {
     if (fTipo && r.tipo !== fTipo) return false;
     if (fStatus && r.status !== fStatus) return false;
@@ -943,8 +945,9 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
     if (fNumero && !String(r.numero ?? "").toLowerCase().includes(fNumero.toLowerCase())) return false;
     if (fCodigo && !(r.codigo_item ?? "").toLowerCase().includes(fCodigo.toLowerCase())) return false;
     if (fDesc && !(r.descricao ?? "").toLowerCase().includes(fDesc.toLowerCase())) return false;
+    if (fMinVal !== null && !Number.isNaN(fMinVal) && (r.fator_perda ?? -Infinity) < fMinVal) return false;
     return true;
-  }), [filtered, fTipo, fNumero, fCodigo, fDesc, fCat, fStatus]);
+  }), [filtered, fTipo, fNumero, fCodigo, fDesc, fCat, fStatus, fMinVal]);
 
   const avgFator = useMemo(() => {
     // Média PONDERADA pela quantidade — Σ(qty × fator) / Σ(qty)
