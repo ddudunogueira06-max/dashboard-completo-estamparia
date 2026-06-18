@@ -526,9 +526,6 @@ export function Dashboard() {
               <option value="aluminio">Alumínio</option>
             </select>
           </Field>
-          <Field label="Fator % mín. (≥)">
-            <input type="number" inputMode="decimal" min={0} step="any" value={fatorMin} onChange={(e) => setFatorMin(e.target.value)} placeholder="ex: 20" className={inputCls} />
-          </Field>
           <Field label="FPP / FPG (Enter p/ adicionar)">
             <div className="relative">
               <Search className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
