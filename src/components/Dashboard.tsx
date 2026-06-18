@@ -182,7 +182,6 @@ export function Dashboard() {
     const nums = numeroFilters.map(n => n.toLowerCase());
     const qMin = qtyMin.trim() !== "" ? Number(qtyMin.replace(",", ".")) : null;
     const qMax = qtyMax.trim() !== "" ? Number(qtyMax.replace(",", ".")) : null;
-    const fMin = fatorMin.trim() !== "" ? Number(fatorMin.replace(",", ".")) : null;
     return enriched.filter((r) => {
       const t = r.data_registro ? new Date(r.data_registro).getTime() : 0;
       if (t < s || t > e) return false;
@@ -191,7 +190,6 @@ export function Dashboard() {
       if (materialKindFilter && r.material !== materialKindFilter) return false;
       if (qMin !== null && !Number.isNaN(qMin) && r.qtde_kg < qMin) return false;
       if (qMax !== null && !Number.isNaN(qMax) && r.qtde_kg > qMax) return false;
-      if (fMin !== null && !Number.isNaN(fMin) && (r.fator_perda ?? -Infinity) < fMin) return false;
       if (nums.length > 0) {
         const numStr = String(r.numero ?? "").toLowerCase();
         if (!nums.some(n => numStr === n || numStr.includes(n))) return false;
@@ -202,7 +200,7 @@ export function Dashboard() {
       }
       return true;
     });
-  }, [enriched, startDate, endDate, tipoFilter, materialFilter, materialKindFilter, fatorMin, search, numeroFilters, qtyMin, qtyMax]);
+  }, [enriched, startDate, endDate, tipoFilter, materialFilter, materialKindFilter, search, numeroFilters, qtyMin, qtyMax]);
 
   // Agrupa por (tipo+numero). Para perda usamos somente a 1ª linha (menor "linha"),
   // mas os kg/m² somam todas as linhas do grupo.
@@ -273,16 +271,14 @@ export function Dashboard() {
   const passesCross = useMemo(() => {
     const qMin = qtyMin.trim() !== "" ? Number(qtyMin.replace(",", ".")) : null;
     const qMax = qtyMax.trim() !== "" ? Number(qtyMax.replace(",", ".")) : null;
-    const fMin = fatorMin.trim() !== "" ? Number(fatorMin.replace(",", ".")) : null;
     return (r: typeof enriched[number]) => {
       if (materialFilter && r.matKey !== materialFilter) return false;
       if (materialKindFilter && r.material !== materialKindFilter) return false;
       if (qMin !== null && !Number.isNaN(qMin) && r.qtde_kg < qMin) return false;
       if (qMax !== null && !Number.isNaN(qMax) && r.qtde_kg > qMax) return false;
-      if (fMin !== null && !Number.isNaN(fMin) && (r.fator_perda ?? -Infinity) < fMin) return false;
       return true;
     };
-  }, [qtyMin, qtyMax, fatorMin, materialFilter, materialKindFilter]);
+  }, [qtyMin, qtyMax, materialFilter, materialKindFilter]);
 
   const matrix = useMemo(() => {
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
@@ -529,9 +525,6 @@ export function Dashboard() {
               <option value="galvanizado">Galvanizado</option>
               <option value="aluminio">Alumínio</option>
             </select>
-          </Field>
-          <Field label="Fator % mín. (≥)">
-            <input type="number" inputMode="decimal" min={0} step="any" value={fatorMin} onChange={(e) => setFatorMin(e.target.value)} placeholder="ex: 20" className={inputCls} />
           </Field>
           <Field label="FPP / FPG (Enter p/ adicionar)">
             <div className="relative">
@@ -829,7 +822,7 @@ export function Dashboard() {
 
 
       {/* Detail table */}
-      <DetailTable filtered={filtered} />
+      <DetailTable filtered={filtered} fatorMin={fatorMin} onFatorMinChange={setFatorMin} />
 
       <Dialog open={!!kpiDetail} onOpenChange={(o) => !o && setKpiDetail(null)}>
         <DialogContent>
@@ -931,7 +924,7 @@ interface DetailRow {
   detLabel: string;
 }
 
-function DetailTable({ filtered }: { filtered: DetailRow[] }) {
+function DetailTable({ filtered, fatorMin, onFatorMinChange }: { filtered: DetailRow[]; fatorMin: string; onFatorMinChange: (v: string) => void }) {
   const [fTipo, setFTipo] = useState("");
   const [fNumero, setFNumero] = useState("");
   const [fCodigo, setFCodigo] = useState("");
@@ -943,6 +936,8 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
   const cats = useMemo(() => Array.from(new Set(filtered.map(r => r.detLabel).filter(Boolean))).sort(), [filtered]);
   const statuses2 = useMemo(() => Array.from(new Set(filtered.map(r => r.status).filter(Boolean))) as string[], [filtered]);
 
+  const fMinVal = fatorMin.trim() !== "" ? Number(fatorMin.replace(",", ".")) : null;
+
   const rows = useMemo(() => filtered.filter(r => {
     if (fTipo && r.tipo !== fTipo) return false;
     if (fStatus && r.status !== fStatus) return false;
@@ -950,8 +945,9 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
     if (fNumero && !String(r.numero ?? "").toLowerCase().includes(fNumero.toLowerCase())) return false;
     if (fCodigo && !(r.codigo_item ?? "").toLowerCase().includes(fCodigo.toLowerCase())) return false;
     if (fDesc && !(r.descricao ?? "").toLowerCase().includes(fDesc.toLowerCase())) return false;
+    if (fMinVal !== null && !Number.isNaN(fMinVal) && (r.fator_perda ?? -Infinity) < fMinVal) return false;
     return true;
-  }), [filtered, fTipo, fNumero, fCodigo, fDesc, fCat, fStatus]);
+  }), [filtered, fTipo, fNumero, fCodigo, fDesc, fCat, fStatus, fMinVal]);
 
   const avgFator = useMemo(() => {
     // Média PONDERADA pela quantidade — Σ(qty × fator) / Σ(qty)
@@ -997,7 +993,18 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
                   {cats.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </th>
-              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="any"
+                  value={fatorMin}
+                  onChange={e => onFatorMinChange(e.target.value)}
+                  placeholder="≥ %"
+                  className={filtCls}
+                />
+              </th>
               <th className="px-2 py-1.5"></th>
               <th className="px-2 py-1.5"></th>
               <th className="px-2 py-1.5"></th>
