@@ -122,7 +122,8 @@ export function Dashboard() {
   const [endDate, setEndDate] = useState("");
   const [tipoFilter, setTipoFilter] = useState<string>("");
   const [materialFilter, setMaterialFilter] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [materialKindFilter, setMaterialKindFilter] = useState<string>(""); // "", inox, galvanizado, aluminio
+  const [fatorMin, setFatorMin] = useState<string>("");
   const [search, setSearch] = useState("");
   const [numeroFilters, setNumeroFilters] = useState<string[]>([]);
   const [qtyMin, setQtyMin] = useState<string>("");
@@ -162,7 +163,7 @@ export function Dashboard() {
     };
   }), [records]);
 
-  const statuses = useMemo(() => Array.from(new Set(enriched.map(r => r.status).filter(Boolean))) as string[], [enriched]);
+  
 
   const materialThickOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -181,14 +182,16 @@ export function Dashboard() {
     const nums = numeroFilters.map(n => n.toLowerCase());
     const qMin = qtyMin.trim() !== "" ? Number(qtyMin.replace(",", ".")) : null;
     const qMax = qtyMax.trim() !== "" ? Number(qtyMax.replace(",", ".")) : null;
+    const fMin = fatorMin.trim() !== "" ? Number(fatorMin.replace(",", ".")) : null;
     return enriched.filter((r) => {
       const t = r.data_registro ? new Date(r.data_registro).getTime() : 0;
       if (t < s || t > e) return false;
       if (tipoFilter && r.tipo !== tipoFilter) return false;
       if (materialFilter && r.matKey !== materialFilter) return false;
-      if (statusFilter && r.status !== statusFilter) return false;
+      if (materialKindFilter && r.material !== materialKindFilter) return false;
       if (qMin !== null && !Number.isNaN(qMin) && r.qtde_kg < qMin) return false;
       if (qMax !== null && !Number.isNaN(qMax) && r.qtde_kg > qMax) return false;
+      if (fMin !== null && !Number.isNaN(fMin) && (r.fator_perda ?? -Infinity) < fMin) return false;
       if (nums.length > 0) {
         const numStr = String(r.numero ?? "").toLowerCase();
         if (!nums.some(n => numStr === n || numStr.includes(n))) return false;
@@ -199,7 +202,7 @@ export function Dashboard() {
       }
       return true;
     });
-  }, [enriched, startDate, endDate, tipoFilter, materialFilter, statusFilter, search, numeroFilters, qtyMin, qtyMax]);
+  }, [enriched, startDate, endDate, tipoFilter, materialFilter, materialKindFilter, fatorMin, search, numeroFilters, qtyMin, qtyMax]);
 
   // Agrupa por (tipo+numero). Para perda usamos somente a 1ª linha (menor "linha"),
   // mas os kg/m² somam todas as linhas do grupo.
@@ -265,13 +268,29 @@ export function Dashboard() {
   // ano padrão = mais recente
   const yearSel = matrixYear || availableYears[0] || String(new Date().getFullYear());
 
+  // Helper: cross-cutting filters (qty, fator, material kind, material/espessura)
+  // aplicados também às matrizes anual e semanal (que mantêm o seletor de ano próprio).
+  const passesCross = useMemo(() => {
+    const qMin = qtyMin.trim() !== "" ? Number(qtyMin.replace(",", ".")) : null;
+    const qMax = qtyMax.trim() !== "" ? Number(qtyMax.replace(",", ".")) : null;
+    const fMin = fatorMin.trim() !== "" ? Number(fatorMin.replace(",", ".")) : null;
+    return (r: typeof enriched[number]) => {
+      if (materialFilter && r.matKey !== materialFilter) return false;
+      if (materialKindFilter && r.material !== materialKindFilter) return false;
+      if (qMin !== null && !Number.isNaN(qMin) && r.qtde_kg < qMin) return false;
+      if (qMax !== null && !Number.isNaN(qMax) && r.qtde_kg > qMax) return false;
+      if (fMin !== null && !Number.isNaN(fMin) && (r.fator_perda ?? -Infinity) < fMin) return false;
+      return true;
+    };
+  }, [qtyMin, qtyMax, fatorMin, materialFilter, materialKindFilter]);
+
   const matrix = useMemo(() => {
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
-    // Agrupa por (material, mês) e (material, ano) — usa fonte única uniqueFatores
-    const buckets = new Map<string, FatorRow[]>(); // key: mat|m  ou  mat|year
+    const buckets = new Map<string, FatorRow[]>();
     enriched.forEach(r => {
       if (!r.data_registro || !materials.includes(r.material)) return;
       if (tipoFilter && r.tipo !== tipoFilter) return;
+      if (!passesCross(r)) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
       const m = d.getMonth();
@@ -290,9 +309,9 @@ export function Dashboard() {
       const acumulada = avg(buckets.get(`${mat}|Y`));
       return { key: mat, material: mat, label: MATERIAL_LABEL[mat].toUpperCase(), monthly, acumulada, isSummary: true };
     }).filter(r => r.acumulada !== null);
-  }, [enriched, yearSel, tipoFilter]);
+  }, [enriched, yearSel, tipoFilter, passesCross]);
 
-  // === MATRIZ SEMANAL (Segunda a Sexta) por material — média simples por (material+espessura+fator) deduplicado por semana
+  // === MATRIZ SEMANAL (Segunda a Sexta) por material
   const weeklyMatrix = useMemo(() => {
     const materials: MaterialKind[] = ["inox", "galvanizado", "aluminio"];
     const getMonday = (d: Date) => {
@@ -303,12 +322,12 @@ export function Dashboard() {
       return x;
     };
 
-    // Agrupa registros brutos por semana+material e roda uniqueFatores em cada bucket
     const weekData = new Map<string, { start: Date; perMat: Map<MaterialKind, FatorRow[]> }>();
 
     enriched.forEach(r => {
       if (!r.data_registro || !materials.includes(r.material)) return;
       if (tipoFilter && r.tipo !== tipoFilter) return;
+      if (!passesCross(r)) return;
       const d = new Date(r.data_registro);
       if (String(d.getFullYear()) !== yearSel) return;
       const dow = d.getDay();
@@ -341,7 +360,6 @@ export function Dashboard() {
 
     const rows = materials.map(mat => {
       const weekly = weeks.map(w => avg(w.perMat.get(mat)!));
-      // Acumulada da janela: aplica uniqueFatores em TODAS as semanas do material (mesma fonte)
       const allRows: FatorRow[] = [];
       weeks.forEach(w => allRows.push(...w.perMat.get(mat)!));
       const acumulada = avg(allRows);
@@ -349,7 +367,7 @@ export function Dashboard() {
     }).filter(r => r.acumulada !== null);
 
     return { weeks, rows };
-  }, [enriched, yearSel, tipoFilter]);
+  }, [enriched, yearSel, tipoFilter, passesCross]);
 
   // Top 10 — Materiais com MAIOR FREQUÊNCIA de saída
   // (conta nº de ordens FPP/FPG distintas em que o código aparece)
@@ -396,7 +414,7 @@ export function Dashboard() {
   }, [filtered]);
 
   const clearFilters = () => {
-    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setStatusFilter(""); setSearch(""); setNumeroFilters([]); setQtyMin(""); setQtyMax("");
+    setStartDate(""); setEndDate(""); setTipoFilter(""); setMaterialFilter(""); setMaterialKindFilter(""); setFatorMin(""); setSearch(""); setNumeroFilters([]); setQtyMin(""); setQtyMax("");
   };
 
   const handleExport = () => {
@@ -414,7 +432,8 @@ export function Dashboard() {
       startDate || endDate ? `Período: ${startDate || "início"} → ${endDate || "hoje"}` : "Período: todos",
       tipoFilter && `Tipo: ${tipoFilter}`,
       materialFilter && `Material: ${materialFilter}`,
-      statusFilter && `Status: ${statusFilter}`,
+      materialKindFilter && `Material: ${MATERIAL_LABEL[materialKindFilter as MaterialKind]}`,
+      fatorMin && `Fator ≥ ${fatorMin}%`,
       search && `Busca: "${search}"`,
     ].filter(Boolean).join("  ·  ");
     generateWasteReportPDF(
@@ -503,11 +522,16 @@ export function Dashboard() {
               {materialThickOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
           </Field>
-          <Field label="Status">
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={inputCls}>
+          <Field label="Tipo de Material">
+            <select value={materialKindFilter} onChange={(e) => setMaterialKindFilter(e.target.value)} className={inputCls}>
               <option value="">Todos</option>
-              {statuses.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value="inox">Inox</option>
+              <option value="galvanizado">Galvanizado</option>
+              <option value="aluminio">Alumínio</option>
             </select>
+          </Field>
+          <Field label="Fator % mín. (≥)">
+            <input type="number" inputMode="decimal" min={0} step="any" value={fatorMin} onChange={(e) => setFatorMin(e.target.value)} placeholder="ex: 20" className={inputCls} />
           </Field>
           <Field label="FPP / FPG (Enter p/ adicionar)">
             <div className="relative">
@@ -939,6 +963,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
     return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
   }, [rows]);
   const sumKg = useMemo(() => rows.reduce((a, r) => a + r.qtde_kg, 0), [rows]);
+  const sumDespKg = useMemo(() => rows.reduce((a, r) => a + (r.qtde_kg * ((r.fator_perda ?? 0) / 100)), 0), [rows]);
 
   const filtCls = "w-full rounded border border-input bg-background/50 px-2 py-1 text-[11px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring";
 
@@ -952,7 +977,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
         <table className="w-full text-sm">
           <thead className="bg-secondary/40 sticky top-0 z-10">
             <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-              {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Desperdício %", "Qtde (kg)", "Data", "Status"].map(h => (
+              {["Tipo", "Nº", "Código", "Descrição", "Categoria", "Fator %", "Linha", "Desperdício (kg)", "Qtde (kg)", "Data", "Status"].map(h => (
                 <th key={h} className="px-3 py-2 font-medium">{h}</th>
               ))}
             </tr>
@@ -995,7 +1020,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
                 <td className="px-3 py-2"><span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${MATERIAL_COLOR[r.material]} 18%, transparent)`, color: MATERIAL_COLOR[r.material] }}>{r.detLabel || MATERIAL_LABEL[r.material]}</span></td>
                 <td className="px-3 py-2 font-medium">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 0)}%` : "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
-                <td className="px-3 py-2 font-mono font-semibold text-warning">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 2)}%` : "—"}</td>
+                <td className="px-3 py-2 font-mono font-semibold text-warning">{r.fator_perda !== null && r.qtde_kg > 0 ? fmtNum(r.qtde_kg * (r.fator_perda / 100), 2) : "—"}</td>
                 <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground text-xs">{fmtDate(r.data_registro)}</td>
                 <td className="px-3 py-2"><span className="text-xs text-success">{r.status}</span></td>
@@ -1011,7 +1036,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
                 <td className="px-3 py-2.5" colSpan={5}>Média ponderada / Soma</td>
                 <td className="px-3 py-2.5 font-mono">{fmtPct(avgFator)}</td>
                 <td className="px-3 py-2.5"></td>
-                <td className="px-3 py-2.5 font-mono text-warning">{fmtPct(avgFator)}</td>
+                <td className="px-3 py-2.5 font-mono text-warning">Σ {fmtNum(sumDespKg)}</td>
                 <td className="px-3 py-2.5 font-mono">
                   <div>μ {fmtNum(avgKg)}</div>
                   <div className="text-[10px] font-normal text-muted-foreground">Σ {fmtNum(sumKg)}</div>
