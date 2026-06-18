@@ -993,7 +993,18 @@ function DetailTable({ filtered, fatorMin, onFatorMinChange }: { filtered: Detai
                   {cats.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </th>
-              <th className="px-2 py-1.5"></th>
+              <th className="px-2 py-1.5">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="any"
+                  value={fatorMin}
+                  onChange={e => onFatorMinChange(e.target.value)}
+                  placeholder="≥ %"
+                  className={filtCls}
+                />
+              </th>
               <th className="px-2 py-1.5"></th>
               <th className="px-2 py-1.5"></th>
               <th className="px-2 py-1.5"></th>
