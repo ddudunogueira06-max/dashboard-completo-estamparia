@@ -822,7 +822,7 @@ export function Dashboard() {
 
 
       {/* Detail table */}
-      <DetailTable filtered={filtered} />
+      <DetailTable filtered={filtered} fatorMin={fatorMin} onFatorMinChange={setFatorMin} />
 
       <Dialog open={!!kpiDetail} onOpenChange={(o) => !o && setKpiDetail(null)}>
         <DialogContent>
