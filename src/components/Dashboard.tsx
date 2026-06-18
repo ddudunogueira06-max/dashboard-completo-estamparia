@@ -1020,7 +1020,7 @@ function DetailTable({ filtered }: { filtered: DetailRow[] }) {
                 <td className="px-3 py-2"><span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${MATERIAL_COLOR[r.material]} 18%, transparent)`, color: MATERIAL_COLOR[r.material] }}>{r.detLabel || MATERIAL_LABEL[r.material]}</span></td>
                 <td className="px-3 py-2 font-medium">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 0)}%` : "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground">{r.linha}</td>
-                <td className="px-3 py-2 font-mono font-semibold text-warning">{r.fator_perda !== null ? `${fmtNum(r.fator_perda, 2)}%` : "—"}</td>
+                <td className="px-3 py-2 font-mono font-semibold text-warning">{r.fator_perda !== null && r.qtde_kg > 0 ? fmtNum(r.qtde_kg * (r.fator_perda / 100), 2) : "—"}</td>
                 <td className="px-3 py-2">{r.qtde_kg > 0 ? fmtNum(r.qtde_kg) : "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground text-xs">{fmtDate(r.data_registro)}</td>
                 <td className="px-3 py-2"><span className="text-xs text-success">{r.status}</span></td>
