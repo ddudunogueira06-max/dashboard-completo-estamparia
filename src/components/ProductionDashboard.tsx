@@ -326,19 +326,27 @@ export function ProductionDashboard() {
   const perDay = useMemo(() => {
     const byDay = new Map<string, Set<string>>();
     const byMachineDay = new Map<number, Map<string, Set<string>>>();
+    const rgByDay = new Map<string, number>(); // contagem da coluna L (data_rg) por dia
     inPeriod.forEach(r => {
       const ref = parseLocalDate(r.dt_prog);
-      if (!ref || !isWorkingDay(ref) || !r.fpp) return;
-      const dk = ymd(ref);
-      let s = byDay.get(dk);
-      if (!s) { s = new Set(); byDay.set(dk, s); }
-      s.add(r.fpp);
-      const m = r.maquina ?? 0;
-      let mm = byMachineDay.get(m);
-      if (!mm) { mm = new Map(); byMachineDay.set(m, mm); }
-      let ms = mm.get(dk);
-      if (!ms) { ms = new Set(); mm.set(dk, ms); }
-      ms.add(r.fpp);
+      if (ref && isWorkingDay(ref) && r.fpp) {
+        const dk = ymd(ref);
+        let s = byDay.get(dk);
+        if (!s) { s = new Set(); byDay.set(dk, s); }
+        s.add(r.fpp);
+        const m = r.maquina ?? 0;
+        let mm = byMachineDay.get(m);
+        if (!mm) { mm = new Map(); byMachineDay.set(m, mm); }
+        let ms = mm.get(dk);
+        if (!ms) { ms = new Set(); mm.set(dk, ms); }
+        ms.add(r.fpp);
+      }
+      // RG count: conta cada registro que possui data_rg, agrupado pelo dia da data_rg
+      const rg = parseLocalDate(r.data_rg);
+      if (rg) {
+        const rk = ymd(rg);
+        rgByDay.set(rk, (rgByDay.get(rk) ?? 0) + 1);
+      }
     });
     const days = byDay.size;
     let total = 0;
@@ -348,9 +356,17 @@ export function ProductionDashboard() {
       mm.forEach(s => { t += s.size; });
       return { machine: m, avg: mm.size > 0 ? t / mm.size : 0, days: mm.size };
     }).sort((a, b) => a.machine - b.machine);
-    const series = Array.from(byDay.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([dk, s]) => ({ date: dk, label: dk.slice(8) + "/" + dk.slice(5, 7), count: s.size, fpps: Array.from(s) }));
+    // União de chaves: dias com FPPs realizadas OU com RG registrado
+    const allKeys = new Set<string>([...byDay.keys(), ...rgByDay.keys()]);
+    const series = Array.from(allKeys)
+      .sort((a, b) => a.localeCompare(b))
+      .map((dk) => ({
+        date: dk,
+        label: dk.slice(8) + "/" + dk.slice(5, 7),
+        count: byDay.get(dk)?.size ?? 0,
+        rg: rgByDay.get(dk) ?? 0,
+        fpps: Array.from(byDay.get(dk) ?? []),
+      }));
     return { avg: days > 0 ? total / days : 0, days, total, perMachine, series };
   }, [inPeriod]);
 
@@ -510,8 +526,9 @@ export function ProductionDashboard() {
               </h3>
             </div>
             <div className="flex items-center gap-3 text-[11px]">
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> ≥ média</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> &lt; média</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> FPP ≥ média</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> FPP &lt; média</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> RG (coluna L)</span>
               <span className="text-muted-foreground">média = <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)} FPP/dia</span></span>
               <span className="text-primary text-[10px] uppercase tracking-wider">clique p/ ver tudo →</span>
             </div>
@@ -521,19 +538,22 @@ export function ProductionDashboard() {
               <div className="h-full grid place-items-center text-xs text-muted-foreground">Sem registros na semana atual.</div>
             ) : (
               <ResponsiveContainer>
-                <BarChart data={weekSeries} margin={{ left: 4, right: 8, top: 16, bottom: 4 }}>
+                <BarChart data={weekSeries} margin={{ left: 4, right: 8, top: 16, bottom: 4 }} barGap={2}>
                   <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={10} tickLine={false} axisLine={false} />
                   <YAxis hide allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)", fontSize: 12 }}
-                    formatter={(v: number) => [`${v} FPPs`, "Realizado"]}
+                    formatter={(v: number, name) => [`${v}`, name === "count" ? "FPPs realizadas" : "RGs (col. L)"]}
                   />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={42}>
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={28}>
                     {weekSeries.map((d, i) => (
                       <Cell key={i} fill={d.count >= perDay.avg ? "oklch(0.7 0.16 155)" : "oklch(0.65 0.22 25)"} />
                     ))}
                     <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={600} />
+                  </Bar>
+                  <Bar dataKey="rg" radius={[4, 4, 0, 0]} maxBarSize={28} fill="oklch(0.72 0.15 215)">
+                    <LabelList dataKey="rg" position="top" fill="oklch(0.85 0.05 215)" fontSize={10} fontWeight={600} />
                   </Bar>
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
                 </BarChart>

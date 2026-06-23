@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppProducaoRouteImport } from './routes/_app.producao'
+import { Route as AppOeeRouteImport } from './routes/_app.oee'
 import { Route as AppImportarProducaoRouteImport } from './routes/_app.importar-producao'
+import { Route as AppImportarOeeRouteImport } from './routes/_app.importar-oee'
 import { Route as AppImportarRouteImport } from './routes/_app.importar'
 
 const AppRoute = AppRouteImport.update({
@@ -29,9 +31,19 @@ const AppProducaoRoute = AppProducaoRouteImport.update({
   path: '/producao',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOeeRoute = AppOeeRouteImport.update({
+  id: '/oee',
+  path: '/oee',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppImportarProducaoRoute = AppImportarProducaoRouteImport.update({
   id: '/importar-producao',
   path: '/importar-producao',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppImportarOeeRoute = AppImportarOeeRouteImport.update({
+  id: '/importar-oee',
+  path: '/importar-oee',
   getParentRoute: () => AppRoute,
 } as any)
 const AppImportarRoute = AppImportarRouteImport.update({
@@ -43,12 +55,16 @@ const AppImportarRoute = AppImportarRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/importar': typeof AppImportarRoute
+  '/importar-oee': typeof AppImportarOeeRoute
   '/importar-producao': typeof AppImportarProducaoRoute
+  '/oee': typeof AppOeeRoute
   '/producao': typeof AppProducaoRoute
 }
 export interface FileRoutesByTo {
   '/importar': typeof AppImportarRoute
+  '/importar-oee': typeof AppImportarOeeRoute
   '/importar-producao': typeof AppImportarProducaoRoute
+  '/oee': typeof AppOeeRoute
   '/producao': typeof AppProducaoRoute
   '/': typeof AppIndexRoute
 }
@@ -56,20 +72,36 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_app/importar': typeof AppImportarRoute
+  '/_app/importar-oee': typeof AppImportarOeeRoute
   '/_app/importar-producao': typeof AppImportarProducaoRoute
+  '/_app/oee': typeof AppOeeRoute
   '/_app/producao': typeof AppProducaoRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/importar' | '/importar-producao' | '/producao'
+  fullPaths:
+    | '/'
+    | '/importar'
+    | '/importar-oee'
+    | '/importar-producao'
+    | '/oee'
+    | '/producao'
   fileRoutesByTo: FileRoutesByTo
-  to: '/importar' | '/importar-producao' | '/producao' | '/'
+  to:
+    | '/importar'
+    | '/importar-oee'
+    | '/importar-producao'
+    | '/oee'
+    | '/producao'
+    | '/'
   id:
     | '__root__'
     | '/_app'
     | '/_app/importar'
+    | '/_app/importar-oee'
     | '/_app/importar-producao'
+    | '/_app/oee'
     | '/_app/producao'
     | '/_app/'
   fileRoutesById: FileRoutesById
@@ -101,11 +133,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProducaoRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/oee': {
+      id: '/_app/oee'
+      path: '/oee'
+      fullPath: '/oee'
+      preLoaderRoute: typeof AppOeeRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/importar-producao': {
       id: '/_app/importar-producao'
       path: '/importar-producao'
       fullPath: '/importar-producao'
       preLoaderRoute: typeof AppImportarProducaoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/importar-oee': {
+      id: '/_app/importar-oee'
+      path: '/importar-oee'
+      fullPath: '/importar-oee'
+      preLoaderRoute: typeof AppImportarOeeRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/importar': {
@@ -120,14 +166,18 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppImportarRoute: typeof AppImportarRoute
+  AppImportarOeeRoute: typeof AppImportarOeeRoute
   AppImportarProducaoRoute: typeof AppImportarProducaoRoute
+  AppOeeRoute: typeof AppOeeRoute
   AppProducaoRoute: typeof AppProducaoRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppImportarRoute: AppImportarRoute,
+  AppImportarOeeRoute: AppImportarOeeRoute,
   AppImportarProducaoRoute: AppImportarProducaoRoute,
+  AppOeeRoute: AppOeeRoute,
   AppProducaoRoute: AppProducaoRoute,
   AppIndexRoute: AppIndexRoute,
 }
@@ -140,13 +190,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

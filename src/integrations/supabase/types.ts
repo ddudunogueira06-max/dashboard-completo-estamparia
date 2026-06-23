@@ -14,6 +14,133 @@ export type Database = {
   }
   public: {
     Tables: {
+      oee_dias: {
+        Row: {
+          created_at: string
+          data: string
+          horas_disp_seg: number | null
+          horas_prog_seg: number | null
+          horas_reg_seg: number | null
+          id: string
+          import_id: string | null
+          maquina: number
+          oee: number | null
+          paradas_nao_prog_seg: number | null
+          paradas_prog_seg: number | null
+          turno: number
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          horas_disp_seg?: number | null
+          horas_prog_seg?: number | null
+          horas_reg_seg?: number | null
+          id?: string
+          import_id?: string | null
+          maquina: number
+          oee?: number | null
+          paradas_nao_prog_seg?: number | null
+          paradas_prog_seg?: number | null
+          turno: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          horas_disp_seg?: number | null
+          horas_prog_seg?: number | null
+          horas_reg_seg?: number | null
+          id?: string
+          import_id?: string | null
+          maquina?: number
+          oee?: number | null
+          paradas_nao_prog_seg?: number | null
+          paradas_prog_seg?: number | null
+          turno?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oee_dias_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "oee_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oee_imports: {
+        Row: {
+          arquivo: string
+          created_at: string
+          id: string
+          maquina: number
+          mes_ref: string | null
+          total_dias: number
+          total_paradas: number
+          turno: number
+        }
+        Insert: {
+          arquivo: string
+          created_at?: string
+          id?: string
+          maquina: number
+          mes_ref?: string | null
+          total_dias?: number
+          total_paradas?: number
+          turno: number
+        }
+        Update: {
+          arquivo?: string
+          created_at?: string
+          id?: string
+          maquina?: number
+          mes_ref?: string | null
+          total_dias?: number
+          total_paradas?: number
+          turno?: number
+        }
+        Relationships: []
+      }
+      oee_paradas: {
+        Row: {
+          categoria: string
+          created_at: string
+          id: string
+          import_id: string | null
+          maquina: number
+          mes_ref: string
+          total_seg: number
+          turno: number
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          id?: string
+          import_id?: string | null
+          maquina: number
+          mes_ref: string
+          total_seg: number
+          turno: number
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          id?: string
+          import_id?: string | null
+          maquina?: number
+          mes_ref?: string
+          total_seg?: number
+          turno?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oee_paradas_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "oee_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_imports: {
         Row: {
           created_at: string
