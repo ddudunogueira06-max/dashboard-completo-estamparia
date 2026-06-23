@@ -326,19 +326,27 @@ export function ProductionDashboard() {
   const perDay = useMemo(() => {
     const byDay = new Map<string, Set<string>>();
     const byMachineDay = new Map<number, Map<string, Set<string>>>();
+    const rgByDay = new Map<string, number>(); // contagem da coluna L (data_rg) por dia
     inPeriod.forEach(r => {
       const ref = parseLocalDate(r.dt_prog);
-      if (!ref || !isWorkingDay(ref) || !r.fpp) return;
-      const dk = ymd(ref);
-      let s = byDay.get(dk);
-      if (!s) { s = new Set(); byDay.set(dk, s); }
-      s.add(r.fpp);
-      const m = r.maquina ?? 0;
-      let mm = byMachineDay.get(m);
-      if (!mm) { mm = new Map(); byMachineDay.set(m, mm); }
-      let ms = mm.get(dk);
-      if (!ms) { ms = new Set(); mm.set(dk, ms); }
-      ms.add(r.fpp);
+      if (ref && isWorkingDay(ref) && r.fpp) {
+        const dk = ymd(ref);
+        let s = byDay.get(dk);
+        if (!s) { s = new Set(); byDay.set(dk, s); }
+        s.add(r.fpp);
+        const m = r.maquina ?? 0;
+        let mm = byMachineDay.get(m);
+        if (!mm) { mm = new Map(); byMachineDay.set(m, mm); }
+        let ms = mm.get(dk);
+        if (!ms) { ms = new Set(); mm.set(dk, ms); }
+        ms.add(r.fpp);
+      }
+      // RG count: conta cada registro que possui data_rg, agrupado pelo dia da data_rg
+      const rg = parseLocalDate(r.data_rg);
+      if (rg) {
+        const rk = ymd(rg);
+        rgByDay.set(rk, (rgByDay.get(rk) ?? 0) + 1);
+      }
     });
     const days = byDay.size;
     let total = 0;
@@ -348,9 +356,17 @@ export function ProductionDashboard() {
       mm.forEach(s => { t += s.size; });
       return { machine: m, avg: mm.size > 0 ? t / mm.size : 0, days: mm.size };
     }).sort((a, b) => a.machine - b.machine);
-    const series = Array.from(byDay.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([dk, s]) => ({ date: dk, label: dk.slice(8) + "/" + dk.slice(5, 7), count: s.size, fpps: Array.from(s) }));
+    // União de chaves: dias com FPPs realizadas OU com RG registrado
+    const allKeys = new Set<string>([...byDay.keys(), ...rgByDay.keys()]);
+    const series = Array.from(allKeys)
+      .sort((a, b) => a.localeCompare(b))
+      .map((dk) => ({
+        date: dk,
+        label: dk.slice(8) + "/" + dk.slice(5, 7),
+        count: byDay.get(dk)?.size ?? 0,
+        rg: rgByDay.get(dk) ?? 0,
+        fpps: Array.from(byDay.get(dk) ?? []),
+      }));
     return { avg: days > 0 ? total / days : 0, days, total, perMachine, series };
   }, [inPeriod]);
 
