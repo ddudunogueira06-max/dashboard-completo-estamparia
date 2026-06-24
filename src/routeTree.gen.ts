@@ -17,6 +17,7 @@ import { Route as AppOeeRouteImport } from './routes/_app.oee'
 import { Route as AppImportarProducaoRouteImport } from './routes/_app.importar-producao'
 import { Route as AppImportarOeeRouteImport } from './routes/_app.importar-oee'
 import { Route as AppImportarRouteImport } from './routes/_app.importar'
+import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -57,6 +58,11 @@ const AppImportarRoute = AppImportarRouteImport.update({
   path: '/importar',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/importar-producao': typeof AppImportarProducaoRoute
   '/oee': typeof AppOeeRoute
   '/producao': typeof AppProducaoRoute
+  '/admin/users': typeof AppAdminUsersRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/oee': typeof AppOeeRoute
   '/producao': typeof AppProducaoRoute
   '/': typeof AppIndexRoute
+  '/admin/users': typeof AppAdminUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/_app/oee': typeof AppOeeRoute
   '/_app/producao': typeof AppProducaoRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/users': typeof AppAdminUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/importar-producao'
     | '/oee'
     | '/producao'
+    | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/oee'
     | '/producao'
     | '/'
+    | '/admin/users'
   id:
     | '__root__'
     | '/_app'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/_app/oee'
     | '/_app/producao'
     | '/_app/'
+    | '/_app/admin/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -181,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppImportarRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/users': {
+      id: '/_app/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AppAdminUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -191,6 +210,7 @@ interface AppRouteChildren {
   AppOeeRoute: typeof AppOeeRoute
   AppProducaoRoute: typeof AppProducaoRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAdminUsersRoute: typeof AppAdminUsersRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -200,6 +220,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOeeRoute: AppOeeRoute,
   AppProducaoRoute: AppProducaoRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAdminUsersRoute: AppAdminUsersRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
