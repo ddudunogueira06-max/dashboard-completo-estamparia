@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppProducaoRouteImport } from './routes/_app.producao'
@@ -17,6 +18,11 @@ import { Route as AppImportarProducaoRouteImport } from './routes/_app.importar-
 import { Route as AppImportarOeeRouteImport } from './routes/_app.importar-oee'
 import { Route as AppImportarRouteImport } from './routes/_app.importar'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -54,6 +60,7 @@ const AppImportarRoute = AppImportarRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/auth': typeof AuthRoute
   '/importar': typeof AppImportarRoute
   '/importar-oee': typeof AppImportarOeeRoute
   '/importar-producao': typeof AppImportarProducaoRoute
@@ -61,6 +68,7 @@ export interface FileRoutesByFullPath {
   '/producao': typeof AppProducaoRoute
 }
 export interface FileRoutesByTo {
+  '/auth': typeof AuthRoute
   '/importar': typeof AppImportarRoute
   '/importar-oee': typeof AppImportarOeeRoute
   '/importar-producao': typeof AppImportarProducaoRoute
@@ -71,6 +79,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/auth': typeof AuthRoute
   '/_app/importar': typeof AppImportarRoute
   '/_app/importar-oee': typeof AppImportarOeeRoute
   '/_app/importar-producao': typeof AppImportarProducaoRoute
@@ -82,6 +91,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/importar'
     | '/importar-oee'
     | '/importar-producao'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/producao'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/auth'
     | '/importar'
     | '/importar-oee'
     | '/importar-producao'
@@ -98,6 +109,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
+    | '/auth'
     | '/_app/importar'
     | '/_app/importar-oee'
     | '/_app/importar-producao'
@@ -108,10 +120,18 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -186,6 +206,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
