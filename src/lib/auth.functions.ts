@@ -54,33 +54,39 @@ export const passwordPreAuth = createServerFn({ method: "POST" })
 export const seedAdminIfMissing = createServerFn({ method: "POST" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  const { count } = await supabaseAdmin
-    .from("user_roles")
-    .select("*", { count: "exact", head: true })
-    .eq("role", "admin");
-
-  if ((count ?? 0) > 0) return { seeded: false };
-
   const pwd = process.env.ADMIN_INITIAL_PASSWORD;
   if (!pwd) throw new Error("ADMIN_INITIAL_PASSWORD não configurado");
 
+  // Try to find existing admin user by email
   const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
   const already = existing.users.find((u) => u.email?.toLowerCase() === "lucas@admin.com");
+
   if (already) {
-    // Ensure role row exists
+    // Reset password to match current secret + ensure admin role
+    await supabaseAdmin.auth.admin.updateUserById(already.id, {
+      password: pwd,
+      email_confirm: true,
+    });
     await supabaseAdmin
       .from("user_roles")
       .upsert({ user_id: already.id, role: "admin" }, { onConflict: "user_id,role" });
     return { seeded: true, reused: true };
   }
 
-  const { error } = await supabaseAdmin.auth.admin.createUser({
+  const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
     email: "lucas@admin.com",
     password: pwd,
     email_confirm: true,
     user_metadata: { full_name: "Lucas (Admin)" },
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Race: created between listUsers and createUser — fetch and continue
+    if (!/already/i.test(error.message)) throw new Error(error.message);
+  } else if (created?.user) {
+    await supabaseAdmin
+      .from("user_roles")
+      .upsert({ user_id: created.user.id, role: "admin" }, { onConflict: "user_id,role" });
+  }
   return { seeded: true };
 });
 
