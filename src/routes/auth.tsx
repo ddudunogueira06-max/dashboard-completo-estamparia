@@ -37,8 +37,20 @@ function AuthPage() {
     setErr(null);
     setBusy(true);
     try {
-      await preAuth({ data: { email: email.trim().toLowerCase(), password } });
-      setStep("otp");
+      const emailNorm = email.trim().toLowerCase();
+      const res = await preAuth({ data: { email: emailNorm, password } });
+      if (res?.skipMfa) {
+        // Admin: estabelece sessão diretamente no cliente, sem OTP
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: emailNorm,
+          password,
+        });
+        if (error) throw error;
+        if (data.user) markMfaVerified(data.user.id);
+        navigate({ to: "/" });
+      } else {
+        setStep("otp");
+      }
     } catch (e: any) {
       setErr(e?.message ?? "Falha no login");
     } finally {
