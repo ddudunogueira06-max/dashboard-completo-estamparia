@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppProducaoRouteImport } from './routes/_app.producao'
@@ -16,7 +17,13 @@ import { Route as AppOeeRouteImport } from './routes/_app.oee'
 import { Route as AppImportarProducaoRouteImport } from './routes/_app.importar-producao'
 import { Route as AppImportarOeeRouteImport } from './routes/_app.importar-oee'
 import { Route as AppImportarRouteImport } from './routes/_app.importar'
+import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -51,67 +58,92 @@ const AppImportarRoute = AppImportarRouteImport.update({
   path: '/importar',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/auth': typeof AuthRoute
   '/importar': typeof AppImportarRoute
   '/importar-oee': typeof AppImportarOeeRoute
   '/importar-producao': typeof AppImportarProducaoRoute
   '/oee': typeof AppOeeRoute
   '/producao': typeof AppProducaoRoute
+  '/admin/users': typeof AppAdminUsersRoute
 }
 export interface FileRoutesByTo {
+  '/auth': typeof AuthRoute
   '/importar': typeof AppImportarRoute
   '/importar-oee': typeof AppImportarOeeRoute
   '/importar-producao': typeof AppImportarProducaoRoute
   '/oee': typeof AppOeeRoute
   '/producao': typeof AppProducaoRoute
   '/': typeof AppIndexRoute
+  '/admin/users': typeof AppAdminUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/auth': typeof AuthRoute
   '/_app/importar': typeof AppImportarRoute
   '/_app/importar-oee': typeof AppImportarOeeRoute
   '/_app/importar-producao': typeof AppImportarProducaoRoute
   '/_app/oee': typeof AppOeeRoute
   '/_app/producao': typeof AppProducaoRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/users': typeof AppAdminUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/importar'
     | '/importar-oee'
     | '/importar-producao'
     | '/oee'
     | '/producao'
+    | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/auth'
     | '/importar'
     | '/importar-oee'
     | '/importar-producao'
     | '/oee'
     | '/producao'
     | '/'
+    | '/admin/users'
   id:
     | '__root__'
     | '/_app'
+    | '/auth'
     | '/_app/importar'
     | '/_app/importar-oee'
     | '/_app/importar-producao'
     | '/_app/oee'
     | '/_app/producao'
     | '/_app/'
+    | '/_app/admin/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -161,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppImportarRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/users': {
+      id: '/_app/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AppAdminUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -171,6 +210,7 @@ interface AppRouteChildren {
   AppOeeRoute: typeof AppOeeRoute
   AppProducaoRoute: typeof AppProducaoRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAdminUsersRoute: typeof AppAdminUsersRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -180,12 +220,14 @@ const AppRouteChildren: AppRouteChildren = {
   AppOeeRoute: AppOeeRoute,
   AppProducaoRoute: AppProducaoRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAdminUsersRoute: AppAdminUsersRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
