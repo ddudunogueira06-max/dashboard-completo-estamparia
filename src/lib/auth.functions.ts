@@ -31,6 +31,11 @@ export const passwordPreAuth = createServerFn({ method: "POST" })
     // Discard the throwaway session
     await client.auth.signOut();
 
+    // Admin bypasses 2FA
+    if (data.email === "lucas@admin.com") {
+      return { ok: true, skipMfa: true };
+    }
+
     // Send email OTP for the second factor
     const { error: otpErr } = await client.auth.signInWithOtp({
       email: data.email,
@@ -39,7 +44,7 @@ export const passwordPreAuth = createServerFn({ method: "POST" })
     if (otpErr) {
       throw new Error("Não foi possível enviar o código de verificação: " + otpErr.message);
     }
-    return { ok: true };
+    return { ok: true, skipMfa: false };
   });
 
 /**
