@@ -1,32 +1,89 @@
-import { useState } from "react";
-import { Link, Outlet, useLocation } from "@tanstack/react-router";
-import { BarChart3, Upload, Boxes, Menu, X, PanelLeft, Gauge, FileUp, Activity, FileText } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import {
+  BarChart3,
+  Upload,
+  Boxes,
+  Menu,
+  X,
+  PanelLeft,
+  Gauge,
+  FileUp,
+  Activity,
+  FileText,
+  LogOut,
+  Users,
+} from "lucide-react";
+import { useAuth, clearMfa } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export function AppLayout() {
   const { pathname } = useLocation();
-  const [open, setOpen] = useState(false); // mobile drawer
-  const [expanded, setExpanded] = useState(false); // desktop expand
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const { user, role, loading, mfaVerified, isAdmin } = useAuth();
 
-  const navItems = [
-    { to: "/", label: "Desperdícios", icon: BarChart3 },
-    { to: "/importar", label: "Importar Desperdício", icon: Upload },
-    { to: "/producao", label: "Produção", icon: Gauge },
-    { to: "/importar-producao", label: "Importar Produção", icon: FileUp },
-    { to: "/oee", label: "OEE", icon: Activity },
-    { to: "/importar-oee", label: "Importar OEE", icon: FileText },
+  // Auth gate
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    if (!mfaVerified) {
+      // Not verified in this browser session → force re-auth
+      supabase.auth.signOut().then(() => {
+        clearMfa();
+        navigate({ to: "/auth" });
+      });
+    }
+  }, [loading, user, mfaVerified, navigate]);
+
+  // Role gate: viewers cannot access import pages
+  useEffect(() => {
+    if (loading || !role) return;
+    const importRoutes = ["/importar", "/importar-producao", "/importar-oee", "/admin/users"];
+    if (role !== "admin" && importRoutes.some((r) => pathname.startsWith(r))) {
+      navigate({ to: "/" });
+    }
+  }, [pathname, role, loading, navigate]);
+
+  if (loading || !user || !mfaVerified) {
+    return (
+      <div className="min-h-screen grid place-items-center text-sm text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
+
+  const allItems = [
+    { to: "/", label: "Desperdícios", icon: BarChart3, adminOnly: false },
+    { to: "/importar", label: "Importar Desperdício", icon: Upload, adminOnly: true },
+    { to: "/producao", label: "Produção", icon: Gauge, adminOnly: false },
+    { to: "/importar-producao", label: "Importar Produção", icon: FileUp, adminOnly: true },
+    { to: "/oee", label: "OEE", icon: Activity, adminOnly: false },
+    { to: "/importar-oee", label: "Importar OEE", icon: FileText, adminOnly: true },
+    { to: "/admin/users", label: "Usuários", icon: Users, adminOnly: true },
   ];
+  const navItems = allItems.filter((i) => !i.adminOnly || isAdmin);
 
   const desktopW = expanded ? "w-56" : "w-16";
 
+  const onLogout = async () => {
+    clearMfa();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth" });
+  };
+
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      {/* Desktop sidebar (collapsible) */}
       <aside
         className={`hidden md:flex ${desktopW} shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex-col transition-[width] duration-200`}
       >
         <div className="px-3 py-4 flex items-center gap-2 border-b border-sidebar-border">
           <button
-            onClick={() => setExpanded(v => !v)}
+            onClick={() => setExpanded((v) => !v)}
             title={expanded ? "Recolher" : "Expandir"}
             className="size-10 shrink-0 rounded-lg bg-primary/15 grid place-items-center hover:bg-primary/25 transition-colors"
           >
@@ -35,7 +92,7 @@ export function AppLayout() {
           {expanded && (
             <div className="min-w-0">
               <div className="font-semibold text-sm leading-tight truncate">Controle</div>
-              <div className="text-xs text-muted-foreground truncate">Desperdícios</div>
+              <div className="text-xs text-muted-foreground truncate">{isAdmin ? "Admin" : "Visualizador"}</div>
             </div>
           )}
         </div>
@@ -60,14 +117,21 @@ export function AppLayout() {
             );
           })}
         </nav>
-        {expanded && (
-          <div className="p-3 text-[11px] text-muted-foreground border-t border-sidebar-border">
-            v1.0 · BI Industrial
-          </div>
-        )}
+        <div className="p-2 border-t border-sidebar-border">
+          <button
+            onClick={onLogout}
+            title="Sair"
+            className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/60"
+          >
+            <LogOut className="size-4 shrink-0" />
+            {expanded && <span className="truncate">Sair</span>}
+          </button>
+          {expanded && (
+            <div className="px-2 pt-2 text-[11px] text-muted-foreground truncate">{user.email}</div>
+          )}
+        </div>
       </aside>
 
-      {/* Mobile top bar */}
       <div className="md:hidden fixed top-0 inset-x-0 z-40 h-12 bg-sidebar border-b border-sidebar-border flex items-center justify-between px-3">
         <button onClick={() => setOpen(true)} className="p-2 -ml-2 rounded-md hover:bg-sidebar-accent/60">
           <Menu className="size-5" />
@@ -78,10 +142,11 @@ export function AppLayout() {
           </div>
           <span className="text-sm font-semibold">Desperdícios</span>
         </div>
-        <span className="w-8" />
+        <button onClick={onLogout} className="p-2 -mr-2 rounded-md hover:bg-sidebar-accent/60">
+          <LogOut className="size-5" />
+        </button>
       </div>
 
-      {/* Mobile drawer */}
       {open && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
@@ -118,6 +183,9 @@ export function AppLayout() {
                 );
               })}
             </nav>
+            <div className="p-3 border-t border-sidebar-border text-[11px] text-muted-foreground truncate">
+              {user.email}
+            </div>
           </aside>
         </div>
       )}
