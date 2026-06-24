@@ -10,42 +10,8 @@ function publicClient() {
   });
 }
 
-/**
- * Step 1 of 2FA: validate email+password without persisting session,
- * then trigger Supabase email OTP. Frontend then asks user for code
- * and calls supabase.auth.verifyOtp directly.
- */
-export const passwordPreAuth = createServerFn({ method: "POST" })
-  .inputValidator((d) =>
-    z.object({ email: z.string().email().max(255), password: z.string().min(1).max(128) }).parse(d),
-  )
-  .handler(async ({ data }) => {
-    const client = publicClient();
-    const { error } = await client.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
-    if (error) {
-      throw new Error("Email ou senha inválidos");
-    }
-    // Discard the throwaway session
-    await client.auth.signOut();
+// (OTP/2FA flow removed — login uses email+password directly via supabase.auth.signInWithPassword)
 
-    // Admin bypasses 2FA
-    if (data.email === "lucas@admin.com") {
-      return { ok: true, skipMfa: true };
-    }
-
-    // Send email OTP for the second factor
-    const { error: otpErr } = await client.auth.signInWithOtp({
-      email: data.email,
-      options: { shouldCreateUser: false },
-    });
-    if (otpErr) {
-      throw new Error("Não foi possível enviar o código de verificação: " + otpErr.message);
-    }
-    return { ok: true, skipMfa: false };
-  });
 
 /**
  * Seed the initial admin user (lucas@admin.com) using the password stored

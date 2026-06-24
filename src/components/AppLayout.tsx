@@ -14,7 +14,7 @@ import {
   LogOut,
   Users,
 } from "lucide-react";
-import { useAuth, clearMfa } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 export function AppLayout() {
@@ -22,23 +22,15 @@ export function AppLayout() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const { user, role, loading, mfaVerified, isAdmin } = useAuth();
+  const { user, role, loading, isAdmin } = useAuth();
 
   // Auth gate
   useEffect(() => {
     if (loading) return;
     if (!user) {
       navigate({ to: "/auth" });
-      return;
     }
-    if (!mfaVerified) {
-      // Not verified in this browser session → force re-auth
-      supabase.auth.signOut().then(() => {
-        clearMfa();
-        navigate({ to: "/auth" });
-      });
-    }
-  }, [loading, user, mfaVerified, navigate]);
+  }, [loading, user, navigate]);
 
   // Role gate: viewers cannot access import pages
   useEffect(() => {
@@ -49,7 +41,7 @@ export function AppLayout() {
     }
   }, [pathname, role, loading, navigate]);
 
-  if (loading || !user || !mfaVerified) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen grid place-items-center text-sm text-muted-foreground">
         Carregando...
@@ -71,10 +63,10 @@ export function AppLayout() {
   const desktopW = expanded ? "w-56" : "w-16";
 
   const onLogout = async () => {
-    clearMfa();
     await supabase.auth.signOut();
     navigate({ to: "/auth" });
   };
+
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
