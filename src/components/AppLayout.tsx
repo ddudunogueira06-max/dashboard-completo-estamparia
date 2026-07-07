@@ -188,6 +188,7 @@ export function AppLayout() {
       <main className="flex-1 min-w-0 pt-12 md:pt-0">
         <Outlet />
       </main>
+      <Toaster />
     </div>
   );
 }
