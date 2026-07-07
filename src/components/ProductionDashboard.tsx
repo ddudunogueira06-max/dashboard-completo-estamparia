@@ -805,45 +805,81 @@ export function ProductionDashboard() {
 
       {/* Modal — gráfico expandido capacidade x real */}
       <Dialog open={capModalOpen} onOpenChange={setCapModalOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
-            <DialogTitle>FPPs por dia vs Capacidade média</DialogTitle>
+            <DialogTitle>Planejado × Realizado × Média — por dia</DialogTitle>
             <DialogDescription>
-              Capacidade média diária = {fmtNum(perDay.avg, 1)} FPP/dia útil. Linha tracejada = média; barras = realizado.
+              Barra azul = Planejado (col. L, dt fim estamparia). Barra colorida = Realizado (dt prog). Linha tracejada = média realizada = {fmtNum(perDay.avg, 1)} FPP/dia útil. Clique numa barra para ver as FPPs.
             </DialogDescription>
           </DialogHeader>
-          <div className="h-[420px]">
+          <div className="h-[440px]">
             {perDay.series.length === 0 ? (
               <div className="h-full grid place-items-center text-sm text-muted-foreground">Sem dados no período.</div>
             ) : (
               <ResponsiveContainer>
-                <BarChart data={perDay.series} margin={{ left: 8, right: 16, top: 16, bottom: 8 }}>
+                <BarChart data={perDay.series} margin={{ left: 8, right: 16, top: 20, bottom: 8 }} barGap={4} barCategoryGap="20%">
                   <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={11} />
                   <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                    formatter={(v: number) => [`${v} FPPs`, "Realizado"]}
+                    formatter={(v: number, name) => [`${v} FPPs`, name === "planejado" ? "Planejado (col. L)" : name === "count" ? "Realizado" : name]}
                   />
-                  <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={48}>
+                  <Bar dataKey="planejado" radius={[6, 6, 0, 0]} maxBarSize={38} fill="oklch(0.72 0.15 215)"
+                    onClick={(d: { label: string; planejado: number; count: number; fppsPlanejado: string[]; fpps: string[] }) => setDetail({
+                      title: `Dia ${d.label} — FPPs planejadas`,
+                      rows: [
+                        { label: "Planejado (col. L)", value: fmtInt(d.planejado) },
+                        { label: "Realizado (dt prog)", value: fmtInt(d.count) },
+                        { label: "Diferença", value: `${d.count - d.planejado >= 0 ? "+" : ""}${d.count - d.planejado}` },
+                        { label: "Média diária", value: `${fmtNum(perDay.avg, 1)} FPP/dia` },
+                      ],
+                      fppLists: [
+                        { label: "FPPs planejadas", fpps: d.fppsPlanejado },
+                        { label: "FPPs realizadas", fpps: d.fpps },
+                      ],
+                    })}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <LabelList dataKey="planejado" position="top" fill="oklch(0.85 0.05 215)" fontSize={10} fontWeight={600} />
+                  </Bar>
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={38} style={{ cursor: "pointer" }}
+                    onClick={(d: { label: string; planejado: number; count: number; fppsPlanejado: string[]; fpps: string[] }) => setDetail({
+                      title: `Dia ${d.label} — FPPs realizadas`,
+                      rows: [
+                        { label: "Planejado (col. L)", value: fmtInt(d.planejado) },
+                        { label: "Realizado (dt prog)", value: fmtInt(d.count) },
+                        { label: "Diferença", value: `${d.count - d.planejado >= 0 ? "+" : ""}${d.count - d.planejado}` },
+                        { label: "Média diária", value: `${fmtNum(perDay.avg, 1)} FPP/dia` },
+                      ],
+                      fppLists: [
+                        { label: "FPPs realizadas", fpps: d.fpps },
+                        { label: "FPPs planejadas", fpps: d.fppsPlanejado },
+                      ],
+                    })}
+                  >
                     {perDay.series.map((d, i) => (
                       <Cell key={i} fill={d.count >= perDay.avg ? "oklch(0.7 0.16 155)" : "oklch(0.65 0.22 25)"} />
                     ))}
-                    <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={11} fontWeight={600} />
+                    <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={700} />
                   </Bar>
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" label={{ value: `média ${perDay.avg.toFixed(1)}`, fill: "oklch(0.85 0.02 240)", fontSize: 11, position: "right" }} />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-3 mt-2 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2 text-center">
             <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Acima da média</div>
-              <div className="text-lg font-bold text-success">{fmtInt(perDay.series.filter(d => d.count > perDay.avg).length)} dias</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total planejado</div>
+              <div className="text-lg font-bold text-foreground">{fmtInt(perDay.series.reduce((s, d) => s + d.planejado, 0))}</div>
             </div>
             <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Abaixo da média</div>
-              <div className="text-lg font-bold text-destructive">{fmtInt(perDay.series.filter(d => d.count < perDay.avg).length)} dias</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total realizado</div>
+              <div className="text-lg font-bold text-foreground">{fmtInt(perDay.series.reduce((s, d) => s + d.count, 0))}</div>
+            </div>
+            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias c/ déficit</div>
+              <div className="text-lg font-bold text-destructive">{fmtInt(perDay.series.filter(d => d.count < d.planejado).length)}</div>
             </div>
             <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias úteis avaliados</div>
