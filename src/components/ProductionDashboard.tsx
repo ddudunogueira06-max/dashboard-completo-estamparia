@@ -323,10 +323,12 @@ export function ProductionDashboard() {
   const fppPeriod = useMemo(() => new Set(inPeriod.map(r => r.fpp).filter(Boolean)).size, [inPeriod]);
 
   // Média de FPPs concluídas por dia útil (capacidade média/dia) — total e por máquina
+  // Série diária: Planejado (col. L = dt_fim_estamparia) vs Realizado (dt_prog)
   const perDay = useMemo(() => {
-    const byDay = new Map<string, Set<string>>();
+    const byDay = new Map<string, Set<string>>();           // realizado: FPPs por dia (dt_prog)
+    const plannedByDay = new Map<string, Set<string>>();    // planejado: FPPs por dia (dt_fim_estamparia = col L)
     const byMachineDay = new Map<number, Map<string, Set<string>>>();
-    const rgByDay = new Map<string, number>(); // contagem da coluna L (data_rg) por dia
+    const rgByDay = new Map<string, number>();
     inPeriod.forEach(r => {
       const ref = parseLocalDate(r.dt_prog);
       if (ref && isWorkingDay(ref) && r.fpp) {
@@ -341,7 +343,13 @@ export function ProductionDashboard() {
         if (!ms) { ms = new Set(); mm.set(dk, ms); }
         ms.add(r.fpp);
       }
-      // RG count: conta cada registro que possui data_rg, agrupado pelo dia da data_rg
+      const plan = parseLocalDate(r.dt_fim_estamparia);
+      if (plan && isWorkingDay(plan) && r.fpp) {
+        const pk = ymd(plan);
+        let ps = plannedByDay.get(pk);
+        if (!ps) { ps = new Set(); plannedByDay.set(pk, ps); }
+        ps.add(r.fpp);
+      }
       const rg = parseLocalDate(r.data_rg);
       if (rg) {
         const rk = ymd(rg);
@@ -356,16 +364,17 @@ export function ProductionDashboard() {
       mm.forEach(s => { t += s.size; });
       return { machine: m, avg: mm.size > 0 ? t / mm.size : 0, days: mm.size };
     }).sort((a, b) => a.machine - b.machine);
-    // União de chaves: dias com FPPs realizadas OU com RG registrado
-    const allKeys = new Set<string>([...byDay.keys(), ...rgByDay.keys()]);
+    const allKeys = new Set<string>([...byDay.keys(), ...plannedByDay.keys(), ...rgByDay.keys()]);
     const series = Array.from(allKeys)
       .sort((a, b) => a.localeCompare(b))
       .map((dk) => ({
         date: dk,
         label: dk.slice(8) + "/" + dk.slice(5, 7),
         count: byDay.get(dk)?.size ?? 0,
+        planejado: plannedByDay.get(dk)?.size ?? 0,
         rg: rgByDay.get(dk) ?? 0,
         fpps: Array.from(byDay.get(dk) ?? []),
+        fppsPlanejado: Array.from(plannedByDay.get(dk) ?? []),
       }));
     return { avg: days > 0 ? total / days : 0, days, total, perMachine, series };
   }, [inPeriod]);
@@ -525,35 +534,35 @@ export function ProductionDashboard() {
                 Realidade × Capacidade média — semana atual
               </h3>
             </div>
-            <div className="flex items-center gap-3 text-[11px]">
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> FPP ≥ média</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> FPP &lt; média</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> RG (coluna L)</span>
+            <div className="flex items-center gap-3 text-[11px] flex-wrap">
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Planejado (col. L)</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> Realizado ≥ média</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> Realizado &lt; média</span>
               <span className="text-muted-foreground">média = <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)} FPP/dia</span></span>
               <span className="text-primary text-[10px] uppercase tracking-wider">clique p/ ver tudo →</span>
             </div>
           </div>
-          <div className="h-[140px]">
+          <div className="h-[160px]">
             {weekSeries.length === 0 ? (
               <div className="h-full grid place-items-center text-xs text-muted-foreground">Sem registros na semana atual.</div>
             ) : (
               <ResponsiveContainer>
-                <BarChart data={weekSeries} margin={{ left: 4, right: 8, top: 16, bottom: 4 }} barGap={2}>
+                <BarChart data={weekSeries} margin={{ left: 4, right: 8, top: 18, bottom: 4 }} barGap={4} barCategoryGap="18%">
                   <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={10} tickLine={false} axisLine={false} />
                   <YAxis hide allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)", fontSize: 12 }}
-                    formatter={(v: number, name) => [`${v}`, name === "count" ? "FPPs realizadas" : "RGs (col. L)"]}
+                    formatter={(v: number, name) => [`${v}`, name === "planejado" ? "Planejado" : name === "count" ? "Realizado" : name]}
                   />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={28}>
+                  <Bar dataKey="planejado" radius={[4, 4, 0, 0]} maxBarSize={22} fill="oklch(0.72 0.15 215)">
+                    <LabelList dataKey="planejado" position="top" fill="oklch(0.85 0.05 215)" fontSize={10} fontWeight={600} />
+                  </Bar>
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={22}>
                     {weekSeries.map((d, i) => (
                       <Cell key={i} fill={d.count >= perDay.avg ? "oklch(0.7 0.16 155)" : "oklch(0.65 0.22 25)"} />
                     ))}
                     <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={600} />
-                  </Bar>
-                  <Bar dataKey="rg" radius={[4, 4, 0, 0]} maxBarSize={28} fill="oklch(0.72 0.15 215)">
-                    <LabelList dataKey="rg" position="top" fill="oklch(0.85 0.05 215)" fontSize={10} fontWeight={600} />
                   </Bar>
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
                 </BarChart>
@@ -796,45 +805,81 @@ export function ProductionDashboard() {
 
       {/* Modal — gráfico expandido capacidade x real */}
       <Dialog open={capModalOpen} onOpenChange={setCapModalOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
-            <DialogTitle>FPPs por dia vs Capacidade média</DialogTitle>
+            <DialogTitle>Planejado × Realizado × Média — por dia</DialogTitle>
             <DialogDescription>
-              Capacidade média diária = {fmtNum(perDay.avg, 1)} FPP/dia útil. Linha tracejada = média; barras = realizado.
+              Barra azul = Planejado (col. L, dt fim estamparia). Barra colorida = Realizado (dt prog). Linha tracejada = média realizada = {fmtNum(perDay.avg, 1)} FPP/dia útil. Clique numa barra para ver as FPPs.
             </DialogDescription>
           </DialogHeader>
-          <div className="h-[420px]">
+          <div className="h-[440px]">
             {perDay.series.length === 0 ? (
               <div className="h-full grid place-items-center text-sm text-muted-foreground">Sem dados no período.</div>
             ) : (
               <ResponsiveContainer>
-                <BarChart data={perDay.series} margin={{ left: 8, right: 16, top: 16, bottom: 8 }}>
+                <BarChart data={perDay.series} margin={{ left: 8, right: 16, top: 20, bottom: 8 }} barGap={4} barCategoryGap="20%">
                   <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={11} />
                   <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                    formatter={(v: number) => [`${v} FPPs`, "Realizado"]}
+                    formatter={(v: number, name) => [`${v} FPPs`, name === "planejado" ? "Planejado (col. L)" : name === "count" ? "Realizado" : name]}
                   />
-                  <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={48}>
+                  <Bar dataKey="planejado" radius={[6, 6, 0, 0]} maxBarSize={38} fill="oklch(0.72 0.15 215)"
+                    onClick={(d: { label: string; planejado: number; count: number; fppsPlanejado: string[]; fpps: string[] }) => setDetail({
+                      title: `Dia ${d.label} — FPPs planejadas`,
+                      rows: [
+                        { label: "Planejado (col. L)", value: fmtInt(d.planejado) },
+                        { label: "Realizado (dt prog)", value: fmtInt(d.count) },
+                        { label: "Diferença", value: `${d.count - d.planejado >= 0 ? "+" : ""}${d.count - d.planejado}` },
+                        { label: "Média diária", value: `${fmtNum(perDay.avg, 1)} FPP/dia` },
+                      ],
+                      fppLists: [
+                        { label: "FPPs planejadas", fpps: d.fppsPlanejado },
+                        { label: "FPPs realizadas", fpps: d.fpps },
+                      ],
+                    })}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <LabelList dataKey="planejado" position="top" fill="oklch(0.85 0.05 215)" fontSize={10} fontWeight={600} />
+                  </Bar>
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={38} style={{ cursor: "pointer" }}
+                    onClick={(d: { label: string; planejado: number; count: number; fppsPlanejado: string[]; fpps: string[] }) => setDetail({
+                      title: `Dia ${d.label} — FPPs realizadas`,
+                      rows: [
+                        { label: "Planejado (col. L)", value: fmtInt(d.planejado) },
+                        { label: "Realizado (dt prog)", value: fmtInt(d.count) },
+                        { label: "Diferença", value: `${d.count - d.planejado >= 0 ? "+" : ""}${d.count - d.planejado}` },
+                        { label: "Média diária", value: `${fmtNum(perDay.avg, 1)} FPP/dia` },
+                      ],
+                      fppLists: [
+                        { label: "FPPs realizadas", fpps: d.fpps },
+                        { label: "FPPs planejadas", fpps: d.fppsPlanejado },
+                      ],
+                    })}
+                  >
                     {perDay.series.map((d, i) => (
                       <Cell key={i} fill={d.count >= perDay.avg ? "oklch(0.7 0.16 155)" : "oklch(0.65 0.22 25)"} />
                     ))}
-                    <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={11} fontWeight={600} />
+                    <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={700} />
                   </Bar>
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" label={{ value: `média ${perDay.avg.toFixed(1)}`, fill: "oklch(0.85 0.02 240)", fontSize: 11, position: "right" }} />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-3 mt-2 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2 text-center">
             <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Acima da média</div>
-              <div className="text-lg font-bold text-success">{fmtInt(perDay.series.filter(d => d.count > perDay.avg).length)} dias</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total planejado</div>
+              <div className="text-lg font-bold text-foreground">{fmtInt(perDay.series.reduce((s, d) => s + d.planejado, 0))}</div>
             </div>
             <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Abaixo da média</div>
-              <div className="text-lg font-bold text-destructive">{fmtInt(perDay.series.filter(d => d.count < perDay.avg).length)} dias</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total realizado</div>
+              <div className="text-lg font-bold text-foreground">{fmtInt(perDay.series.reduce((s, d) => s + d.count, 0))}</div>
+            </div>
+            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias c/ déficit</div>
+              <div className="text-lg font-bold text-destructive">{fmtInt(perDay.series.filter(d => d.count < d.planejado).length)}</div>
             </div>
             <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias úteis avaliados</div>

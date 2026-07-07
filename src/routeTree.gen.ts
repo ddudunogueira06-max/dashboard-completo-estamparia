@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppProdutosRouteImport } from './routes/_app.produtos'
 import { Route as AppProducaoRouteImport } from './routes/_app.producao'
 import { Route as AppOeeRouteImport } from './routes/_app.oee'
 import { Route as AppImportarProducaoRouteImport } from './routes/_app.importar-producao'
@@ -31,6 +32,11 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProdutosRoute = AppProdutosRouteImport.update({
+  id: '/produtos',
+  path: '/produtos',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProducaoRoute = AppProducaoRouteImport.update({
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/importar-producao': typeof AppImportarProducaoRoute
   '/oee': typeof AppOeeRoute
   '/producao': typeof AppProducaoRoute
+  '/produtos': typeof AppProdutosRoute
   '/admin/users': typeof AppAdminUsersRoute
 }
 export interface FileRoutesByTo {
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/importar-producao': typeof AppImportarProducaoRoute
   '/oee': typeof AppOeeRoute
   '/producao': typeof AppProducaoRoute
+  '/produtos': typeof AppProdutosRoute
   '/': typeof AppIndexRoute
   '/admin/users': typeof AppAdminUsersRoute
 }
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/_app/importar-producao': typeof AppImportarProducaoRoute
   '/_app/oee': typeof AppOeeRoute
   '/_app/producao': typeof AppProducaoRoute
+  '/_app/produtos': typeof AppProdutosRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
 }
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/importar-producao'
     | '/oee'
     | '/producao'
+    | '/produtos'
     | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
     | '/importar-producao'
     | '/oee'
     | '/producao'
+    | '/produtos'
     | '/'
     | '/admin/users'
   id:
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '/_app/importar-producao'
     | '/_app/oee'
     | '/_app/producao'
+    | '/_app/produtos'
     | '/_app/'
     | '/_app/admin/users'
   fileRoutesById: FileRoutesById
@@ -156,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/produtos': {
+      id: '/_app/produtos'
+      path: '/produtos'
+      fullPath: '/produtos'
+      preLoaderRoute: typeof AppProdutosRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/producao': {
@@ -209,6 +228,7 @@ interface AppRouteChildren {
   AppImportarProducaoRoute: typeof AppImportarProducaoRoute
   AppOeeRoute: typeof AppOeeRoute
   AppProducaoRoute: typeof AppProducaoRoute
+  AppProdutosRoute: typeof AppProdutosRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
 }
@@ -219,6 +239,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppImportarProducaoRoute: AppImportarProducaoRoute,
   AppOeeRoute: AppOeeRoute,
   AppProducaoRoute: AppProducaoRoute,
+  AppProdutosRoute: AppProdutosRoute,
   AppIndexRoute: AppIndexRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
 }

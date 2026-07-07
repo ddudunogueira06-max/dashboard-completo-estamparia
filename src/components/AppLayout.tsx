@@ -13,9 +13,11 @@ import {
   FileText,
   LogOut,
   Users,
+  Package,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { Toaster } from "@/components/ui/sonner";
 
 export function AppLayout() {
   const { pathname } = useLocation();
@@ -53,6 +55,7 @@ export function AppLayout() {
     { to: "/", label: "Desperdícios", icon: BarChart3, adminOnly: false },
     { to: "/importar", label: "Importar Desperdício", icon: Upload, adminOnly: true },
     { to: "/producao", label: "Produção", icon: Gauge, adminOnly: false },
+    { to: "/produtos", label: "Produtos", icon: Package, adminOnly: false },
     { to: "/importar-producao", label: "Importar Produção", icon: FileUp, adminOnly: true },
     { to: "/oee", label: "OEE", icon: Activity, adminOnly: false },
     { to: "/importar-oee", label: "Importar OEE", icon: FileText, adminOnly: true },
@@ -185,6 +188,7 @@ export function AppLayout() {
       <main className="flex-1 min-w-0 pt-12 md:pt-0">
         <Outlet />
       </main>
+      <Toaster />
     </div>
   );
 }
