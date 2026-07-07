@@ -54,6 +54,7 @@ export function AppLayout() {
     { to: "/", label: "Desperdícios", icon: BarChart3, adminOnly: false },
     { to: "/importar", label: "Importar Desperdício", icon: Upload, adminOnly: true },
     { to: "/producao", label: "Produção", icon: Gauge, adminOnly: false },
+    { to: "/produtos", label: "Produtos", icon: Package, adminOnly: false },
     { to: "/importar-producao", label: "Importar Produção", icon: FileUp, adminOnly: true },
     { to: "/oee", label: "OEE", icon: Activity, adminOnly: false },
     { to: "/importar-oee", label: "Importar OEE", icon: FileText, adminOnly: true },
