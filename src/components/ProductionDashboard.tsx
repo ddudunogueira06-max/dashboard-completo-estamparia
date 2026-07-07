@@ -323,10 +323,12 @@ export function ProductionDashboard() {
   const fppPeriod = useMemo(() => new Set(inPeriod.map(r => r.fpp).filter(Boolean)).size, [inPeriod]);
 
   // Média de FPPs concluídas por dia útil (capacidade média/dia) — total e por máquina
+  // Série diária: Planejado (col. L = dt_fim_estamparia) vs Realizado (dt_prog)
   const perDay = useMemo(() => {
-    const byDay = new Map<string, Set<string>>();
+    const byDay = new Map<string, Set<string>>();           // realizado: FPPs por dia (dt_prog)
+    const plannedByDay = new Map<string, Set<string>>();    // planejado: FPPs por dia (dt_fim_estamparia = col L)
     const byMachineDay = new Map<number, Map<string, Set<string>>>();
-    const rgByDay = new Map<string, number>(); // contagem da coluna L (data_rg) por dia
+    const rgByDay = new Map<string, number>();
     inPeriod.forEach(r => {
       const ref = parseLocalDate(r.dt_prog);
       if (ref && isWorkingDay(ref) && r.fpp) {
@@ -341,7 +343,13 @@ export function ProductionDashboard() {
         if (!ms) { ms = new Set(); mm.set(dk, ms); }
         ms.add(r.fpp);
       }
-      // RG count: conta cada registro que possui data_rg, agrupado pelo dia da data_rg
+      const plan = parseLocalDate(r.dt_fim_estamparia);
+      if (plan && isWorkingDay(plan) && r.fpp) {
+        const pk = ymd(plan);
+        let ps = plannedByDay.get(pk);
+        if (!ps) { ps = new Set(); plannedByDay.set(pk, ps); }
+        ps.add(r.fpp);
+      }
       const rg = parseLocalDate(r.data_rg);
       if (rg) {
         const rk = ymd(rg);
@@ -356,16 +364,17 @@ export function ProductionDashboard() {
       mm.forEach(s => { t += s.size; });
       return { machine: m, avg: mm.size > 0 ? t / mm.size : 0, days: mm.size };
     }).sort((a, b) => a.machine - b.machine);
-    // União de chaves: dias com FPPs realizadas OU com RG registrado
-    const allKeys = new Set<string>([...byDay.keys(), ...rgByDay.keys()]);
+    const allKeys = new Set<string>([...byDay.keys(), ...plannedByDay.keys(), ...rgByDay.keys()]);
     const series = Array.from(allKeys)
       .sort((a, b) => a.localeCompare(b))
       .map((dk) => ({
         date: dk,
         label: dk.slice(8) + "/" + dk.slice(5, 7),
         count: byDay.get(dk)?.size ?? 0,
+        planejado: plannedByDay.get(dk)?.size ?? 0,
         rg: rgByDay.get(dk) ?? 0,
         fpps: Array.from(byDay.get(dk) ?? []),
+        fppsPlanejado: Array.from(plannedByDay.get(dk) ?? []),
       }));
     return { avg: days > 0 ? total / days : 0, days, total, perMachine, series };
   }, [inPeriod]);
