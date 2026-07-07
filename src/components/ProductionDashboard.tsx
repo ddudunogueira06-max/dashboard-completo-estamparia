@@ -534,35 +534,35 @@ export function ProductionDashboard() {
                 Realidade × Capacidade média — semana atual
               </h3>
             </div>
-            <div className="flex items-center gap-3 text-[11px]">
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> FPP ≥ média</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> FPP &lt; média</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> RG (coluna L)</span>
+            <div className="flex items-center gap-3 text-[11px] flex-wrap">
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Planejado (col. L)</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> Realizado ≥ média</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> Realizado &lt; média</span>
               <span className="text-muted-foreground">média = <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)} FPP/dia</span></span>
               <span className="text-primary text-[10px] uppercase tracking-wider">clique p/ ver tudo →</span>
             </div>
           </div>
-          <div className="h-[140px]">
+          <div className="h-[160px]">
             {weekSeries.length === 0 ? (
               <div className="h-full grid place-items-center text-xs text-muted-foreground">Sem registros na semana atual.</div>
             ) : (
               <ResponsiveContainer>
-                <BarChart data={weekSeries} margin={{ left: 4, right: 8, top: 16, bottom: 4 }} barGap={2}>
+                <BarChart data={weekSeries} margin={{ left: 4, right: 8, top: 18, bottom: 4 }} barGap={4} barCategoryGap="18%">
                   <CartesianGrid stroke="oklch(0.3 0.03 250)" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" stroke="oklch(0.72 0.03 240)" fontSize={10} tickLine={false} axisLine={false} />
                   <YAxis hide allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)", fontSize: 12 }}
-                    formatter={(v: number, name) => [`${v}`, name === "count" ? "FPPs realizadas" : "RGs (col. L)"]}
+                    formatter={(v: number, name) => [`${v}`, name === "planejado" ? "Planejado" : name === "count" ? "Realizado" : name]}
                   />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={28}>
+                  <Bar dataKey="planejado" radius={[4, 4, 0, 0]} maxBarSize={22} fill="oklch(0.72 0.15 215)">
+                    <LabelList dataKey="planejado" position="top" fill="oklch(0.85 0.05 215)" fontSize={10} fontWeight={600} />
+                  </Bar>
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={22}>
                     {weekSeries.map((d, i) => (
                       <Cell key={i} fill={d.count >= perDay.avg ? "oklch(0.7 0.16 155)" : "oklch(0.65 0.22 25)"} />
                     ))}
                     <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={600} />
-                  </Bar>
-                  <Bar dataKey="rg" radius={[4, 4, 0, 0]} maxBarSize={28} fill="oklch(0.72 0.15 215)">
-                    <LabelList dataKey="rg" position="top" fill="oklch(0.85 0.05 215)" fontSize={10} fontWeight={600} />
                   </Bar>
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
                 </BarChart>
