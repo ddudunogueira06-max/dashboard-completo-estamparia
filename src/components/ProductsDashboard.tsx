@@ -74,7 +74,7 @@ export function ProductsDashboard() {
   const { data: aliases = [] } = useQuery<Alias[]>({
     queryKey: ["product_aliases"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("product_aliases" as never).select("*");
+      const { data, error } = await (supabase as any).from("product_aliases").select("*");
       if (error) throw error;
       return (data ?? []) as Alias[];
     },
@@ -82,7 +82,7 @@ export function ProductsDashboard() {
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["product_categories"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("product_categories" as never).select("*");
+      const { data, error } = await (supabase as any).from("product_categories").select("*");
       if (error) throw error;
       return (data ?? []) as Category[];
     },
@@ -164,16 +164,16 @@ export function ProductsDashboard() {
           { raw_name: input.canonical, canonical_name: targetCanonical },
           ...rawsForOld.map(r => ({ raw_name: r, canonical_name: targetCanonical })),
         ];
-        const { error: e1 } = await supabase.from("product_aliases" as never).upsert(upserts, { onConflict: "raw_name" });
+        const { error: e1 } = await (supabase as any).from("product_aliases").upsert(upserts, { onConflict: "raw_name" });
         if (e1) throw e1;
         // Migrate category row if exists
-        const { data: existing } = await supabase.from("product_categories" as never).select("*").eq("canonical_name", input.canonical).maybeSingle();
+        const { data: existing } = await (supabase as any).from("product_categories").select("*").eq("canonical_name", input.canonical).maybeSingle();
         if (existing) {
-          await supabase.from("product_categories" as never).delete().eq("canonical_name", input.canonical);
+          await (supabase as any).from("product_categories").delete().eq("canonical_name", input.canonical);
         }
       }
       const canonicalForCat = targetCanonical;
-      const { error: e2 } = await supabase.from("product_categories" as never).upsert({
+      const { error: e2 } = await (supabase as any).from("product_categories").upsert({
         canonical_name: canonicalForCat,
         difficulty: input.difficulty,
         notes: input.notes || null,
@@ -199,17 +199,17 @@ export function ProductsDashboard() {
         { raw_name: input.source, canonical_name: target },
         ...rawsForSource.map(r => ({ raw_name: r, canonical_name: target })),
       ];
-      const { error } = await supabase.from("product_aliases" as never).upsert(upserts, { onConflict: "raw_name" });
+      const { error } = await (supabase as any).from("product_aliases").upsert(upserts, { onConflict: "raw_name" });
       if (error) throw error;
       // Se a origem tinha categoria e o destino não, migra
       const src = catMap.get(input.source);
       const dst = catMap.get(target);
       if (src && !dst) {
-        await supabase.from("product_categories" as never).upsert({
+        await (supabase as any).from("product_categories").upsert({
           canonical_name: target, difficulty: src.difficulty, notes: src.notes,
         }, { onConflict: "canonical_name" });
       }
-      if (src) await supabase.from("product_categories" as never).delete().eq("canonical_name", input.source);
+      if (src) await (supabase as any).from("product_categories").delete().eq("canonical_name", input.source);
     },
     onSuccess: () => {
       toast.success("Produtos mesclados");
