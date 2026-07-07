@@ -165,6 +165,51 @@ export type Database = {
           },
         ]
       }
+      product_aliases: {
+        Row: {
+          canonical_name: string
+          created_at: string
+          raw_name: string
+          updated_at: string
+        }
+        Insert: {
+          canonical_name: string
+          created_at?: string
+          raw_name: string
+          updated_at?: string
+        }
+        Update: {
+          canonical_name?: string
+          created_at?: string
+          raw_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      product_categories: {
+        Row: {
+          canonical_name: string
+          created_at: string
+          difficulty: number
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          canonical_name: string
+          created_at?: string
+          difficulty?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          canonical_name?: string
+          created_at?: string
+          difficulty?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       production_imports: {
         Row: {
           created_at: string
