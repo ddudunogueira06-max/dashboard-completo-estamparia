@@ -385,7 +385,7 @@ export function ProductionDashboard() {
         fppsPlanejado: Array.from(plannedByDay.get(dk) ?? []),
       }));
     return { avg: days > 0 ? total / days : 0, days, total, perMachine, series };
-  }, [inPeriod]);
+  }, [inPeriod, filtered, fromDate, toDate]);
 
   // Série da semana atual (ou últimos 7 dias úteis registrados se semana atual sem dados)
   const weekSeries = useMemo(() => {
