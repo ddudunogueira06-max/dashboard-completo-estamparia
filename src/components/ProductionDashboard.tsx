@@ -326,7 +326,7 @@ export function ProductionDashboard() {
   // Série diária: Planejado (col. L = dt_fim_estamparia) vs Realizado (dt_prog)
   const perDay = useMemo(() => {
     const byDay = new Map<string, Set<string>>();           // realizado: FPPs por dia (dt_prog)
-    const plannedByDay = new Map<string, Set<string>>();    // planejado: FPPs por dia (dt_fim_prog = col K)
+    const plannedByDay = new Map<string, Set<string>>();    // planejado: FPPs por dia (dt_fim_estamparia = col L)
     const byMachineDay = new Map<number, Map<string, Set<string>>>();
     const rgByDay = new Map<string, number>();
     inPeriod.forEach(r => {
@@ -343,19 +343,27 @@ export function ProductionDashboard() {
         if (!ms) { ms = new Set(); mm.set(dk, ms); }
         ms.add(r.fpp);
       }
-      const plan = parseLocalDate(r.dt_fim_estamparia);
-      if (plan && isWorkingDay(plan) && r.fpp) {
-        const pk = ymd(plan);
-        let ps = plannedByDay.get(pk);
-        if (!ps) { ps = new Set(); plannedByDay.set(pk, ps); }
-        ps.add(r.fpp);
-      }
       const rg = parseLocalDate(r.data_rg);
       if (rg) {
         const rk = ymd(rg);
         rgByDay.set(rk, (rgByDay.get(rk) ?? 0) + 1);
       }
     });
+    // Planejado: usa TODAS as linhas filtradas por máquina/urgência, restringindo apenas
+    // pela data de fim da estamparia (col. L) dentro do período. Isso evita perder linhas
+    // cuja dt_prog esteja fora do intervalo (ou nula) mas que foram planejadas para o dia.
+    filtered.forEach(r => {
+      const plan = parseLocalDate(r.dt_fim_estamparia);
+      if (!plan || !r.fpp) return;
+      if (fromDate && plan < fromDate) return;
+      if (toDate && plan > toDate) return;
+      if (!isWorkingDay(plan)) return;
+      const pk = ymd(plan);
+      let ps = plannedByDay.get(pk);
+      if (!ps) { ps = new Set(); plannedByDay.set(pk, ps); }
+      ps.add(r.fpp);
+    });
+
     const days = byDay.size;
     let total = 0;
     byDay.forEach(s => { total += s.size; });
