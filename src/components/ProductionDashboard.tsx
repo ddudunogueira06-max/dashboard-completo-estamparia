@@ -323,7 +323,7 @@ export function ProductionDashboard() {
   const fppPeriod = useMemo(() => new Set(inPeriod.map(r => r.fpp).filter(Boolean)).size, [inPeriod]);
 
   // Média de FPPs concluídas por dia útil (capacidade média/dia) — total e por máquina
-  // Série diária: Planejado (col. K = dt_fim_prog) vs Realizado (dt_prog)
+  // Série diária: Planejado (col. L = dt_fim_estamparia) vs Realizado (dt_prog)
   const perDay = useMemo(() => {
     const byDay = new Map<string, Set<string>>();           // realizado: FPPs por dia (dt_prog)
     const plannedByDay = new Map<string, Set<string>>();    // planejado: FPPs por dia (dt_fim_prog = col K)
@@ -343,7 +343,7 @@ export function ProductionDashboard() {
         if (!ms) { ms = new Set(); mm.set(dk, ms); }
         ms.add(r.fpp);
       }
-      const plan = parseLocalDate(r.dt_fim_prog);
+      const plan = parseLocalDate(r.dt_fim_estamparia);
       if (plan && isWorkingDay(plan) && r.fpp) {
         const pk = ymd(plan);
         let ps = plannedByDay.get(pk);
@@ -535,7 +535,7 @@ export function ProductionDashboard() {
               </h3>
             </div>
             <div className="flex items-center gap-3 text-[11px] flex-wrap">
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Planejado (col. K)</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Planejado (col. L)</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> Realizado ≥ média</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> Realizado &lt; média</span>
               <span className="text-muted-foreground">média = <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)} FPP/dia</span></span>
@@ -809,7 +809,7 @@ export function ProductionDashboard() {
           <DialogHeader>
             <DialogTitle>Planejado × Realizado × Média — por dia</DialogTitle>
             <DialogDescription>
-              Barra azul = Planejado (col. K, dt fim programação). Barra colorida = Realizado (dt prog). Linha tracejada = média realizada = {fmtNum(perDay.avg, 1)} FPP/dia útil. Clique numa barra para ver as FPPs.
+              Barra azul = Planejado (col. L, dt fim estamparia). Barra colorida = Realizado (dt prog). Linha tracejada = média realizada = {fmtNum(perDay.avg, 1)} FPP/dia útil. Clique numa barra para ver as FPPs.
             </DialogDescription>
           </DialogHeader>
           <div className="h-[440px]">
@@ -823,13 +823,13 @@ export function ProductionDashboard() {
                   <YAxis stroke="oklch(0.72 0.03 240)" fontSize={11} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                    formatter={(v: number, name) => [`${v} FPPs`, name === "planejado" ? "Planejado (col. K)" : name === "count" ? "Realizado" : name]}
+                    formatter={(v: number, name) => [`${v} FPPs`, name === "planejado" ? "Planejado (col. L)" : name === "count" ? "Realizado" : name]}
                   />
                   <Bar dataKey="planejado" radius={[6, 6, 0, 0]} maxBarSize={38} fill="oklch(0.72 0.15 215)"
                     onClick={(d: { label: string; planejado: number; count: number; fppsPlanejado: string[]; fpps: string[] }) => setDetail({
                       title: `Dia ${d.label} — FPPs planejadas`,
                       rows: [
-                        { label: "Planejado (col. K)", value: fmtInt(d.planejado) },
+                        { label: "Planejado (col. L)", value: fmtInt(d.planejado) },
                         { label: "Realizado (dt prog)", value: fmtInt(d.count) },
                         { label: "Diferença", value: `${d.count - d.planejado >= 0 ? "+" : ""}${d.count - d.planejado}` },
                         { label: "Média diária", value: `${fmtNum(perDay.avg, 1)} FPP/dia` },
@@ -847,7 +847,7 @@ export function ProductionDashboard() {
                     onClick={(d: { label: string; planejado: number; count: number; fppsPlanejado: string[]; fpps: string[] }) => setDetail({
                       title: `Dia ${d.label} — FPPs realizadas`,
                       rows: [
-                        { label: "Planejado (col. K)", value: fmtInt(d.planejado) },
+                        { label: "Planejado (col. L)", value: fmtInt(d.planejado) },
                         { label: "Realizado (dt prog)", value: fmtInt(d.count) },
                         { label: "Diferença", value: `${d.count - d.planejado >= 0 ? "+" : ""}${d.count - d.planejado}` },
                         { label: "Média diária", value: `${fmtNum(perDay.avg, 1)} FPP/dia` },
