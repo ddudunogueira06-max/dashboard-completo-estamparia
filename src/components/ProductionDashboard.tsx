@@ -343,7 +343,7 @@ export function ProductionDashboard() {
         if (!ms) { ms = new Set(); mm.set(dk, ms); }
         ms.add(r.fpp);
       }
-      const plan = parseLocalDate(r.dt_fim_estamparia);
+      const plan = parseLocalDate(r.dt_fim_prog);
       if (plan && isWorkingDay(plan) && r.fpp) {
         const pk = ymd(plan);
         let ps = plannedByDay.get(pk);
