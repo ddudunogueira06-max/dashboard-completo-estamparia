@@ -322,16 +322,26 @@ export function ProductionDashboard() {
   // Distintas no intervalo selecionado (para as pílulas)
   const fppPeriod = useMemo(() => new Set(inPeriod.map(r => r.fpp).filter(Boolean)).size, [inPeriod]);
 
-  // Média de FPPs concluídas por dia útil (capacidade média/dia) — total e por máquina
-  // Série diária: Planejado (col. L = dt_fim_estamparia) vs Realizado (dt_prog)
+  // Série diária: Planejado (col. L = dt_fim_estamparia) vs Realizado (dt_prog).
+  // IMPORTANTE: os dois usam `filtered` (base já filtrada por máquina/urgência) e
+  // são restringidos APENAS pela sua própria data dentro de [fromDate, toDate].
+  // Assim o valor de um dia X é sempre o mesmo, independente da largura do intervalo:
+  // Realizado(X)  = FPPs distintas com dt_prog = X (e X é dia útil)
+  // Planejado(X) = FPPs distintas com dt_fim_estamparia = X (e X é dia útil)
   const perDay = useMemo(() => {
-    const byDay = new Map<string, Set<string>>();           // realizado: FPPs por dia (dt_prog)
-    const plannedByDay = new Map<string, Set<string>>();    // planejado: FPPs por dia (dt_fim_estamparia = col L)
+    const inRange = (d: Date) => {
+      if (fromDate && d < fromDate) return false;
+      if (toDate && d > toDate) return false;
+      return true;
+    };
+    const byDay = new Map<string, Set<string>>();          // realizado
+    const plannedByDay = new Map<string, Set<string>>();   // planejado
     const byMachineDay = new Map<number, Map<string, Set<string>>>();
-    const rgByDay = new Map<string, number>();
-    inPeriod.forEach(r => {
+
+    filtered.forEach(r => {
+      if (!r.fpp) return;
       const ref = parseLocalDate(r.dt_prog);
-      if (ref && isWorkingDay(ref) && r.fpp) {
+      if (ref && isWorkingDay(ref) && inRange(ref)) {
         const dk = ymd(ref);
         let s = byDay.get(dk);
         if (!s) { s = new Set(); byDay.set(dk, s); }
@@ -343,25 +353,13 @@ export function ProductionDashboard() {
         if (!ms) { ms = new Set(); mm.set(dk, ms); }
         ms.add(r.fpp);
       }
-      const rg = parseLocalDate(r.data_rg);
-      if (rg) {
-        const rk = ymd(rg);
-        rgByDay.set(rk, (rgByDay.get(rk) ?? 0) + 1);
-      }
-    });
-    // Planejado: usa TODAS as linhas filtradas por máquina/urgência, restringindo apenas
-    // pela data de fim da estamparia (col. L) dentro do período. Isso evita perder linhas
-    // cuja dt_prog esteja fora do intervalo (ou nula) mas que foram planejadas para o dia.
-    filtered.forEach(r => {
       const plan = parseLocalDate(r.dt_fim_estamparia);
-      if (!plan || !r.fpp) return;
-      if (fromDate && plan < fromDate) return;
-      if (toDate && plan > toDate) return;
-      if (!isWorkingDay(plan)) return;
-      const pk = ymd(plan);
-      let ps = plannedByDay.get(pk);
-      if (!ps) { ps = new Set(); plannedByDay.set(pk, ps); }
-      ps.add(r.fpp);
+      if (plan && isWorkingDay(plan) && inRange(plan)) {
+        const pk = ymd(plan);
+        let ps = plannedByDay.get(pk);
+        if (!ps) { ps = new Set(); plannedByDay.set(pk, ps); }
+        ps.add(r.fpp);
+      }
     });
 
     const days = byDay.size;
@@ -372,7 +370,8 @@ export function ProductionDashboard() {
       mm.forEach(s => { t += s.size; });
       return { machine: m, avg: mm.size > 0 ? t / mm.size : 0, days: mm.size };
     }).sort((a, b) => a.machine - b.machine);
-    const allKeys = new Set<string>([...byDay.keys(), ...plannedByDay.keys(), ...rgByDay.keys()]);
+    const avg = days > 0 ? total / days : 0;
+    const allKeys = new Set<string>([...byDay.keys(), ...plannedByDay.keys()]);
     const series = Array.from(allKeys)
       .sort((a, b) => a.localeCompare(b))
       .map((dk) => ({
@@ -380,12 +379,14 @@ export function ProductionDashboard() {
         label: dk.slice(8) + "/" + dk.slice(5, 7),
         count: byDay.get(dk)?.size ?? 0,
         planejado: plannedByDay.get(dk)?.size ?? 0,
-        rg: rgByDay.get(dk) ?? 0,
+        media: +avg.toFixed(2),
+        rg: 0,
         fpps: Array.from(byDay.get(dk) ?? []),
         fppsPlanejado: Array.from(plannedByDay.get(dk) ?? []),
       }));
-    return { avg: days > 0 ? total / days : 0, days, total, perMachine, series };
-  }, [inPeriod, filtered, fromDate, toDate]);
+    return { avg, days, total, perMachine, series };
+  }, [filtered, fromDate, toDate]);
+
 
   // Série da semana atual (ou últimos 7 dias úteis registrados se semana atual sem dados)
   const weekSeries = useMemo(() => {
