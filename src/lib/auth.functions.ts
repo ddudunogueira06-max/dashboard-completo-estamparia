@@ -128,3 +128,48 @@ export const deleteAppUser = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const updateAppUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        email: z.string().email().max(255).optional(),
+        password: z.string().min(8).max(128).optional(),
+        full_name: z.string().trim().max(100).optional(),
+        role: z.enum(["admin", "viewer"]).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const attrs: { email?: string; password?: string; user_metadata?: Record<string, unknown>; email_confirm?: boolean } = {};
+    if (data.email) { attrs.email = data.email; attrs.email_confirm = true; }
+    if (data.password) attrs.password = data.password;
+    if (data.full_name !== undefined) attrs.user_metadata = { full_name: data.full_name };
+    if (Object.keys(attrs).length > 0) {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(data.id, attrs);
+      if (error) throw new Error(error.message);
+    }
+    if (data.email || data.full_name !== undefined) {
+      await supabaseAdmin
+        .from("profiles")
+        .update({
+          ...(data.email ? { email: data.email } : {}),
+          ...(data.full_name !== undefined ? { full_name: data.full_name } : {}),
+        })
+        .eq("id", data.id);
+    }
+    if (data.role) {
+      // Prevent an admin from removing their own admin role (locks themselves out)
+      if (data.id === context.userId && data.role !== "admin") {
+        throw new Error("Você não pode remover seu próprio papel de admin");
+      }
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", data.id);
+      await supabaseAdmin.from("user_roles").insert({ user_id: data.id, role: data.role });
+    }
+    return { ok: true };
+  });
+
