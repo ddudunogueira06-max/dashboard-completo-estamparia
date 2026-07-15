@@ -562,8 +562,15 @@ export function ProductionDashboard() {
                   <YAxis hide allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)", fontSize: 12 }}
-                    formatter={(v: number, name) => [`${v}`, name === "planejado" ? "Planejado" : name === "count" ? "Realizado" : name]}
+                    labelFormatter={(l) => `Dia ${l}`}
+                    formatter={(v: number, name) => {
+                      if (name === "planejado") return [`${v} FPPs`, "Para o dia (planejado)"];
+                      if (name === "count") return [`${v} FPPs`, "Feito no dia"];
+                      if (name === "media") return [`${fmtNum(v, 1)} FPPs`, "Média do período"];
+                      return [`${v}`, name];
+                    }}
                   />
+
                   <Bar dataKey="planejado" radius={[4, 4, 0, 0]} maxBarSize={22} fill="oklch(0.72 0.15 215)">
                     <LabelList dataKey="planejado" position="top" fill="oklch(0.85 0.05 215)" fontSize={10} fontWeight={600} />
                   </Bar>
