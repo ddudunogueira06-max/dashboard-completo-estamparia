@@ -886,8 +886,15 @@ export function ProductionDashboard() {
                   <Tooltip
                     cursor={{ fill: "oklch(0.3 0.03 250 / 0.25)" }}
                     contentStyle={{ background: "oklch(0.22 0.04 250)", border: "1px solid oklch(0.3 0.03 250)", borderRadius: 8, color: "oklch(0.97 0.01 240)" }}
-                    formatter={(v: number, name) => [`${v} FPPs`, name === "planejado" ? "Planejado (DT Planejamento)" : name === "count" ? "Realizado" : name]}
+                    labelFormatter={(l) => `Dia ${l}`}
+                    formatter={(v: number, name) => {
+                      if (name === "planejado") return [`${v} FPPs`, "Para o dia (planejado · col. L)"];
+                      if (name === "count") return [`${v} FPPs`, "Feito no dia"];
+                      if (name === "media") return [`${fmtNum(v, 1)} FPPs`, "Média do período"];
+                      return [`${v}`, name];
+                    }}
                   />
+
                   <Bar dataKey="planejado" radius={[8, 8, 0, 0]} maxBarSize={56} fill="url(#gradPlanejado)"
                     onClick={(d: { label: string; planejado: number; count: number; fppsPlanejado: string[]; fpps: string[] }) => setDetail({
                       title: `Dia ${d.label} — FPPs planejadas`,
