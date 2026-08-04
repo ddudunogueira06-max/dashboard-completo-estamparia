@@ -16,6 +16,7 @@ import { Route as AppPuncionadeiraRouteImport } from './routes/_app.puncionadeir
 import { Route as AppProgramacaoRouteImport } from './routes/_app.programacao'
 import { Route as AppProdutosRouteImport } from './routes/_app.produtos'
 import { Route as AppProducaoRouteImport } from './routes/_app.producao'
+import { Route as AppPainelTvRouteImport } from './routes/_app.painel-tv'
 import { Route as AppOeeRouteImport } from './routes/_app.oee'
 import { Route as AppImportarProducaoRouteImport } from './routes/_app.importar-producao'
 import { Route as AppImportarOeeRouteImport } from './routes/_app.importar-oee'
@@ -57,6 +58,11 @@ const AppProducaoRoute = AppProducaoRouteImport.update({
   path: '/producao',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPainelTvRoute = AppPainelTvRouteImport.update({
+  id: '/painel-tv',
+  path: '/painel-tv',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppOeeRoute = AppOeeRouteImport.update({
   id: '/oee',
   path: '/oee',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/importar-oee': typeof AppImportarOeeRoute
   '/importar-producao': typeof AppImportarProducaoRoute
   '/oee': typeof AppOeeRoute
+  '/painel-tv': typeof AppPainelTvRoute
   '/producao': typeof AppProducaoRoute
   '/produtos': typeof AppProdutosRoute
   '/programacao': typeof AppProgramacaoRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/importar-oee': typeof AppImportarOeeRoute
   '/importar-producao': typeof AppImportarProducaoRoute
   '/oee': typeof AppOeeRoute
+  '/painel-tv': typeof AppPainelTvRoute
   '/producao': typeof AppProducaoRoute
   '/produtos': typeof AppProdutosRoute
   '/programacao': typeof AppProgramacaoRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/_app/importar-oee': typeof AppImportarOeeRoute
   '/_app/importar-producao': typeof AppImportarProducaoRoute
   '/_app/oee': typeof AppOeeRoute
+  '/_app/painel-tv': typeof AppPainelTvRoute
   '/_app/producao': typeof AppProducaoRoute
   '/_app/produtos': typeof AppProdutosRoute
   '/_app/programacao': typeof AppProgramacaoRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/importar-oee'
     | '/importar-producao'
     | '/oee'
+    | '/painel-tv'
     | '/producao'
     | '/produtos'
     | '/programacao'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/importar-oee'
     | '/importar-producao'
     | '/oee'
+    | '/painel-tv'
     | '/producao'
     | '/produtos'
     | '/programacao'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/_app/importar-oee'
     | '/_app/importar-producao'
     | '/_app/oee'
+    | '/_app/painel-tv'
     | '/_app/producao'
     | '/_app/produtos'
     | '/_app/programacao'
@@ -234,6 +246,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProducaoRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/painel-tv': {
+      id: '/_app/painel-tv'
+      path: '/painel-tv'
+      fullPath: '/painel-tv'
+      preLoaderRoute: typeof AppPainelTvRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/oee': {
       id: '/_app/oee'
       path: '/oee'
@@ -285,6 +304,7 @@ interface AppRouteChildren {
   AppImportarOeeRoute: typeof AppImportarOeeRoute
   AppImportarProducaoRoute: typeof AppImportarProducaoRoute
   AppOeeRoute: typeof AppOeeRoute
+  AppPainelTvRoute: typeof AppPainelTvRoute
   AppProducaoRoute: typeof AppProducaoRoute
   AppProdutosRoute: typeof AppProdutosRoute
   AppProgramacaoRoute: typeof AppProgramacaoRoute
@@ -299,6 +319,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppImportarOeeRoute: AppImportarOeeRoute,
   AppImportarProducaoRoute: AppImportarProducaoRoute,
   AppOeeRoute: AppOeeRoute,
+  AppPainelTvRoute: AppPainelTvRoute,
   AppProducaoRoute: AppProducaoRoute,
   AppProdutosRoute: AppProdutosRoute,
   AppProgramacaoRoute: AppProgramacaoRoute,
