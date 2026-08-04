@@ -20,6 +20,7 @@ import { Route as AppOeeRouteImport } from './routes/_app.oee'
 import { Route as AppImportarProducaoRouteImport } from './routes/_app.importar-producao'
 import { Route as AppImportarOeeRouteImport } from './routes/_app.importar-oee'
 import { Route as AppImportarRouteImport } from './routes/_app.importar'
+import { Route as AppDobraRouteImport } from './routes/_app.dobra'
 import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 
 const AuthRoute = AuthRouteImport.update({
@@ -76,6 +77,11 @@ const AppImportarRoute = AppImportarRouteImport.update({
   path: '/importar',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDobraRoute = AppDobraRouteImport.update({
+  id: '/dobra',
+  path: '/dobra',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -85,6 +91,7 @@ const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
+  '/dobra': typeof AppDobraRoute
   '/importar': typeof AppImportarRoute
   '/importar-oee': typeof AppImportarOeeRoute
   '/importar-producao': typeof AppImportarProducaoRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/dobra': typeof AppDobraRoute
   '/importar': typeof AppImportarRoute
   '/importar-oee': typeof AppImportarOeeRoute
   '/importar-producao': typeof AppImportarProducaoRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_app/dobra': typeof AppDobraRoute
   '/_app/importar': typeof AppImportarRoute
   '/_app/importar-oee': typeof AppImportarOeeRoute
   '/_app/importar-producao': typeof AppImportarProducaoRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/dobra'
     | '/importar'
     | '/importar-oee'
     | '/importar-producao'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/dobra'
     | '/importar'
     | '/importar-oee'
     | '/importar-producao'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/auth'
+    | '/_app/dobra'
     | '/_app/importar'
     | '/_app/importar-oee'
     | '/_app/importar-producao'
@@ -250,6 +262,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppImportarRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/dobra': {
+      id: '/_app/dobra'
+      path: '/dobra'
+      fullPath: '/dobra'
+      preLoaderRoute: typeof AppDobraRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/users': {
       id: '/_app/admin/users'
       path: '/admin/users'
@@ -261,6 +280,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppDobraRoute: typeof AppDobraRoute
   AppImportarRoute: typeof AppImportarRoute
   AppImportarOeeRoute: typeof AppImportarOeeRoute
   AppImportarProducaoRoute: typeof AppImportarProducaoRoute
@@ -274,6 +294,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppDobraRoute: AppDobraRoute,
   AppImportarRoute: AppImportarRoute,
   AppImportarOeeRoute: AppImportarOeeRoute,
   AppImportarProducaoRoute: AppImportarProducaoRoute,
