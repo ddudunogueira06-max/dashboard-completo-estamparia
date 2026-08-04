@@ -130,7 +130,7 @@ export function AppLayout() {
           <div className="size-7 rounded-md bg-primary/15 grid place-items-center">
             <Boxes className="size-4 text-primary" />
           </div>
-          <span className="text-sm font-semibold">Desperdícios</span>
+          <span className="text-sm font-semibold">Controle</span>
         </div>
         <button onClick={onLogout} className="p-2 -mr-2 rounded-md hover:bg-sidebar-accent/60">
           <LogOut className="size-5" />
