@@ -34,11 +34,10 @@ export function AppLayout() {
     }
   }, [loading, user, navigate]);
 
-  // Role gate: viewers cannot access import pages
+  // Role gate: viewers cannot access admin pages
   useEffect(() => {
     if (loading || !role) return;
-    const importRoutes = ["/importar", "/importar-producao", "/importar-oee", "/admin/users"];
-    if (role !== "admin" && importRoutes.some((r) => pathname.startsWith(r))) {
+    if (role !== "admin" && pathname.startsWith("/admin")) {
       navigate({ to: "/" });
     }
   }, [pathname, role, loading, navigate]);
@@ -52,13 +51,11 @@ export function AppLayout() {
   }
 
   const allItems = [
-    { to: "/", label: "Desperdícios", icon: BarChart3, adminOnly: false },
-    { to: "/importar", label: "Importar Desperdício", icon: Upload, adminOnly: true },
-    { to: "/producao", label: "Produção", icon: Gauge, adminOnly: false },
-    { to: "/produtos", label: "Produtos", icon: Package, adminOnly: false },
-    { to: "/importar-producao", label: "Importar Produção", icon: FileUp, adminOnly: true },
-    { to: "/oee", label: "OEE", icon: Activity, adminOnly: false },
-    { to: "/importar-oee", label: "Importar OEE", icon: FileText, adminOnly: true },
+    { to: "/", label: "Painel", icon: BarChart3, adminOnly: false },
+    { to: "/programacao", label: "Programação", icon: Package, adminOnly: false },
+    { to: "/puncionadeira", label: "Puncionadeira", icon: Activity, adminOnly: false },
+    { to: "/dobra", label: "Dobra", icon: Gauge, adminOnly: false },
+    { to: "/painel-tv", label: "Modo TV", icon: Tv, adminOnly: false },
     { to: "/admin/users", label: "Usuários", icon: Users, adminOnly: true },
   ];
   const navItems = allItems.filter((i) => !i.adminOnly || isAdmin);
