@@ -2,18 +2,16 @@ import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   BarChart3,
-  Upload,
   Boxes,
   Menu,
   X,
   PanelLeft,
   Gauge,
-  FileUp,
   Activity,
-  FileText,
   LogOut,
   Users,
   Package,
+  Tv,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
