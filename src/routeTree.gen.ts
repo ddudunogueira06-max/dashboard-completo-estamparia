@@ -12,12 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
-import { Route as AppProdutosRouteImport } from './routes/_app.produtos'
-import { Route as AppProducaoRouteImport } from './routes/_app.producao'
-import { Route as AppOeeRouteImport } from './routes/_app.oee'
-import { Route as AppImportarProducaoRouteImport } from './routes/_app.importar-producao'
-import { Route as AppImportarOeeRouteImport } from './routes/_app.importar-oee'
-import { Route as AppImportarRouteImport } from './routes/_app.importar'
+import { Route as AppPuncionadeiraRouteImport } from './routes/_app.puncionadeira'
+import { Route as AppProgramacaoRouteImport } from './routes/_app.programacao'
+import { Route as AppPainelTvRouteImport } from './routes/_app.painel-tv'
+import { Route as AppDobraRouteImport } from './routes/_app.dobra'
 import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 
 const AuthRoute = AuthRouteImport.update({
@@ -34,34 +32,24 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProdutosRoute = AppProdutosRouteImport.update({
-  id: '/produtos',
-  path: '/produtos',
+const AppPuncionadeiraRoute = AppPuncionadeiraRouteImport.update({
+  id: '/puncionadeira',
+  path: '/puncionadeira',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProducaoRoute = AppProducaoRouteImport.update({
-  id: '/producao',
-  path: '/producao',
+const AppProgramacaoRoute = AppProgramacaoRouteImport.update({
+  id: '/programacao',
+  path: '/programacao',
   getParentRoute: () => AppRoute,
 } as any)
-const AppOeeRoute = AppOeeRouteImport.update({
-  id: '/oee',
-  path: '/oee',
+const AppPainelTvRoute = AppPainelTvRouteImport.update({
+  id: '/painel-tv',
+  path: '/painel-tv',
   getParentRoute: () => AppRoute,
 } as any)
-const AppImportarProducaoRoute = AppImportarProducaoRouteImport.update({
-  id: '/importar-producao',
-  path: '/importar-producao',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppImportarOeeRoute = AppImportarOeeRouteImport.update({
-  id: '/importar-oee',
-  path: '/importar-oee',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppImportarRoute = AppImportarRouteImport.update({
-  id: '/importar',
-  path: '/importar',
+const AppDobraRoute = AppDobraRouteImport.update({
+  id: '/dobra',
+  path: '/dobra',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
@@ -73,22 +61,18 @@ const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
-  '/importar': typeof AppImportarRoute
-  '/importar-oee': typeof AppImportarOeeRoute
-  '/importar-producao': typeof AppImportarProducaoRoute
-  '/oee': typeof AppOeeRoute
-  '/producao': typeof AppProducaoRoute
-  '/produtos': typeof AppProdutosRoute
+  '/dobra': typeof AppDobraRoute
+  '/painel-tv': typeof AppPainelTvRoute
+  '/programacao': typeof AppProgramacaoRoute
+  '/puncionadeira': typeof AppPuncionadeiraRoute
   '/admin/users': typeof AppAdminUsersRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
-  '/importar': typeof AppImportarRoute
-  '/importar-oee': typeof AppImportarOeeRoute
-  '/importar-producao': typeof AppImportarProducaoRoute
-  '/oee': typeof AppOeeRoute
-  '/producao': typeof AppProducaoRoute
-  '/produtos': typeof AppProdutosRoute
+  '/dobra': typeof AppDobraRoute
+  '/painel-tv': typeof AppPainelTvRoute
+  '/programacao': typeof AppProgramacaoRoute
+  '/puncionadeira': typeof AppPuncionadeiraRoute
   '/': typeof AppIndexRoute
   '/admin/users': typeof AppAdminUsersRoute
 }
@@ -96,12 +80,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
-  '/_app/importar': typeof AppImportarRoute
-  '/_app/importar-oee': typeof AppImportarOeeRoute
-  '/_app/importar-producao': typeof AppImportarProducaoRoute
-  '/_app/oee': typeof AppOeeRoute
-  '/_app/producao': typeof AppProducaoRoute
-  '/_app/produtos': typeof AppProdutosRoute
+  '/_app/dobra': typeof AppDobraRoute
+  '/_app/painel-tv': typeof AppPainelTvRoute
+  '/_app/programacao': typeof AppProgramacaoRoute
+  '/_app/puncionadeira': typeof AppPuncionadeiraRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
 }
@@ -110,34 +92,28 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/importar'
-    | '/importar-oee'
-    | '/importar-producao'
-    | '/oee'
-    | '/producao'
-    | '/produtos'
+    | '/dobra'
+    | '/painel-tv'
+    | '/programacao'
+    | '/puncionadeira'
     | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
-    | '/importar'
-    | '/importar-oee'
-    | '/importar-producao'
-    | '/oee'
-    | '/producao'
-    | '/produtos'
+    | '/dobra'
+    | '/painel-tv'
+    | '/programacao'
+    | '/puncionadeira'
     | '/'
     | '/admin/users'
   id:
     | '__root__'
     | '/_app'
     | '/auth'
-    | '/_app/importar'
-    | '/_app/importar-oee'
-    | '/_app/importar-producao'
-    | '/_app/oee'
-    | '/_app/producao'
-    | '/_app/produtos'
+    | '/_app/dobra'
+    | '/_app/painel-tv'
+    | '/_app/programacao'
+    | '/_app/puncionadeira'
     | '/_app/'
     | '/_app/admin/users'
   fileRoutesById: FileRoutesById
@@ -170,46 +146,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/produtos': {
-      id: '/_app/produtos'
-      path: '/produtos'
-      fullPath: '/produtos'
-      preLoaderRoute: typeof AppProdutosRouteImport
+    '/_app/puncionadeira': {
+      id: '/_app/puncionadeira'
+      path: '/puncionadeira'
+      fullPath: '/puncionadeira'
+      preLoaderRoute: typeof AppPuncionadeiraRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/producao': {
-      id: '/_app/producao'
-      path: '/producao'
-      fullPath: '/producao'
-      preLoaderRoute: typeof AppProducaoRouteImport
+    '/_app/programacao': {
+      id: '/_app/programacao'
+      path: '/programacao'
+      fullPath: '/programacao'
+      preLoaderRoute: typeof AppProgramacaoRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/oee': {
-      id: '/_app/oee'
-      path: '/oee'
-      fullPath: '/oee'
-      preLoaderRoute: typeof AppOeeRouteImport
+    '/_app/painel-tv': {
+      id: '/_app/painel-tv'
+      path: '/painel-tv'
+      fullPath: '/painel-tv'
+      preLoaderRoute: typeof AppPainelTvRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/importar-producao': {
-      id: '/_app/importar-producao'
-      path: '/importar-producao'
-      fullPath: '/importar-producao'
-      preLoaderRoute: typeof AppImportarProducaoRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/importar-oee': {
-      id: '/_app/importar-oee'
-      path: '/importar-oee'
-      fullPath: '/importar-oee'
-      preLoaderRoute: typeof AppImportarOeeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/importar': {
-      id: '/_app/importar'
-      path: '/importar'
-      fullPath: '/importar'
-      preLoaderRoute: typeof AppImportarRouteImport
+    '/_app/dobra': {
+      id: '/_app/dobra'
+      path: '/dobra'
+      fullPath: '/dobra'
+      preLoaderRoute: typeof AppDobraRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/users': {
@@ -223,23 +185,19 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
-  AppImportarRoute: typeof AppImportarRoute
-  AppImportarOeeRoute: typeof AppImportarOeeRoute
-  AppImportarProducaoRoute: typeof AppImportarProducaoRoute
-  AppOeeRoute: typeof AppOeeRoute
-  AppProducaoRoute: typeof AppProducaoRoute
-  AppProdutosRoute: typeof AppProdutosRoute
+  AppDobraRoute: typeof AppDobraRoute
+  AppPainelTvRoute: typeof AppPainelTvRoute
+  AppProgramacaoRoute: typeof AppProgramacaoRoute
+  AppPuncionadeiraRoute: typeof AppPuncionadeiraRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppImportarRoute: AppImportarRoute,
-  AppImportarOeeRoute: AppImportarOeeRoute,
-  AppImportarProducaoRoute: AppImportarProducaoRoute,
-  AppOeeRoute: AppOeeRoute,
-  AppProducaoRoute: AppProducaoRoute,
-  AppProdutosRoute: AppProdutosRoute,
+  AppDobraRoute: AppDobraRoute,
+  AppPainelTvRoute: AppPainelTvRoute,
+  AppProgramacaoRoute: AppProgramacaoRoute,
+  AppPuncionadeiraRoute: AppPuncionadeiraRoute,
   AppIndexRoute: AppIndexRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
 }
@@ -253,13 +211,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

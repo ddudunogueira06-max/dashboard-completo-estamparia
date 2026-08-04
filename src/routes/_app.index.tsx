@@ -1,12 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Dashboard } from "@/components/Dashboard";
+import { ModularDashboard } from "@/components/ModularDashboard";
 
 export const Route = createFileRoute("/_app/")({
+  ssr: false,
   head: () => ({
     meta: [
-      { title: "Dashboard de Desperdícios" },
-      { name: "description", content: "BI industrial para análise de desperdício de materiais." },
+      { title: "Painel Modular — Controle Industrial" },
+      { name: "description", content: "Dashboard modular com widgets de Programação, Puncionadeira e Dobra." },
+      { property: "og:title", content: "Painel Modular — Controle Industrial" },
+      { property: "og:description", content: "Widgets arrastáveis e redimensionáveis para acompanhar a produção." },
     ],
   }),
-  component: Dashboard,
+  component: ModularDashboard,
 });

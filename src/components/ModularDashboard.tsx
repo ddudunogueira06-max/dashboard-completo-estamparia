@@ -1,0 +1,233 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { GridBoard, type GridItem } from "@/components/dashboard/GridBoard";
+import { WIDGETS, WIDGET_MAP, type WidgetModule } from "@/components/widgets/registry";
+import { useTickerMetrics } from "@/components/widgets/metrics";
+import { LayoutGrid, Plus, Save, RotateCcw, Tv, Settings2, X } from "lucide-react";
+
+const STORAGE_KEY = "dashboard.layout.v1";
+const TICKER_KEY = "dashboard.ticker.v1";
+
+interface Placed extends GridItem {
+  widgetId: string;
+}
+
+const DEFAULT_LAYOUT: Placed[] = [
+  { i: "w1", widgetId: "waste.kpi.perda", x: 0, y: 0, w: 3, h: 2 },
+  { i: "w2", widgetId: "prod.kpi.pecas", x: 3, y: 0, w: 3, h: 2 },
+  { i: "w3", widgetId: "oee.kpi.medio", x: 6, y: 0, w: 3, h: 2 },
+  { i: "w4", widgetId: "geral.ticker", x: 9, y: 0, w: 3, h: 4 },
+  { i: "w5", widgetId: "waste.chart.mensal", x: 0, y: 2, w: 5, h: 4 },
+  { i: "w6", widgetId: "oee.chart.diario", x: 5, y: 2, w: 4, h: 4 },
+  { i: "w7", widgetId: "prod.chart.maquina", x: 0, y: 6, w: 6, h: 4 },
+  { i: "w8", widgetId: "oee.chart.paradas", x: 6, y: 6, w: 6, h: 4 },
+];
+
+const MODULE_COLOR: Record<WidgetModule, string> = {
+  "Programação": "bg-primary/15 text-primary",
+  Puncionadeira: "bg-accent/15 text-accent",
+  Dobra: "bg-muted text-muted-foreground",
+  Geral: "bg-secondary text-foreground",
+};
+
+export function ModularDashboard() {
+  const [items, setItems] = useState<Placed[]>(DEFAULT_LAYOUT);
+  const [editing, setEditing] = useState(false);
+  const [palette, setPalette] = useState(false);
+  const [tickerCfg, setTickerCfg] = useState(false);
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
+  const { metrics } = useTickerMetrics();
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setItems(JSON.parse(raw) as Placed[]);
+      const t = localStorage.getItem(TICKER_KEY);
+      if (t) setSelectedMetrics(JSON.parse(t) as string[]);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const persist = useCallback((next: Placed[]) => {
+    setItems(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleMetric = (id: string) => {
+    const next = selectedMetrics.includes(id)
+      ? selectedMetrics.filter((m) => m !== id)
+      : [...selectedMetrics, id];
+    setSelectedMetrics(next);
+    try {
+      localStorage.setItem(TICKER_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const addWidget = (widgetId: string) => {
+    const def = WIDGET_MAP.get(widgetId);
+    if (!def) return;
+    const maxY = items.reduce((m, it) => Math.max(m, it.y + it.h), 0);
+    persist([
+      ...items,
+      { i: `w${Date.now()}`, widgetId, x: 0, y: maxY, w: def.defaultW, h: def.defaultH },
+    ]);
+    setEditing(true);
+    setPalette(false);
+  };
+
+  const grouped = useMemo(() => {
+    const g = new Map<WidgetModule, typeof WIDGETS>();
+    for (const w of WIDGETS) g.set(w.module, [...(g.get(w.module) ?? []), w]);
+    return Array.from(g.entries());
+  }, []);
+
+  return (
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <LayoutGrid className="size-6 text-primary" /> Painel
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Widgets de Programação, Puncionadeira e Dobra — arraste, redimensione e organize.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/painel-tv"
+            className="inline-flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent"
+          >
+            <Tv className="size-4" /> Modo TV
+          </Link>
+          <button
+            onClick={() => setTickerCfg(true)}
+            className="inline-flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent"
+          >
+            <Settings2 className="size-4" /> Painel rotativo
+          </button>
+          <button
+            onClick={() => setPalette(true)}
+            className="inline-flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent"
+          >
+            <Plus className="size-4" /> Adicionar widget
+          </button>
+          <button
+            onClick={() => persist(DEFAULT_LAYOUT)}
+            className="inline-flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent"
+            title="Restaurar layout padrão"
+          >
+            <RotateCcw className="size-4" />
+          </button>
+          <button
+            onClick={() => setEditing((v) => !v)}
+            className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${
+              editing ? "bg-primary text-primary-foreground" : "border border-input hover:bg-accent"
+            }`}
+          >
+            {editing ? <Save className="size-4" /> : <LayoutGrid className="size-4" />}
+            {editing ? "Concluir edição" : "Editar layout"}
+          </button>
+        </div>
+      </div>
+
+      <GridBoard
+        items={items}
+        editing={editing}
+        onChange={(next) =>
+          persist(
+            next.map((n) => ({ ...n, widgetId: items.find((it) => it.i === n.i)?.widgetId ?? "" })),
+          )
+        }
+        onRemove={(id) => persist(items.filter((it) => it.i !== id))}
+        titleFor={(it) => WIDGET_MAP.get((it as Placed).widgetId)?.title ?? "Widget"}
+        renderItem={(it) => {
+          const def = WIDGET_MAP.get((it as Placed).widgetId);
+          if (!def) return <div className="p-3 text-xs text-muted-foreground">Widget indisponível</div>;
+          const C = def.Component;
+          return <C config={{ metrics: selectedMetrics }} />;
+        }}
+      />
+
+      {palette && (
+        <div className="fixed inset-0 z-50 flex" onClick={() => setPalette(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="relative ml-auto h-full w-full max-w-md bg-card border-l border-border p-5 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">Biblioteca de widgets</h2>
+              <button onClick={() => setPalette(false)} className="p-1.5 rounded hover:bg-muted">
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="space-y-5">
+              {grouped.map(([mod, list]) => (
+                <div key={mod}>
+                  <div className={`inline-block text-[11px] px-2 py-0.5 rounded mb-2 ${MODULE_COLOR[mod]}`}>{mod}</div>
+                  <div className="space-y-2">
+                    {list.map((w) => (
+                      <button
+                        key={w.id}
+                        onClick={() => addWidget(w.id)}
+                        className="w-full text-left rounded-lg border border-border px-3 py-2.5 text-sm hover:border-primary hover:bg-secondary/40"
+                      >
+                        {w.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tickerCfg && (
+        <div className="fixed inset-0 z-50 flex" onClick={() => setTickerCfg(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="relative ml-auto h-full w-full max-w-md bg-card border-l border-border p-5 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-semibold">Painel rotativo</h2>
+              <button onClick={() => setTickerCfg(false)} className="p-1.5 rounded hover:bg-muted">
+                <X className="size-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Selecione as informações que devem passar lentamente no widget e no Modo TV.
+            </p>
+            <div className="space-y-2">
+              {metrics.map((m) => (
+                <label
+                  key={m.id}
+                  className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm cursor-pointer hover:bg-secondary/40"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedMetrics.includes(m.id)}
+                    onChange={() => toggleMetric(m.id)}
+                    className="size-4"
+                  />
+                  <span className="flex-1 min-w-0">
+                    <span className="block truncate">{m.label}</span>
+                    <span className="block text-xs text-muted-foreground">{m.module} · {m.value}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
