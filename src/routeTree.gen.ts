@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppPuncionadeiraRouteImport } from './routes/_app.puncionadeira'
 import { Route as AppProgramacaoRouteImport } from './routes/_app.programacao'
 import { Route as AppProdutosRouteImport } from './routes/_app.produtos'
 import { Route as AppProducaoRouteImport } from './routes/_app.producao'
@@ -33,6 +34,11 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPuncionadeiraRoute = AppPuncionadeiraRouteImport.update({
+  id: '/puncionadeira',
+  path: '/puncionadeira',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProgramacaoRoute = AppProgramacaoRouteImport.update({
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/producao': typeof AppProducaoRoute
   '/produtos': typeof AppProdutosRoute
   '/programacao': typeof AppProgramacaoRoute
+  '/puncionadeira': typeof AppPuncionadeiraRoute
   '/admin/users': typeof AppAdminUsersRoute
 }
 export interface FileRoutesByTo {
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/producao': typeof AppProducaoRoute
   '/produtos': typeof AppProdutosRoute
   '/programacao': typeof AppProgramacaoRoute
+  '/puncionadeira': typeof AppPuncionadeiraRoute
   '/': typeof AppIndexRoute
   '/admin/users': typeof AppAdminUsersRoute
 }
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/_app/producao': typeof AppProducaoRoute
   '/_app/produtos': typeof AppProdutosRoute
   '/_app/programacao': typeof AppProgramacaoRoute
+  '/_app/puncionadeira': typeof AppPuncionadeiraRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
 }
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/producao'
     | '/produtos'
     | '/programacao'
+    | '/puncionadeira'
     | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/producao'
     | '/produtos'
     | '/programacao'
+    | '/puncionadeira'
     | '/'
     | '/admin/users'
   id:
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/_app/producao'
     | '/_app/produtos'
     | '/_app/programacao'
+    | '/_app/puncionadeira'
     | '/_app/'
     | '/_app/admin/users'
   fileRoutesById: FileRoutesById
@@ -180,6 +192,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/puncionadeira': {
+      id: '/_app/puncionadeira'
+      path: '/puncionadeira'
+      fullPath: '/puncionadeira'
+      preLoaderRoute: typeof AppPuncionadeiraRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/programacao': {
@@ -249,6 +268,7 @@ interface AppRouteChildren {
   AppProducaoRoute: typeof AppProducaoRoute
   AppProdutosRoute: typeof AppProdutosRoute
   AppProgramacaoRoute: typeof AppProgramacaoRoute
+  AppPuncionadeiraRoute: typeof AppPuncionadeiraRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
 }
@@ -261,6 +281,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppProducaoRoute: AppProducaoRoute,
   AppProdutosRoute: AppProdutosRoute,
   AppProgramacaoRoute: AppProgramacaoRoute,
+  AppPuncionadeiraRoute: AppPuncionadeiraRoute,
   AppIndexRoute: AppIndexRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
 }
