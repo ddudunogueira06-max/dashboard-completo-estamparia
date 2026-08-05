@@ -14,6 +14,211 @@ export type Database = {
   }
   public: {
     Tables: {
+      dobra_fpps: {
+        Row: {
+          cliente: string | null
+          created_at: string
+          data_rg: string | null
+          dt_fim_prog: string | null
+          dt_pacote: string | null
+          dt_planejamento: string | null
+          dt_programada: string | null
+          fpp: string
+          fpp_key: string
+          id: string
+          import_id: string | null
+          item: string | null
+          linha: string | null
+          maquina: number | null
+          produto: string | null
+          seq: number | null
+          tempo_fpp_seg: number | null
+          updated_at: string
+        }
+        Insert: {
+          cliente?: string | null
+          created_at?: string
+          data_rg?: string | null
+          dt_fim_prog?: string | null
+          dt_pacote?: string | null
+          dt_planejamento?: string | null
+          dt_programada?: string | null
+          fpp: string
+          fpp_key: string
+          id?: string
+          import_id?: string | null
+          item?: string | null
+          linha?: string | null
+          maquina?: number | null
+          produto?: string | null
+          seq?: number | null
+          tempo_fpp_seg?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cliente?: string | null
+          created_at?: string
+          data_rg?: string | null
+          dt_fim_prog?: string | null
+          dt_pacote?: string | null
+          dt_planejamento?: string | null
+          dt_programada?: string | null
+          fpp?: string
+          fpp_key?: string
+          id?: string
+          import_id?: string | null
+          item?: string | null
+          linha?: string | null
+          maquina?: number | null
+          produto?: string | null
+          seq?: number | null
+          tempo_fpp_seg?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dobra_fpps_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "dobra_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dobra_imports: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          filename: string
+          id: string
+          inserted_rows: number
+          status: string
+          tipo: string
+          total_rows: number
+          updated_rows: number
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          filename: string
+          id?: string
+          inserted_rows?: number
+          status?: string
+          tipo: string
+          total_rows?: number
+          updated_rows?: number
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          filename?: string
+          id?: string
+          inserted_rows?: number
+          status?: string
+          tipo?: string
+          total_rows?: number
+          updated_rows?: number
+        }
+        Relationships: []
+      }
+      dobra_rgs: {
+        Row: {
+          cliente: string | null
+          created_at: string
+          data_conclusao: string | null
+          data_planejamento: string | null
+          data_rg: string | null
+          fpp: string | null
+          fpp_key: string | null
+          id: string
+          import_id: string | null
+          item_ov: string | null
+          maquina_ativa: string | null
+          nr_ov: string | null
+          operador: string | null
+          produto: string | null
+          rg: string
+          rg_key: string
+          status: string | null
+          tarefa_desc: string | null
+          tempo_seg: number | null
+          updated_at: string
+        }
+        Insert: {
+          cliente?: string | null
+          created_at?: string
+          data_conclusao?: string | null
+          data_planejamento?: string | null
+          data_rg?: string | null
+          fpp?: string | null
+          fpp_key?: string | null
+          id?: string
+          import_id?: string | null
+          item_ov?: string | null
+          maquina_ativa?: string | null
+          nr_ov?: string | null
+          operador?: string | null
+          produto?: string | null
+          rg: string
+          rg_key: string
+          status?: string | null
+          tarefa_desc?: string | null
+          tempo_seg?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cliente?: string | null
+          created_at?: string
+          data_conclusao?: string | null
+          data_planejamento?: string | null
+          data_rg?: string | null
+          fpp?: string | null
+          fpp_key?: string | null
+          id?: string
+          import_id?: string | null
+          item_ov?: string | null
+          maquina_ativa?: string | null
+          nr_ov?: string | null
+          operador?: string | null
+          produto?: string | null
+          rg?: string
+          rg_key?: string
+          status?: string | null
+          tarefa_desc?: string | null
+          tempo_seg?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dobra_rgs_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "dobra_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dobra_settings: {
+        Row: {
+          created_at: string
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          created_at?: string
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       mfa_sessions: {
         Row: {
           created_at: string
