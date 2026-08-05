@@ -10,7 +10,7 @@ import { FppsPage } from "@/components/dobra/FppsPage";
 import { CapacidadePage } from "@/components/dobra/CapacidadePage";
 import { DobraImportPage } from "@/components/dobra/DobraImportPage";
 import { Card } from "@/components/dobra/ui";
-import { FiltersBar, applyFilters, defaultFilters, type DobraFilters } from "@/components/dobra/filters";
+import { FiltersBar, applyFilters, EMPTY_FILTERS, type DobraFilters } from "@/components/dobra/filters";
 import { buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
 
 export const Route = createFileRoute("/_app/dobra")({
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_app/dobra")({
 function DobraModule() {
   const { isAdmin } = useAuth();
   const [tab, setTab] = useState("dashboard");
-  const [filters, setFilters] = useState<DobraFilters>(defaultFilters());
+  const [filters, setFilters] = useState<DobraFilters>(EMPTY_FILTERS);
 
   const { data: rgs } = useDobraRgs();
   const { data: fpps } = useDobraFpps();
