@@ -122,10 +122,39 @@
   --sidebar-border: oklch(0.28 0.03 250);
   --sidebar-ring: oklch(0.72 0.15 215);
 }
+/* Cores de identificação por módulo (usadas em bordas/etiquetas de widgets) */
+:root {
+  --mod-programacao: var(--chart-1);
+  --mod-puncionadeira: var(--chart-2);
+  --mod-dobra: var(--chart-3);
+  --mod-geral: var(--muted-foreground);
+}
 
+@theme inline {
+  --color-mod-programacao: var(--mod-programacao);
+  --color-mod-puncionadeira: var(--mod-puncionadeira);
+  --color-mod-dobra: var(--mod-dobra);
+  --color-mod-geral: var(--mod-geral);
+}
+
+@keyframes marquee-x {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@utility marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform;
+  animation: marquee-x linear infinite;
+}
 
 @layer base {
   * { border-color: var(--color-border); }
   html, body { background-color: var(--color-background); color: var(--color-foreground); }
   body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  /* Contraste: elementos nativos herdam as cores do tema */
+  select, input, textarea { color: var(--color-foreground); background-color: var(--color-input); }
+  option { color: var(--color-popover-foreground); background-color: var(--color-popover); }
 }
+

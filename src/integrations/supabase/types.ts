@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      dobra_controle_rg: {
+        Row: {
+          cliente: string | null
+          created_at: string
+          data_conclusao: string | null
+          data_pacote: string | null
+          data_planejamento: string | null
+          data_rg: string | null
+          eficiencia: number | null
+          fpp: string | null
+          fpp_key: string | null
+          id: string
+          import_id: string | null
+          produto: string | null
+          quantidade: number | null
+          rg: string
+          rg_key: string
+          sla: string | null
+          ta_rg: number | null
+          tempo_execucao_dias: number | null
+          ultima_seq: number | null
+          updated_at: string
+        }
+        Insert: {
+          cliente?: string | null
+          created_at?: string
+          data_conclusao?: string | null
+          data_pacote?: string | null
+          data_planejamento?: string | null
+          data_rg?: string | null
+          eficiencia?: number | null
+          fpp?: string | null
+          fpp_key?: string | null
+          id?: string
+          import_id?: string | null
+          produto?: string | null
+          quantidade?: number | null
+          rg: string
+          rg_key: string
+          sla?: string | null
+          ta_rg?: number | null
+          tempo_execucao_dias?: number | null
+          ultima_seq?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cliente?: string | null
+          created_at?: string
+          data_conclusao?: string | null
+          data_pacote?: string | null
+          data_planejamento?: string | null
+          data_rg?: string | null
+          eficiencia?: number | null
+          fpp?: string | null
+          fpp_key?: string | null
+          id?: string
+          import_id?: string | null
+          produto?: string | null
+          quantidade?: number | null
+          rg?: string
+          rg_key?: string
+          sla?: string | null
+          ta_rg?: number | null
+          tempo_execucao_dias?: number | null
+          ultima_seq?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dobra_controle_rg_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "dobra_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dobra_fpps: {
         Row: {
           cliente: string | null
@@ -120,6 +197,77 @@ export type Database = {
           updated_rows?: number
         }
         Relationships: []
+      }
+      dobra_performance: {
+        Row: {
+          created_at: string
+          data_final: string | null
+          data_inicio: string | null
+          fpp: string
+          fpp_key: string
+          id: string
+          import_id: string | null
+          maquina: string | null
+          obs: string | null
+          performance: number | null
+          qtd_pecas: number | null
+          qtd_produzida: number | null
+          qtd_refugo: number | null
+          qtd_retrabalho: number | null
+          tempo_estimado_seg: number | null
+          tempo_planejado_seg: number | null
+          tempo_real_seg: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_final?: string | null
+          data_inicio?: string | null
+          fpp: string
+          fpp_key: string
+          id?: string
+          import_id?: string | null
+          maquina?: string | null
+          obs?: string | null
+          performance?: number | null
+          qtd_pecas?: number | null
+          qtd_produzida?: number | null
+          qtd_refugo?: number | null
+          qtd_retrabalho?: number | null
+          tempo_estimado_seg?: number | null
+          tempo_planejado_seg?: number | null
+          tempo_real_seg?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_final?: string | null
+          data_inicio?: string | null
+          fpp?: string
+          fpp_key?: string
+          id?: string
+          import_id?: string | null
+          maquina?: string | null
+          obs?: string | null
+          performance?: number | null
+          qtd_pecas?: number | null
+          qtd_produzida?: number | null
+          qtd_refugo?: number | null
+          qtd_retrabalho?: number | null
+          tempo_estimado_seg?: number | null
+          tempo_planejado_seg?: number | null
+          tempo_real_seg?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dobra_performance_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "dobra_imports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dobra_rgs: {
         Row: {

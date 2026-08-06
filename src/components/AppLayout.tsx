@@ -12,10 +12,13 @@ import {
   Users,
   Package,
   Tv,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
+import { useTheme } from "@/lib/theme";
 
 export function AppLayout() {
   const { pathname } = useLocation();
@@ -23,6 +26,7 @@ export function AppLayout() {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const { user, role, loading, isAdmin } = useAuth();
+  const { toggle } = useTheme();
 
   // Auth gate
   useEffect(() => {
@@ -107,19 +111,29 @@ export function AppLayout() {
             );
           })}
         </nav>
-        <div className="p-2 border-t border-sidebar-border">
+        <div className="p-2 border-t border-sidebar-border space-y-1">
+          <button
+            onClick={toggle}
+            title="Alternar modo claro/escuro"
+            className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+          >
+            <Sun className="size-4 shrink-0 dark:hidden" />
+            <Moon className="size-4 shrink-0 hidden dark:block" />
+            {expanded && <span className="truncate">Tema</span>}
+          </button>
           <button
             onClick={onLogout}
             title="Sair"
-            className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/60"
+            className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
           >
             <LogOut className="size-4 shrink-0" />
             {expanded && <span className="truncate">Sair</span>}
           </button>
           {expanded && (
-            <div className="px-2 pt-2 text-[11px] text-muted-foreground truncate">{user.email}</div>
+            <div className="px-2 pt-2 text-[11px] text-sidebar-foreground/60 truncate">{user.email}</div>
           )}
         </div>
+
       </aside>
 
       <div className="md:hidden fixed top-0 inset-x-0 z-40 h-12 bg-sidebar border-b border-sidebar-border flex items-center justify-between px-3">
