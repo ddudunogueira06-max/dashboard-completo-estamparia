@@ -12,10 +12,13 @@ import {
   Users,
   Package,
   Tv,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
+import { useTheme } from "@/lib/theme";
 
 export function AppLayout() {
   const { pathname } = useLocation();
@@ -23,6 +26,7 @@ export function AppLayout() {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const { user, role, loading, isAdmin } = useAuth();
+  const { toggle } = useTheme();
 
   // Auth gate
   useEffect(() => {
