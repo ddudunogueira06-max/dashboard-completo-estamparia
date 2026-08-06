@@ -11,7 +11,11 @@ import {
   Cell,
   LineChart,
   Line,
+  AreaChart,
+  Area,
+  Legend,
 } from "recharts";
+import { useMemo } from "react";
 import {
   useWaste,
   useProduction,
@@ -29,16 +33,28 @@ import {
 } from "@/lib/dashboardData";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { TickerPanel } from "@/components/TickerPanel";
+import { buildRgCalc, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
+import { resumoControleRg, resumoPerformance, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
+import { useSeriesCatalog } from "@/components/widgets/series";
+import { useTickerMetrics } from "@/components/widgets/metrics";
+import type { CustomWidget } from "@/components/widgets/customWidgets";
 
 const COLORS = [
-  "oklch(0.72 0.15 215)",
-  "oklch(0.78 0.16 75)",
-  "oklch(0.7 0.16 155)",
-  "oklch(0.7 0.18 45)",
-  "oklch(0.65 0.22 305)",
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
 ];
 
 export type WidgetModule = "Programação" | "Puncionadeira" | "Dobra" | "Geral";
+
+export const MODULE_ACCENT: Record<WidgetModule, string> = {
+  "Programação": "var(--mod-programacao)",
+  Puncionadeira: "var(--mod-puncionadeira)",
+  Dobra: "var(--mod-dobra)",
+  Geral: "var(--mod-geral)",
+};
 
 export interface WidgetDef {
   id: string;
@@ -49,10 +65,10 @@ export interface WidgetDef {
   Component: (props: { config?: Record<string, unknown> }) => React.ReactElement;
 }
 
-function Shell({ title, children }: { title: string; children: React.ReactNode }) {
+export function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="h-full flex flex-col p-3 min-h-0">
-      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 truncate">{title}</div>
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 truncate">{title}</div>
       <div className="flex-1 min-h-0">{children}</div>
     </div>
   );
@@ -71,7 +87,22 @@ function Loading() {
   return <div className="h-full grid place-items-center text-xs text-muted-foreground">Carregando...</div>;
 }
 
-const axis = { fontSize: 11, fill: "hsl(var(--muted-foreground))" };
+const axis = { fontSize: 11, fill: "var(--muted-foreground)" };
+const tooltipStyle = {
+  background: "var(--popover)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  color: "var(--popover-foreground)",
+  fontSize: 12,
+};
+
+function useDobraCalc() {
+  const { data: rgs = [], isLoading: l1 } = useDobraRgs();
+  const { data: fpps = [], isLoading: l2 } = useDobraFpps();
+  const { data: settings } = useDobraSettings();
+  const rows = useMemo(() => buildRgCalc(rgs, fpps, settings?.tarefas ?? []), [rgs, fpps, settings]);
+  return { rows, isLoading: l1 || l2 };
+}
 
 export const WIDGETS: WidgetDef[] = [
   {
@@ -97,11 +128,7 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 2,
     Component: () => {
       const { data = [], isLoading } = useWaste();
-      return (
-        <Shell title="Total solicitado">
-          {isLoading ? <Loading /> : <Stat value={`${fmtInt(wasteTotalKg(data))} kg`} />}
-        </Shell>
-      );
+      return <Shell title="Total solicitado">{isLoading ? <Loading /> : <Stat value={`${fmtInt(wasteTotalKg(data))} kg`} />}</Shell>;
     },
   },
   {
@@ -120,10 +147,10 @@ export const WIDGETS: WidgetDef[] = [
           ) : (
             <ResponsiveContainer>
               <BarChart data={series} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={38} />
-                <Tooltip formatter={(v: number) => fmtPct(v)} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmtPct(v)} />
                 <Bar dataKey="perda" fill={COLORS[0]} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -153,7 +180,7 @@ export const WIDGETS: WidgetDef[] = [
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v: number) => `${fmtInt(v)} kg`} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => `${fmtInt(v)} kg`} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -169,9 +196,7 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 2,
     Component: () => {
       const { data = [], isLoading } = useProduction();
-      return (
-        <Shell title="Peças programadas">{isLoading ? <Loading /> : <Stat value={fmtInt(data.length)} />}</Shell>
-      );
+      return <Shell title="Peças programadas">{isLoading ? <Loading /> : <Stat value={fmtInt(data.length)} />}</Shell>;
     },
   },
   {
@@ -202,10 +227,10 @@ export const WIDGETS: WidgetDef[] = [
           ) : (
             <ResponsiveContainer>
               <BarChart data={series} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={40} />
-                <Tooltip />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Bar dataKey="pecas" name="Peças" fill={COLORS[2]} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -230,10 +255,10 @@ export const WIDGETS: WidgetDef[] = [
           ) : (
             <ResponsiveContainer>
               <LineChart data={series} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={40} />
-                <Tooltip />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Line type="monotone" dataKey="pecas" stroke={COLORS[0]} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -273,10 +298,10 @@ export const WIDGETS: WidgetDef[] = [
           ) : (
             <ResponsiveContainer>
               <LineChart data={series} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={38} domain={[0, 100]} />
-                <Tooltip formatter={(v: number) => fmtPct(v, 1)} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmtPct(v, 1)} />
                 <Line type="monotone" dataKey="oee" stroke={COLORS[1]} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -303,7 +328,7 @@ export const WIDGETS: WidgetDef[] = [
               <BarChart data={series} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
                 <XAxis type="number" tick={axis} />
                 <YAxis type="category" dataKey="label" tick={{ ...axis, fontSize: 10 }} width={110} />
-                <Tooltip formatter={(v: number) => `${fmtNum(v, 1)} h`} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => `${fmtNum(v, 1)} h`} />
                 <Bar dataKey="horas" fill={COLORS[3]} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -312,6 +337,147 @@ export const WIDGETS: WidgetDef[] = [
       );
     },
   },
+
+  /* ---------------------- Dobra ---------------------- */
+  {
+    id: "dobra.kpi.sla",
+    title: "SLA da dobra",
+    module: "Dobra",
+    defaultW: 3,
+    defaultH: 2,
+    Component: () => {
+      const { data = [], isLoading } = useDobraControleRg();
+      const r = resumoControleRg(data);
+      return (
+        <Shell title="SLA da dobra">
+          {isLoading ? <Loading /> : <Stat value={fmtPct(r.slaPct, 1)} hint={`${fmtInt(r.concluidos)} RGs concluídas`} tone="text-[var(--success)]" />}
+        </Shell>
+      );
+    },
+  },
+  {
+    id: "dobra.kpi.abertas",
+    title: "RGs em aberto",
+    module: "Dobra",
+    defaultW: 3,
+    defaultH: 2,
+    Component: () => {
+      const { rows, isLoading } = useDobraCalc();
+      const abertas = rows.filter((r) => r.situacao !== "concluida");
+      return (
+        <Shell title="RGs em aberto">
+          {isLoading ? (
+            <Loading />
+          ) : (
+            <Stat
+              value={fmtInt(abertas.length)}
+              hint={`${abertas.filter((r) => r.atrasada).length} atrasadas`}
+              tone="text-primary"
+            />
+          )}
+        </Shell>
+      );
+    },
+  },
+  {
+    id: "dobra.kpi.horas",
+    title: "Horas a produzir",
+    module: "Dobra",
+    defaultW: 3,
+    defaultH: 2,
+    Component: () => {
+      const { rows, isLoading } = useDobraCalc();
+      const seg = rows.filter((r) => r.situacao !== "concluida").reduce((s, r) => s + r.tempoEstimadoSeg, 0);
+      return <Shell title="Horas a produzir">{isLoading ? <Loading /> : <Stat value={secToHms(seg)} tone="text-accent" />}</Shell>;
+    },
+  },
+  {
+    id: "dobra.kpi.performance",
+    title: "Performance das FPPs",
+    module: "Dobra",
+    defaultW: 3,
+    defaultH: 2,
+    Component: () => {
+      const { data = [], isLoading } = useDobraPerformance();
+      const r = resumoPerformance(data);
+      return (
+        <Shell title="Performance das FPPs">
+          {isLoading ? <Loading /> : <Stat value={fmtPct(r.performance, 1)} hint={`${fmtInt(r.fpps)} FPPs · ${fmtInt(r.pecas)} peças`} />}
+        </Shell>
+      );
+    },
+  },
+  {
+    id: "dobra.chart.status",
+    title: "Situação das RGs",
+    module: "Dobra",
+    defaultW: 4,
+    defaultH: 4,
+    Component: () => {
+      const { rows, isLoading } = useDobraCalc();
+      const abertas = rows.filter((r) => r.situacao !== "concluida");
+      const series = [
+        { name: "Em produção", value: abertas.filter((r) => r.situacao === "em_producao").length },
+        { name: "Disponíveis", value: abertas.filter((r) => r.situacao === "disponivel").length },
+        { name: "Aguardando", value: abertas.filter((r) => r.situacao === "aguardando").length },
+      ].filter((d) => d.value > 0);
+      return (
+        <Shell title="Situação das RGs">
+          {isLoading ? (
+            <Loading />
+          ) : (
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie data={series} dataKey="value" nameKey="name" innerRadius="45%" outerRadius="75%">
+                  {series.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Tooltip contentStyle={tooltipStyle} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </Shell>
+      );
+    },
+  },
+  {
+    id: "dobra.chart.producao",
+    title: "Produção da dobra por dia",
+    module: "Dobra",
+    defaultW: 6,
+    defaultH: 4,
+    Component: () => <SeriesChart seriesId="dobra.producao" keys={["rgs"]} kind="bar" title="Produção da dobra por dia" />,
+  },
+  {
+    id: "dobra.chart.carga",
+    title: "Carga x capacidade (7 dias)",
+    module: "Dobra",
+    defaultW: 6,
+    defaultH: 4,
+    Component: () => (
+      <SeriesChart seriesId="dobra.carga" keys={["horas", "capacidade"]} kind="bar" title="Carga x capacidade (7 dias)" />
+    ),
+  },
+  {
+    id: "dobra.chart.sla",
+    title: "SLA por mês",
+    module: "Dobra",
+    defaultW: 6,
+    defaultH: 4,
+    Component: () => <SeriesChart seriesId="dobra.sla" keys={["sla"]} kind="line" title="SLA por mês (%)" />,
+  },
+  {
+    id: "dobra.chart.performance",
+    title: "Performance por FPP",
+    module: "Dobra",
+    defaultW: 6,
+    defaultH: 4,
+    Component: () => <SeriesChart seriesId="dobra.performance" keys={["performance"]} kind="bar" title="Performance por FPP (%)" />,
+  },
+
+  /* ---------------------- Geral ---------------------- */
   {
     id: "geral.ticker",
     title: "Painel rotativo",
@@ -325,6 +491,127 @@ export const WIDGETS: WidgetDef[] = [
       />
     ),
   },
+  {
+    id: "geral.letreiro",
+    title: "Letreiro contínuo",
+    module: "Geral",
+    defaultW: 12,
+    defaultH: 1,
+    Component: ({ config }) => (
+      <TickerPanel selected={(config?.["metrics"] as string[]) ?? []} mode="marquee" speed={60} />
+    ),
+  },
 ];
 
 export const WIDGET_MAP = new Map(WIDGETS.map((w) => [w.id, w]));
+
+/* ------------------------------------------------------------------ */
+/* Renderização de gráficos a partir do catálogo de séries             */
+/* ------------------------------------------------------------------ */
+
+export function SeriesChart({
+  seriesId,
+  keys,
+  kind,
+  title,
+}: {
+  seriesId: string;
+  keys: string[];
+  kind: "bar" | "line" | "area" | "pie";
+  title: string;
+}) {
+  const { series, loading } = useSeriesCatalog();
+  const def = series.find((s) => s.id === seriesId);
+
+  if (loading) return <Shell title={title}><Loading /></Shell>;
+  if (!def) return <Shell title={title}><div className="text-xs text-muted-foreground">Fonte de dados indisponível.</div></Shell>;
+  const use = keys.length ? keys : [def.keys[0]?.key].filter(Boolean) as string[];
+
+  if (def.data.length === 0)
+    return (
+      <Shell title={title}>
+        <div className="h-full grid place-items-center text-xs text-muted-foreground text-center px-3">
+          Sem dados importados para esta fonte.
+        </div>
+      </Shell>
+    );
+
+  return (
+    <Shell title={title}>
+      <ResponsiveContainer>
+        {kind === "pie" ? (
+          <PieChart>
+            <Pie data={def.data} dataKey={use[0]} nameKey={def.xKey} innerRadius="45%" outerRadius="75%">
+              {def.data.map((_, i) => (
+                <Cell key={i} fill={COLORS[i % COLORS.length]} />
+              ))}
+            </Pie>
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} />
+          </PieChart>
+        ) : kind === "line" ? (
+          <LineChart data={def.data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+            <XAxis dataKey={def.xKey} tick={axis} />
+            <YAxis tick={axis} width={40} />
+            <Tooltip contentStyle={tooltipStyle} />
+            {use.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
+            {use.map((k, i) => (
+              <Line key={k} type="monotone" dataKey={k} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
+            ))}
+          </LineChart>
+        ) : kind === "area" ? (
+          <AreaChart data={def.data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+            <XAxis dataKey={def.xKey} tick={axis} />
+            <YAxis tick={axis} width={40} />
+            <Tooltip contentStyle={tooltipStyle} />
+            {use.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
+            {use.map((k, i) => (
+              <Area key={k} type="monotone" dataKey={k} stroke={COLORS[i % COLORS.length]} fill={COLORS[i % COLORS.length]} fillOpacity={0.25} />
+            ))}
+          </AreaChart>
+        ) : (
+          <BarChart data={def.data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+            <XAxis dataKey={def.xKey} tick={axis} />
+            <YAxis tick={axis} width={40} />
+            <Tooltip contentStyle={tooltipStyle} />
+            {use.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
+            {use.map((k, i) => (
+              <Bar key={k} dataKey={k} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />
+            ))}
+          </BarChart>
+        )}
+      </ResponsiveContainer>
+    </Shell>
+  );
+}
+
+/** Renderiza um widget criado pelo usuário no editor. */
+export function CustomWidgetView({ def, tickerMetrics }: { def: CustomWidget; tickerMetrics: string[] }) {
+  const { metrics } = useTickerMetrics();
+
+  if (def.kind === "texto") {
+    return (
+      <div className="h-full w-full grid place-items-center px-4 text-center">
+        <div>
+          <div className="text-[11px] uppercase tracking-widest text-muted-foreground">{def.module}</div>
+          <div className="text-2xl font-bold text-foreground break-words">{def.text || def.title}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (def.kind === "kpi") {
+    const m = metrics.find((x) => x.id === def.source);
+    return (
+      <Shell title={def.title}>
+        {m ? <Stat value={m.value} hint={m.hint ?? m.label} tone="text-primary" /> : <div className="text-xs text-muted-foreground">Métrica não encontrada.</div>}
+      </Shell>
+    );
+  }
+
+  void tickerMetrics;
+  return <SeriesChart seriesId={def.source ?? ""} keys={def.keys ?? []} kind={def.kind} title={def.title} />;
+}
