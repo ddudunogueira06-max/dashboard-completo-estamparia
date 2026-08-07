@@ -57,7 +57,11 @@ const str = (v: unknown): string | null => {
 export const num = (v: unknown): number | null => {
   const s = str(v);
   if (s === null) return null;
-  const n = Number(s.replace(/\./g, "").replace(",", ".").replace(/[^0-9.\-]/g, ""));
+  const cleaned = s.replace(/[^0-9,\.\-]/g, "");
+  const normalized = cleaned.includes(",")
+    ? cleaned.replace(/\./g, "").replace(",", ".")
+    : cleaned;
+  const n = Number(normalized);
   return Number.isFinite(n) ? n : null;
 };
 
@@ -130,7 +134,7 @@ export function readSheetTable(wb: XLSX.WorkBook, wanted: string[]): SheetTable 
   const sheetName = findSheet(wb, wanted);
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
-  const matrix = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null, raw: false, rawNumbers: true });
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null, raw: true });
   let headerIdx = -1;
   let best = 0;
   for (let i = 0; i < Math.min(matrix.length, 12); i++) {
