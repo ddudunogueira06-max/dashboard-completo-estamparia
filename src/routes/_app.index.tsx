@@ -9,6 +9,8 @@ export const Route = createFileRoute("/_app/")({
       { name: "description", content: "Dashboard modular com widgets de Programação, Puncionadeira e Dobra." },
       { property: "og:title", content: "Painel Modular — Controle Industrial" },
       { property: "og:description", content: "Widgets arrastáveis e redimensionáveis para acompanhar a produção." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ModularDashboard,
