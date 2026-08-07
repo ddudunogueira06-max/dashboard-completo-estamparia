@@ -84,22 +84,14 @@ export function FiltersBar({
   }, [rows]);
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="rounded-lg border border-border bg-card">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <input
-            type="date"
-            value={filters.dataIni}
-            onChange={(e) => set({ dataIni: e.target.value })}
-            className={inputCls + " w-auto"}
-          />
-          <span className="text-muted-foreground text-xs">até</span>
-          <input
-            type="date"
-            value={filters.dataFim}
-            onChange={(e) => set({ dataFim: e.target.value })}
-            className={inputCls + " w-auto"}
-          />
+          <div className="inline-flex items-center rounded-md border border-input bg-background px-2">
+            <input type="date" aria-label="Data inicial" value={filters.dataIni} onChange={(e) => set({ dataIni: e.target.value })} className="h-8 w-[8.5rem] bg-transparent text-xs outline-none" />
+            <span className="px-1 text-xs text-muted-foreground">–</span>
+            <input type="date" aria-label="Data final" value={filters.dataFim} onChange={(e) => set({ dataFim: e.target.value })} className="h-8 w-[8.5rem] bg-transparent text-xs outline-none" />
+          </div>
           <input
             placeholder="Buscar RG"
             value={filters.rg}

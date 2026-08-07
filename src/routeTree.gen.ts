@@ -16,6 +16,7 @@ import { Route as AppPuncionadeiraRouteImport } from './routes/_app.puncionadeir
 import { Route as AppProgramacaoRouteImport } from './routes/_app.programacao'
 import { Route as AppPainelTvRouteImport } from './routes/_app.painel-tv'
 import { Route as AppDobraRouteImport } from './routes/_app.dobra'
+import { Route as AppAlertasRouteImport } from './routes/_app.alertas'
 import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 
 const AuthRoute = AuthRouteImport.update({
@@ -52,6 +53,11 @@ const AppDobraRoute = AppDobraRouteImport.update({
   path: '/dobra',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAlertasRoute = AppAlertasRouteImport.update({
+  id: '/alertas',
+  path: '/alertas',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -61,6 +67,7 @@ const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
+  '/alertas': typeof AppAlertasRoute
   '/dobra': typeof AppDobraRoute
   '/painel-tv': typeof AppPainelTvRoute
   '/programacao': typeof AppProgramacaoRoute
@@ -69,6 +76,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/alertas': typeof AppAlertasRoute
   '/dobra': typeof AppDobraRoute
   '/painel-tv': typeof AppPainelTvRoute
   '/programacao': typeof AppProgramacaoRoute
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_app/alertas': typeof AppAlertasRoute
   '/_app/dobra': typeof AppDobraRoute
   '/_app/painel-tv': typeof AppPainelTvRoute
   '/_app/programacao': typeof AppProgramacaoRoute
@@ -92,6 +101,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/alertas'
     | '/dobra'
     | '/painel-tv'
     | '/programacao'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/alertas'
     | '/dobra'
     | '/painel-tv'
     | '/programacao'
@@ -110,6 +121,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/auth'
+    | '/_app/alertas'
     | '/_app/dobra'
     | '/_app/painel-tv'
     | '/_app/programacao'
@@ -174,6 +186,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDobraRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/alertas': {
+      id: '/_app/alertas'
+      path: '/alertas'
+      fullPath: '/alertas'
+      preLoaderRoute: typeof AppAlertasRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/users': {
       id: '/_app/admin/users'
       path: '/admin/users'
@@ -185,6 +204,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAlertasRoute: typeof AppAlertasRoute
   AppDobraRoute: typeof AppDobraRoute
   AppPainelTvRoute: typeof AppPainelTvRoute
   AppProgramacaoRoute: typeof AppProgramacaoRoute
@@ -194,6 +214,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAlertasRoute: AppAlertasRoute,
   AppDobraRoute: AppDobraRoute,
   AppPainelTvRoute: AppPainelTvRoute,
   AppProgramacaoRoute: AppProgramacaoRoute,
@@ -211,13 +232,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

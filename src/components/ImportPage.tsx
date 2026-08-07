@@ -30,6 +30,7 @@ export function ImportPage() {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [mode, setMode] = useState<"append" | "replace">("append");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<string>("");
@@ -123,10 +124,10 @@ export function ImportPage() {
       <section className="bg-card border border-border rounded-xl p-6">
         <div
           onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
+          onDrop={async (e) => {
             e.preventDefault();
             const f = e.dataTransfer.files?.[0];
-            if (f) setFile(f);
+            if (f) { setFile(f); setPreviewCount((await parseExcelFile(f)).length); }
           }}
           onClick={() => fileRef.current?.click()}
           className="border-2 border-dashed border-border rounded-lg p-10 text-center cursor-pointer hover:border-primary/60 hover:bg-secondary/30 transition-colors"
@@ -136,7 +137,7 @@ export function ImportPage() {
             type="file"
             accept=".xlsx,.xlsm,.xls"
             className="hidden"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={async (e) => { const f=e.target.files?.[0] ?? null; setFile(f); setPreviewCount(f ? (await parseExcelFile(f)).length : null); }}
           />
           {file ? (
             <div className="flex items-center justify-center gap-3 text-foreground">
@@ -156,6 +157,7 @@ export function ImportPage() {
         </div>
 
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+          {previewCount !== null && <div className="w-full rounded-md border border-border bg-secondary/30 p-3 text-sm"><b>{fmtInt(previewCount)}</b> linhas válidas encontradas. Modo atual: <b>{mode === "replace" ? "substituir dados existentes" : "adicionar e ignorar duplicados"}</b>. Revise e confirme abaixo.</div>}
           <div className="flex items-center gap-4 text-sm">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" checked={mode === "append"} onChange={() => setMode("append")} className="accent-primary" />

@@ -7,6 +7,14 @@ import { seedAdminIfMissing } from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  head: () => ({ meta: [
+    { title: "Entrar — Controle Industrial" },
+    { name: "description", content: "Acesso seguro ao controle industrial de Programação, Puncionadeira e Dobra." },
+    { property: "og:title", content: "Entrar — Controle Industrial" },
+    { property: "og:description", content: "Acesso ao painel de controle industrial." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: AuthPage,
 });
 

@@ -183,7 +183,7 @@ function pickSheet(wb: XLSX.WorkBook, wanted: string[]): string {
 
 export function sheetRows(wb: XLSX.WorkBook, sheetName: string): Record<string, unknown>[] {
   const ws = wb.Sheets[sheetName];
-  return XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null, raw: false, rawNumbers: true });
+  return XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null, raw: true });
 }
 
 const findCol = (headers: string[], candidates: string[]) =>

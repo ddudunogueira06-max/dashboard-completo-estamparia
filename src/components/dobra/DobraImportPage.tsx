@@ -12,6 +12,12 @@ import {
   type DobraFpp,
   type DobraRg,
 } from "@/lib/dobra";
+import {
+  parseControleRgSheet,
+  parsePerformanceSheet,
+  type DobraCtrlRg,
+  type DobraPerf,
+} from "@/lib/dobraExtra";
 import { fmtDate } from "@/lib/format";
 
 interface Preview {
@@ -20,10 +26,13 @@ interface Preview {
   sheetFpps: string;
   rgs: DobraRg[];
   fpps: DobraFpp[];
+  performance: DobraPerf[];
+  controle: DobraCtrlRg[];
   novos: number;
   atualizados: number;
   semFpp: number;
   duplicados: number;
+  ignorados: number;
   colunasNaoReconhecidas: string[];
 }
 
@@ -40,7 +49,9 @@ export function DobraImportPage() {
       const wb = await readWorkbook(file);
       const rgsParsed = parseRgsSheet(wb);
       const fppsParsed = parseFppsSheet(wb);
-      if (rgsParsed.rows.length === 0 && fppsParsed.rows.length === 0) {
+      const performanceParsed = parsePerformanceSheet(wb);
+      const controleParsed = parseControleRgSheet(wb);
+      if (rgsParsed.rows.length === 0 && fppsParsed.rows.length === 0 && performanceParsed.rows.length === 0 && controleParsed.rows.length === 0) {
         toast.error("Nenhuma linha reconhecida no arquivo.");
         return;
       }
@@ -53,11 +64,14 @@ export function DobraImportPage() {
         sheetFpps: fppsParsed.sheetName,
         rgs: rgsParsed.rows,
         fpps: fppsParsed.rows,
+        performance: performanceParsed.rows,
+        controle: controleParsed.rows,
         novos,
         atualizados: rgsParsed.rows.length - novos,
         semFpp: rgsParsed.rows.filter((r) => !r.fpp_key).length,
-        duplicados: 0,
-        colunasNaoReconhecidas: [...rgsParsed.unknownCols, ...fppsParsed.unknownCols].slice(0, 20),
+        duplicados: performanceParsed.duplicados + controleParsed.duplicados,
+        ignorados: performanceParsed.ignorados + controleParsed.ignorados,
+        colunasNaoReconhecidas: [...rgsParsed.unknownCols, ...fppsParsed.unknownCols, ...performanceParsed.unknownCols, ...controleParsed.unknownCols].slice(0, 20),
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao ler o arquivo.");
@@ -75,7 +89,7 @@ export function DobraImportPage() {
         .insert({
           filename: preview.file.name,
           tipo: "dobra",
-          total_rows: preview.rgs.length + preview.fpps.length,
+          total_rows: preview.rgs.length + preview.fpps.length + preview.performance.length + preview.controle.length,
           inserted_rows: preview.novos,
           updated_rows: preview.atualizados,
         } as never)
@@ -99,10 +113,24 @@ export function DobraImportPage() {
           .upsert(part.map((r) => ({ ...r, import_id })) as never, { onConflict: "rg_key" });
         if (error) throw error;
       }
+      for (const part of chunk(preview.performance)) {
+        const { error } = await supabase
+          .from("dobra_performance")
+          .upsert(part.map((r) => ({ ...r, import_id })) as never, { onConflict: "fpp_key" });
+        if (error) throw error;
+      }
+      for (const part of chunk(preview.controle)) {
+        const { error } = await supabase
+          .from("dobra_controle_rg")
+          .upsert(part.map((r) => ({ ...r, import_id })) as never, { onConflict: "rg_key" });
+        if (error) throw error;
+      }
 
       await qc.invalidateQueries({ queryKey: ["dobra_rgs"] });
       await qc.invalidateQueries({ queryKey: ["dobra_fpps"] });
       await qc.invalidateQueries({ queryKey: ["dobra_imports"] });
+      await qc.invalidateQueries({ queryKey: ["dobra_performance"] });
+      await qc.invalidateQueries({ queryKey: ["dobra_controle_rg"] });
       toast.success(`Importação concluída: ${preview.novos} novos, ${preview.atualizados} atualizados.`);
       setPreview(null);
       if (inputRef.current) inputRef.current.value = "";
@@ -118,8 +146,8 @@ export function DobraImportPage() {
       <Card title="Importação de dados — Dobra">
         <div className="p-6 space-y-4">
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Envie o arquivo <b>BANCO_DE_DADOS_-_DOBRA</b> (.xlsm, .xlsx, .xls ou .csv). O sistema lê a aba{" "}
-            <b>BD-SCHED</b> (Controle Geral de RGs) e a aba <b>BD-DADOS-DOBRA</b> (tempos das FPPs), normaliza os
+            Envie o arquivo <b>BANCO_DE_DADOS_-_DOBRA</b> (.xlsm, .xlsx, .xls ou .csv). O sistema valida as quatro abas:
+            <b> BD-SCHED</b>, <b>BD-DADOS-DOBRA</b>, <b>BD-RELATORIO-PERFORMACE</b> e <b>BD-CONTROLE-RG</b>, normaliza os
             códigos (FPP-4625 = FPP4625 = FPP 4625) e atualiza os registros existentes pelo número da RG.
           </p>
           <div
@@ -151,14 +179,17 @@ export function DobraImportPage() {
                 </div>
               </Field>
               <Field label="Abas reconhecidas">
-                <div className="text-sm truncate">{preview.sheetRgs} · {preview.sheetFpps}</div>
+                <div className="text-sm truncate">4 de 4 abas</div>
               </Field>
               <Field label="Linhas lidas">
-                <div className="text-sm tabular-nums">{preview.rgs.length} RGs · {preview.fpps.length} FPPs</div>
+                <div className="text-sm tabular-nums">{preview.rgs.length} RGs · {preview.fpps.length} FPPs · {preview.performance.length} performance · {preview.controle.length} controle</div>
               </Field>
               <Field label="RGs sem FPP vinculada">
                 <div className="text-sm tabular-nums">{preview.semFpp}</div>
               </Field>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Validação: {preview.duplicados} duplicidades internas consolidadas · {preview.ignorados} linhas sem chave ignoradas. Registros existentes serão atualizados pela chave RG/FPP somente após a confirmação.
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-[var(--success)]/40 bg-[var(--success)]/10 p-3">

@@ -21,6 +21,8 @@ export const Route = createFileRoute("/_app/dobra")({
       { name: "description", content: "Painel da dobra: SLA, RGs em aberto, capacidade e importação de dados." },
       { property: "og:title", content: "Dobra — Controle Industrial" },
       { property: "og:description", content: "SLA, RGs em aberto, capacidade e importação do setor de dobra." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: DobraModule,

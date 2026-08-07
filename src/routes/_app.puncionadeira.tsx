@@ -13,6 +13,8 @@ export const Route = createFileRoute("/_app/puncionadeira")({
       { name: "description", content: "OEE, capacidade e paradas das puncionadeiras, com importação de relatórios." },
       { property: "og:title", content: "Puncionadeira — OEE e Paradas" },
       { property: "og:description", content: "Acompanhe OEE, capacidade e paradas das puncionadeiras." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: PuncionadeiraModule,

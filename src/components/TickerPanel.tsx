@@ -17,7 +17,7 @@ interface Props {
   speed?: number;
 }
 
-export function TickerPanel({ selected, intervalMs = 6000, variant = "widget", mode = "slide", speed = 60 }: Props) {
+export function TickerPanel({ selected, intervalMs = 6000, variant = "widget", mode = "marquee", speed = 48 }: Props) {
   const { metrics, loading } = useTickerMetrics();
   const list = useMemo(() => {
     const chosen = metrics.filter((m) => selected.includes(m.id));
