@@ -124,7 +124,7 @@ export function ImportPage() {
       <section className="bg-card border border-border rounded-xl p-6">
         <div
           onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
+          onDrop={async (e) => {
             e.preventDefault();
             const f = e.dataTransfer.files?.[0];
             if (f) { setFile(f); setPreviewCount((await parseExcelFile(f)).length); }
