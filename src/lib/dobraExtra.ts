@@ -134,9 +134,12 @@ export function readSheetTable(wb: XLSX.WorkBook, wanted: string[]): SheetTable 
   let headerIdx = -1;
   let best = 0;
   for (let i = 0; i < Math.min(matrix.length, 12); i++) {
-    const filled = (matrix[i] ?? []).filter((c) => str(c) !== null).length;
-    if (filled > best && filled >= 3) {
-      best = filled;
+    const values = (matrix[i] ?? []).map(str).filter((c): c is string => c !== null);
+    const meaningful = values.filter((c) => !/^Column\d+$/i.test(c) && !/^col_\d+$/i.test(c)).length;
+    const headerWords = values.filter((c) => /[A-Za-zÀ-ÿ]/.test(c) && !/^Column\d+$/i.test(c)).length;
+    const score = meaningful * 2 + headerWords;
+    if (score > best && meaningful >= 3) {
+      best = score;
       headerIdx = i;
     }
   }
@@ -178,8 +181,8 @@ export function parsePerformanceSheet(wb: XLSX.WorkBook): ParseResult<DobraPerf>
     maquina: col(h, ["Maquina", "Máquina", "Recurso"]),
     pecas: col(h, ["QuantidadePecas", "Quantidade Pecas", "Qtde Peças", "Peças"]),
     est: col(h, ["TempoEstimado", "Tempo Estimado"]),
-    plan: col(h, ["TempoPlanejado", "Tempo Planejado", "Minutos Planejados"]),
-    real: col(h, ["TempoReal", "Tempo Real", "Minutos Reais"]),
+    plan: col(h, ["TempoPlanejado", "Tempo Planejado", "TempoPlanejado(min)", "Minutos Planejados"]),
+    real: col(h, ["TempoReal", "Tempo Real", "TempoReal(min)", "Minutos Reais"]),
     ini: col(h, ["DataInicio", "Data Inicio", "Início"]),
     fim: col(h, ["DataFinal", "Data Final", "Fim"]),
     prod: col(h, ["QuantidadeProduzida", "Produzida", "Produzido"]),
@@ -207,8 +210,8 @@ export function parsePerformanceSheet(wb: XLSX.WorkBook): ParseResult<DobraPerf>
       maquina: c.maquina ? str(r[c.maquina]) : null,
       qtd_pecas: c.pecas ? num(r[c.pecas]) : null,
       tempo_estimado_seg: c.est ? toSeconds(r[c.est]) : null,
-      tempo_planejado_seg: c.plan ? toSeconds(r[c.plan]) : null,
-      tempo_real_seg: c.real ? toSeconds(r[c.real]) : null,
+      tempo_planejado_seg: c.plan ? toSeconds(r[c.plan], /min/i.test(c.plan) ? "min" : "auto") : null,
+      tempo_real_seg: c.real ? toSeconds(r[c.real], /min/i.test(c.real) ? "min" : "auto") : null,
       data_inicio: c.ini ? date(r[c.ini]) : null,
       data_final: c.fim ? date(r[c.fim]) : null,
       qtd_produzida: c.prod ? num(r[c.prod]) : null,
@@ -237,9 +240,9 @@ export function parseControleRgSheet(wb: XLSX.WorkBook): ParseResult<DobraCtrlRg
     cliente: col(h, ["Cliente"]),
     produto: col(h, ["Produto"]),
     qtd: col(h, ["QUANTIDADE", "Quantidade", "Qtde"]),
-    dataRg: col(h, ["DataRg", "Data RG"]),
+    dataRg: col(h, ["DataRg", "Data RG", "RgData"]),
     plan: col(h, ["DataPlanejamento", "Data Planejamento"]),
-    seq: col(h, ["UltimaSeq", "Ultima Seq", "Seq"]),
+    seq: col(h, ["UltimaSeq", "Ultima Seq", "UltimaSequenciaExecucao", "Seq"]),
     concl: col(h, ["DataConclusao", "Data Conclusão", "Conclusao"]),
     exec: col(h, ["TempoExecucao", "Tempo Execucao", "Tempo Execução"]),
     pacote: col(h, ["DataPacote", "Data Pacote", "DtPacote"]),

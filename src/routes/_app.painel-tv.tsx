@@ -39,7 +39,15 @@ function PainelTv() {
         </Link>
       </div>
       <div className="flex-1 min-h-0">
-        <TickerPanel selected={selected} intervalMs={8000} variant="tv" />
+        <div className="h-full flex flex-col justify-center gap-12 overflow-hidden">
+          <div className="text-center animate-fade-in">
+            <div className="text-sm uppercase text-muted-foreground">Controle industrial em tempo real</div>
+            <div className="mt-3 text-5xl font-bold">Programação · Puncionadeira · Dobra</div>
+          </div>
+          <div className="h-36 border-y border-border bg-card/70 shadow-sm">
+            <TickerPanel selected={selected} variant="tv" mode="marquee" speed={42} />
+          </div>
+        </div>
       </div>
     </div>
   );

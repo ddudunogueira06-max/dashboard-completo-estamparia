@@ -149,6 +149,10 @@
   animation: marquee-x linear infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation-duration: 120s !important; }
+}
+
 @layer base {
   * { border-color: var(--color-border); }
   html, body { background-color: var(--color-background); color: var(--color-foreground); }
