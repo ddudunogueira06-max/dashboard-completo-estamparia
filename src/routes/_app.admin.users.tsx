@@ -210,7 +210,7 @@ function AdminUsersPage() {
                   </td>
                   <td className="px-3 py-2">
                     {isEditing ? (
-                      <input type="text" placeholder="deixe vazio p/ manter" value={edit.password}
+                      <input type="password" minLength={8} autoComplete="new-password" placeholder="deixe vazio p/ manter" value={edit.password}
                         onChange={(e) => setEdit({ ...edit, password: e.target.value })}
                         className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm font-mono" />
                     ) : (
