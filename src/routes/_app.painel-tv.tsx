@@ -11,6 +11,8 @@ export const Route = createFileRoute("/_app/painel-tv")({
       { name: "description", content: "Exibição em tela cheia dos indicadores selecionados, em rotação automática." },
       { property: "og:title", content: "Modo TV — Painel Rotativo" },
       { property: "og:description", content: "Indicadores em rotação automática para exibição em TV." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: PainelTv,

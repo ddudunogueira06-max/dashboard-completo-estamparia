@@ -14,6 +14,7 @@ import {
   Sun,
   Moon,
   Settings,
+  TriangleAlert,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,6 +59,7 @@ export function AppLayout() {
     { to: "/puncionadeira", label: "Puncionadeira", icon: Activity, adminOnly: false },
     { to: "/dobra", label: "Dobra", icon: Gauge, adminOnly: false },
     { to: "/painel-tv", label: "Modo TV", icon: Tv, adminOnly: false },
+    { to: "/alertas", label: "Análises e alertas", icon: TriangleAlert, adminOnly: false },
     { to: "/admin/users", label: "Configurações", icon: Settings, adminOnly: true },
   ];
   const navItems = allItems.filter((i) => !i.adminOnly || isAdmin);

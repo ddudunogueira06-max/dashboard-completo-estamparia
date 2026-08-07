@@ -16,6 +16,8 @@ export const Route = createFileRoute("/_app/programacao")({
       { name: "description", content: "Desperdícios, produção, produtos e importação do setor de programação." },
       { property: "og:title", content: "Programação — Controle Industrial" },
       { property: "og:description", content: "Painéis e importação de dados do setor de programação." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ProgramacaoModule,
