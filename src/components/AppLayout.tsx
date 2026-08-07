@@ -9,7 +9,6 @@ import {
   Gauge,
   Activity,
   LogOut,
-  Users,
   Package,
   Tv,
   Sun,

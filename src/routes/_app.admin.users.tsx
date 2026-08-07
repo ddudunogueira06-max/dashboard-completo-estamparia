@@ -12,6 +12,14 @@ import { Trash2, Pencil, X, Check } from "lucide-react";
 
 export const Route = createFileRoute("/_app/admin/users")({
   ssr: false,
+  head: () => ({ meta: [
+    { title: "Configurações — Controle Industrial" },
+    { name: "description", content: "Configurações gerais, perfis, acessos, análises e alertas do sistema." },
+    { property: "og:title", content: "Configurações — Controle Industrial" },
+    { property: "og:description", content: "Administração de perfis e configurações do controle industrial." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: AdminUsersPage,
 });
 
@@ -129,10 +137,14 @@ function AdminUsersPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Usuários & Perfis</h1>
+        <h1 className="text-2xl font-semibold">Configurações</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Apenas administradores veem esta página. Você pode criar, editar e-mail/senha, alterar papel ou excluir.
+          Administração geral de perfis e acessos. Crie usuários, altere permissões e redefina senhas.
         </p>
+      </div>
+
+      <div className="border-b border-border">
+        <div className="inline-flex border-b-2 border-primary px-1 pb-2 text-sm font-medium text-primary">Perfis e acessos</div>
       </div>
 
       <form

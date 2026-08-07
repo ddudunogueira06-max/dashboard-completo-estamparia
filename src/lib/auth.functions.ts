@@ -1,14 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { Database } from "@/integrations/supabase/types";
-
-function publicClient() {
-  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
-    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-  });
-}
 
 // (OTP/2FA flow removed — login uses email+password directly via supabase.auth.signInWithPassword)
 
@@ -58,18 +50,11 @@ export const seedAdminIfMissing = createServerFn({ method: "POST" }).handler(asy
 
 // ===== Admin user management =====
 
-async function assertAdmin(ctx: { supabase: any; userId: string }) {
-  const { data, error } = await ctx.supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
-  if (error || !data) throw new Error("Acesso negado: apenas admins");
-}
-
 export const listAppUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
+    const { data: allowed, error: roleError } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (roleError || !allowed) throw new Error("Acesso negado: apenas admins");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
@@ -98,7 +83,8 @@ export const createAppUser = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    const { data: allowed, error: roleError } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (roleError || !allowed) throw new Error("Acesso negado: apenas admins");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
@@ -107,6 +93,15 @@ export const createAppUser = createServerFn({ method: "POST" })
       user_metadata: { full_name: data.full_name },
     });
     if (error) throw new Error(error.message);
+    const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
+      id: created.user.id,
+      email: data.email,
+      full_name: data.full_name ?? null,
+    });
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+      throw new Error(`Não foi possível salvar o perfil: ${profileError.message}`);
+    }
     // Override role if admin requested
     if (data.role === "admin") {
       await supabaseAdmin.from("user_roles").delete().eq("user_id", created.user.id);
@@ -121,7 +116,8 @@ export const deleteAppUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    const { data: allowed, error: roleError } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (roleError || !allowed) throw new Error("Acesso negado: apenas admins");
     if (data.id === context.userId) throw new Error("Você não pode excluir a si mesmo");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.id);
@@ -143,7 +139,8 @@ export const updateAppUser = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    const { data: allowed, error: roleError } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (roleError || !allowed) throw new Error("Acesso negado: apenas admins");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const attrs: { email?: string; password?: string; user_metadata?: Record<string, unknown>; email_confirm?: boolean } = {};
     if (data.email) { attrs.email = data.email; attrs.email_confirm = true; }
