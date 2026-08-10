@@ -60,6 +60,7 @@ export function AppLayout() {
     { to: "/dobra", label: "Dobra", icon: Gauge, adminOnly: false },
     { to: "/painel-tv", label: "Modo TV", icon: Tv, adminOnly: false },
     { to: "/alertas", label: "Análises e alertas", icon: TriangleAlert, adminOnly: false },
+    { to: "/relatorios", label: "Relatórios", icon: FileText, adminOnly: false },
     { to: "/admin/users", label: "Configurações", icon: Settings, adminOnly: true },
   ];
   const navItems = allItems.filter((i) => !i.adminOnly || isAdmin);
