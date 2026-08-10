@@ -75,10 +75,13 @@ export function Shell({ title, children }: { title: string; children: React.Reac
 }
 
 function Stat({ value, hint, tone = "text-foreground" }: { value: string; hint?: string; tone?: string }) {
+  const long = value.length > 9;
   return (
-    <div className="h-full flex flex-col justify-center">
-      <div className={`text-3xl font-bold leading-tight truncate ${tone}`}>{value}</div>
-      {hint && <div className="text-xs text-muted-foreground mt-1 truncate">{hint}</div>}
+    <div className="h-full flex flex-col justify-center gap-1">
+      <div className={`font-bold leading-none tabular-nums break-words ${long ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"} ${tone}`}>
+        {value}
+      </div>
+      {hint && <div className="text-[11px] leading-snug text-muted-foreground line-clamp-2">{hint}</div>}
     </div>
   );
 }
@@ -100,7 +103,7 @@ function useDobraCalc() {
   const { data: rgs = [], isLoading: l1 } = useDobraRgs();
   const { data: fpps = [], isLoading: l2 } = useDobraFpps();
   const { data: settings } = useDobraSettings();
-  const rows = useMemo(() => buildRgCalc(rgs, fpps, settings?.tarefas ?? []), [rgs, fpps, settings]);
+  const rows = useMemo(() => buildRgCalc(rgs, fpps, settings?.tarefas ?? [], settings?.ajuste), [rgs, fpps, settings]);
   return { rows, isLoading: l1 || l2 };
 }
 

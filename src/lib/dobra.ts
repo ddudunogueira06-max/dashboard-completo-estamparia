@@ -364,6 +364,34 @@ export const DEFAULT_META: MetaParams = {
 
 export const DEFAULT_TAREFAS = ["Dobrar", "Dobra", "Dobrar raio", "Dobrar acabamento"];
 
+/** Ajustes de tempo da dobra: acréscimo percentual e dificuldade por produto. */
+export interface AjusteDobra {
+  /** Percentual aplicado sobre o tempo estimado (padrão 28%). */
+  fatorPct: number;
+  /** produto (normalizado) -> nível de dificuldade 1..5 */
+  dificuldade: Record<string, number>;
+}
+
+export const DEFAULT_AJUSTE: AjusteDobra = { fatorPct: 28, dificuldade: {} };
+
+/** Multiplicador de tempo por nível de dificuldade (3 = normal). */
+export const DIFICULDADE_FATOR: Record<number, number> = {
+  1: 0.8,
+  2: 0.9,
+  3: 1,
+  4: 1.15,
+  5: 1.3,
+};
+
+export const DIFICULDADE_LABEL: Record<number, string> = {
+  1: "Muito fácil",
+  2: "Fácil",
+  3: "Normal",
+  4: "Difícil",
+  5: "Muito difícil",
+};
+
+
 export function useDobraSettings() {
   return useQuery({
     queryKey: ["dobra_settings"],
@@ -378,6 +406,7 @@ export function useDobraSettings() {
         capacidade: { ...DEFAULT_CAPACIDADE, ...get<Partial<Capacidade>>("capacidade", {}) } as Capacidade,
         meta: { ...DEFAULT_META, ...get<Partial<MetaParams>>("meta", {}) } as MetaParams,
         tarefas: get<string[]>("tarefas_dobra", DEFAULT_TAREFAS),
+        ajuste: { ...DEFAULT_AJUSTE, ...get<Partial<AjusteDobra>>("ajuste_dobra", {}) } as AjusteDobra,
       };
     },
   });
@@ -395,6 +424,8 @@ export async function saveSetting(key: string, value: unknown) {
 export interface RgCalc extends DobraRg {
   situacao: Situacao;
   atrasada: boolean;
+  /** nível de dificuldade da dobra aplicado ao produto (1..5) */
+  dificuldade: number;
   tempoEstimadoSeg: number;
   totalRgsFpp: number;
   rgsRestantesFpp: number;
@@ -405,7 +436,12 @@ export interface RgCalc extends DobraRg {
 const isConcluida = (s: string | null) => normKey(s).startsWith("CONCLUID");
 const isEmProducao = (s: string | null) => normKey(s).includes("EMPRODUCAO") || normKey(s).includes("PRODUCAO");
 
-export function buildRgCalc(rgs: DobraRg[], fpps: DobraFpp[], tarefasDobra: string[]): RgCalc[] {
+export function buildRgCalc(
+  rgs: DobraRg[],
+  fpps: DobraFpp[],
+  tarefasDobra: string[],
+  ajuste: AjusteDobra = DEFAULT_AJUSTE,
+): RgCalc[] {
   const tarefaSet = new Set(tarefasDobra.map(normKey));
   const fppMap = new Map(fpps.map((f) => [f.fpp_key, f]));
   const totalPorFpp = new Map<string, number>();
@@ -416,12 +452,16 @@ export function buildRgCalc(rgs: DobraRg[], fpps: DobraFpp[], tarefasDobra: stri
     if (!isConcluida(r.status)) abertoPorFpp.set(r.fpp_key, (abertoPorFpp.get(r.fpp_key) ?? 0) + 1);
   }
   const hoje = todayISO();
+  const fator = 1 + (Number.isFinite(ajuste.fatorPct) ? ajuste.fatorPct : 0) / 100;
+  const dificuldade = ajuste.dificuldade ?? {};
 
   return rgs.map((r) => {
     const total = r.fpp_key ? (totalPorFpp.get(r.fpp_key) ?? 1) : 1;
     const restantes = r.fpp_key ? (abertoPorFpp.get(r.fpp_key) ?? 0) : 0;
     const tempoFpp = (r.fpp_key ? fppMap.get(r.fpp_key)?.tempo_fpp_seg : null) ?? 0;
-    const porRg = total > 0 ? tempoFpp / total : 0;
+    const nivel = dificuldade[normKey(r.produto)] ?? 3;
+    const multi = fator * (DIFICULDADE_FATOR[nivel] ?? 1);
+    const porRg = (total > 0 ? tempoFpp / total : 0) * multi;
 
     let situacao: Situacao;
     if (isConcluida(r.status)) situacao = "concluida";
@@ -432,7 +472,9 @@ export function buildRgCalc(rgs: DobraRg[], fpps: DobraFpp[], tarefasDobra: stri
     return {
       ...r,
       situacao,
-      atrasada: situacao !== "concluida" && !!r.data_planejamento && r.data_planejamento < hoje,
+      // A RG tem até 23:59 do dia planejado; só fica atrasada a partir do dia seguinte.
+      atrasada: situacao !== "concluida" && !!r.data_planejamento && r.data_planejamento.slice(0, 10) < hoje,
+      dificuldade: nivel,
       tempoEstimadoSeg: Math.round(porRg),
       totalRgsFpp: total,
       rgsRestantesFpp: restantes,
@@ -521,4 +563,88 @@ export function capacidadeTotalSeg(c: Capacidade): number {
   const pessoasT1 = Math.max(0, c.dobradeiras - c.feriasT1 - c.afastadosT1);
   const pessoasT2 = Math.max(0, c.dobradeiras - c.feriasT2 - c.afastadosT2);
   return hmsToSec(c.turno1) * pessoasT1 + hmsToSec(c.turno2) * pessoasT2;
+}
+
+/* ------------------------------------------------------------------ */
+/* Séries de produção e carga (compartilhadas dashboard/widgets)       */
+/* ------------------------------------------------------------------ */
+
+export interface ProducaoDia {
+  [k: string]: string | number;
+  iso: string;
+  label: string;
+  rgs: number;
+  pecas: number;
+  horas: number;
+}
+
+/** Produção da dobra por dia de conclusão. `pecasPorRg` vem do BD-CONTROLE-RG. */
+export function buildProducaoDiaria(
+  concluidas: RgCalc[],
+  pecasPorRg: Map<string, number> = new Map(),
+  dias = 14,
+): ProducaoDia[] {
+  const map = new Map<string, { rgs: number; pecas: number; horas: number }>();
+  for (const r of concluidas) {
+    const d = (r.data_conclusao ?? "").slice(0, 10);
+    if (!d) continue;
+    const cur = map.get(d) ?? { rgs: 0, pecas: 0, horas: 0 };
+    cur.rgs += 1;
+    cur.pecas += pecasPorRg.get(r.rg_key) ?? 0;
+    cur.horas += (r.tempo_seg ?? r.tempoEstimadoSeg) / 3600;
+    map.set(d, cur);
+  }
+  return Array.from(map.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-dias)
+    .map(([iso, v]) => ({
+      iso,
+      label: fmtBrDate(iso).slice(0, 5),
+      rgs: v.rgs,
+      pecas: Math.round(v.pecas),
+      horas: Number(v.horas.toFixed(1)),
+    }));
+}
+
+export interface CargaDia {
+  [k: string]: string | number;
+  iso: string;
+  label: string;
+  horas: number;
+  capacidade: number;
+  util: number;
+  rgs: number;
+  fpps: number;
+  saldo: number;
+}
+
+/**
+ * Carga da dobra por dia. O primeiro dia acumula tudo que está atrasado ou
+ * sem data de planejamento, senão o gráfico ficaria vazio quando a planilha
+ * só traz datas passadas.
+ */
+export function buildCargaDiaria(abertas: RgCalc[], capSeg: number, dias = 7): CargaDia[] {
+  const hoje = todayISO();
+  const capH = capSeg / 3600;
+  const datas = Array.from({ length: dias }, (_, i) => addDaysISO(hoje, i));
+  const ultimo = datas[datas.length - 1];
+  return datas.map((d, idx) => {
+    const list = abertas.filter((r) => {
+      const p = (r.data_planejamento ?? "").slice(0, 10);
+      if (idx === 0) return !p || p <= d;
+      if (d === ultimo) return p >= d;
+      return p === d;
+    });
+    const horas = list.reduce((s, r) => s + r.tempoEstimadoSeg, 0) / 3600;
+    return {
+      iso: d,
+      label: fmtBrDate(d).slice(0, 5),
+      horas: Number(horas.toFixed(1)),
+      capacidade: Number(capH.toFixed(1)),
+      util: capH ? Number(((horas / capH) * 100).toFixed(1)) : 0,
+      saldo: Number((capH - horas).toFixed(1)),
+      rgs: list.length,
+      fpps: new Set(list.map((r) => r.fpp_key).filter(Boolean)).size,
+    };
+  });
 }

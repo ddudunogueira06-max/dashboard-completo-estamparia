@@ -157,6 +157,8 @@ export function prodByMachine(rows: ProdRow[]) {
     map.set(r.maquina, cur);
   }
   return Array.from(map.entries())
+    // Somente as puncionadeiras reais (2000/3000/5000). Códigos auxiliares como 200 são ignorados.
+    .filter(([maquina]) => maquina >= 1000)
     .sort((a, b) => a[0] - b[0])
     .map(([maquina, v]) => ({ label: `Máq ${maquina}`, pecas: v.pecas, horas: Number((v.seg / 3600).toFixed(1)) }));
 }

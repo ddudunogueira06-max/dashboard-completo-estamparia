@@ -10,7 +10,7 @@ export function AlertsCenter() {
   const rgs = useDobraRgs();
   const fpps = useDobraFpps();
   const settings = useDobraSettings();
-  const dobra = useMemo(() => buildRgCalc(rgs.data ?? [], fpps.data ?? [], settings.data?.tarefas ?? []), [rgs.data, fpps.data, settings.data]);
+  const dobra = useMemo(() => buildRgCalc(rgs.data ?? [], fpps.data ?? [], settings.data?.tarefas ?? [], settings.data?.ajuste), [rgs.data, fpps.data, settings.data]);
   const alerts = [
     { module: "Dobra", icon: Gauge, tone: "border-mod-dobra", label: "RGs atrasadas", value: dobra.filter((r) => r.atrasada).length, detail: "Planejamento vencido e produção ainda aberta" },
     { module: "Dobra", icon: Gauge, tone: "border-mod-dobra", label: "RGs sem tempo", value: dobra.filter((r) => r.situacao !== "concluida" && !r.tempoEstimadoSeg).length, detail: "Pacote sem tempo estimado ou sem vínculo" },

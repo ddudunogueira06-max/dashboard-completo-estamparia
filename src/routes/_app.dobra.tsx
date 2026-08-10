@@ -38,7 +38,7 @@ function DobraModule() {
   const { data: settings } = useDobraSettings();
 
   const rows = useMemo(
-    () => buildRgCalc(rgs ?? [], fpps ?? [], settings?.tarefas ?? []),
+    () => buildRgCalc(rgs ?? [], fpps ?? [], settings?.tarefas ?? [], settings?.ajuste),
     [rgs, fpps, settings],
   );
 
