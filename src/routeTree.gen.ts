@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppRelatoriosRouteImport } from './routes/_app.relatorios'
 import { Route as AppPuncionadeiraRouteImport } from './routes/_app.puncionadeira'
 import { Route as AppProgramacaoRouteImport } from './routes/_app.programacao'
 import { Route as AppPainelTvRouteImport } from './routes/_app.painel-tv'
@@ -31,6 +32,11 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPuncionadeiraRoute = AppPuncionadeiraRouteImport.update({
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/painel-tv': typeof AppPainelTvRoute
   '/programacao': typeof AppProgramacaoRoute
   '/puncionadeira': typeof AppPuncionadeiraRoute
+  '/relatorios': typeof AppRelatoriosRoute
   '/admin/users': typeof AppAdminUsersRoute
 }
 export interface FileRoutesByTo {
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/painel-tv': typeof AppPainelTvRoute
   '/programacao': typeof AppProgramacaoRoute
   '/puncionadeira': typeof AppPuncionadeiraRoute
+  '/relatorios': typeof AppRelatoriosRoute
   '/': typeof AppIndexRoute
   '/admin/users': typeof AppAdminUsersRoute
 }
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/_app/painel-tv': typeof AppPainelTvRoute
   '/_app/programacao': typeof AppProgramacaoRoute
   '/_app/puncionadeira': typeof AppPuncionadeiraRoute
+  '/_app/relatorios': typeof AppRelatoriosRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
 }
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/painel-tv'
     | '/programacao'
     | '/puncionadeira'
+    | '/relatorios'
     | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
     | '/painel-tv'
     | '/programacao'
     | '/puncionadeira'
+    | '/relatorios'
     | '/'
     | '/admin/users'
   id:
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '/_app/painel-tv'
     | '/_app/programacao'
     | '/_app/puncionadeira'
+    | '/_app/relatorios'
     | '/_app/'
     | '/_app/admin/users'
   fileRoutesById: FileRoutesById
@@ -156,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/relatorios': {
+      id: '/_app/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof AppRelatoriosRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/puncionadeira': {
@@ -209,6 +228,7 @@ interface AppRouteChildren {
   AppPainelTvRoute: typeof AppPainelTvRoute
   AppProgramacaoRoute: typeof AppProgramacaoRoute
   AppPuncionadeiraRoute: typeof AppPuncionadeiraRoute
+  AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
 }
@@ -219,6 +239,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPainelTvRoute: AppPainelTvRoute,
   AppProgramacaoRoute: AppProgramacaoRoute,
   AppPuncionadeiraRoute: AppPuncionadeiraRoute,
+  AppRelatoriosRoute: AppRelatoriosRoute,
   AppIndexRoute: AppIndexRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
 }

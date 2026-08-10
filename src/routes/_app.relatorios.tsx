@@ -65,8 +65,8 @@ function RelatoriosPage() {
           { label: "Registros", value: String(w.length) },
           { label: "Programações", value: String(p.length) },
         ],
-        columns: ["Material", "Perda média (%)", "Peso (kg)"],
-        rows: wasteByMaterial(w).map((r) => [r.label, r.perda.toFixed(1), Math.round(r.kg).toLocaleString("pt-BR")]),
+        columns: ["Material", "Peso (kg)"],
+        rows: wasteByMaterial(w).map((r) => [r.name, Math.round(r.value).toLocaleString("pt-BR")]),
       });
       out.push({
         module: "Programação",
