@@ -1,12 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Card, Field, inputCls } from "./ui";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   capacidadeTotalSeg,
+  normKey,
   saveSetting,
   secToHms,
+  useDobraRgs,
   useDobraSettings,
+  DEFAULT_AJUSTE,
+  DIFICULDADE_FATOR,
+  type AjusteDobra,
   type Capacidade,
   type MetaParams,
 } from "@/lib/dobra";
@@ -19,6 +24,9 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
   const [meta, setMeta] = useState<MetaParams | null>(null);
   const [tarefas, setTarefas] = useState<string[]>([]);
   const [nova, setNova] = useState("");
+  const [ajuste, setAjuste] = useState<AjusteDobra>(DEFAULT_AJUSTE);
+  const [buscaProduto, setBuscaProduto] = useState("");
+  const { data: rgs } = useDobraRgs();
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -26,6 +34,7 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
     setCap(data.capacidade);
     setMeta(data.meta);
     setTarefas(data.tarefas);
+    setAjuste(data.ajuste ?? DEFAULT_AJUSTE);
   }, [data]);
 
   if (!cap || !meta) return <div className="p-6 text-sm text-muted-foreground">Carregando parâmetros...</div>;
@@ -39,6 +48,7 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
         saveSetting("capacidade", cap),
         saveSetting("meta", meta),
         saveSetting("tarefas_dobra", tarefas),
+        saveSetting("ajuste_dobra", ajuste),
       ]);
       await qc.invalidateQueries({ queryKey: ["dobra_settings"] });
       toast.success("Parâmetros salvos.");
@@ -48,6 +58,14 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
       setSaving(false);
     }
   };
+
+  const produtos = Array.from(
+    new Map((rgs ?? []).filter((r) => r.produto).map((r) => [normKey(r.produto), r.produto as string])).entries(),
+  ).sort((a, b) => a[1].localeCompare(b[1]));
+  const produtosFiltrados = produtos.filter(([, nome]) => nome.toLowerCase().includes(buscaProduto.toLowerCase())).slice(0, 200);
+
+  const setDificuldade = (key: string, nivel: number) =>
+    setAjuste({ ...ajuste, dificuldade: { ...ajuste.dificuldade, [key]: nivel } });
 
   const num = (v: string) => Math.max(0, Number(v) || 0);
 
@@ -149,6 +167,75 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
             />
             Desconsiderar finais de semana
           </label>
+        </div>
+      </Card>
+
+      <Card title="Ajuste de tempo da dobra">
+        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Acréscimo sobre o tempo estimado (%)">
+            <input
+              type="number"
+              className={inputCls}
+              value={ajuste.fatorPct}
+              onChange={(e) => setAjuste({ ...ajuste, fatorPct: Number(e.target.value) || 0 })}
+              disabled={readOnly}
+            />
+          </Field>
+          <div className="sm:col-span-3 self-end text-xs text-muted-foreground">
+            O tempo de cada RG é o tempo do pacote dividido pelas RGs, acrescido de {ajuste.fatorPct}% e multiplicado pelo fator
+            de dificuldade do produto (3 = normal).
+          </div>
+        </div>
+      </Card>
+
+      <Card title="Dificuldade de dobra por produto">
+        <div className="p-4 space-y-3">
+          <input
+            className={inputCls + " max-w-xs"}
+            placeholder="Buscar produto"
+            value={buscaProduto}
+            onChange={(e) => setBuscaProduto(e.target.value)}
+          />
+          {produtos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Importe as RGs da dobra para listar os produtos.</p>
+          ) : (
+            <div className="max-h-80 overflow-auto rounded-md border border-border">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-secondary text-xs uppercase text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">Produto</th>
+                    <th className="px-3 py-2 text-left font-medium w-52">Dificuldade</th>
+                    <th className="px-3 py-2 text-right font-medium w-28">Fator</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {produtosFiltrados.map(([key, nome]) => {
+                    const nivel = ajuste.dificuldade[key] ?? 3;
+                    return (
+                      <tr key={key}>
+                        <td className="px-3 py-1.5 truncate">{nome}</td>
+                        <td className="px-3 py-1.5">
+                          <select
+                            className={inputCls}
+                            value={nivel}
+                            onChange={(e) => setDificuldade(key, Number(e.target.value))}
+                            disabled={readOnly}
+                          >
+                            <option value={1}>1 — Muito fácil</option>
+                            <option value={2}>2 — Fácil</option>
+                            <option value={3}>3 — Normal</option>
+                            <option value={4}>4 — Difícil</option>
+                            <option value={5}>5 — Muito difícil</option>
+                          </select>
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">{(DIFICULDADE_FATOR[nivel] ?? 1).toFixed(2)}x</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </Card>
 

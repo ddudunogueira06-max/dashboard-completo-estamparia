@@ -100,7 +100,7 @@ function useDobraCalc() {
   const { data: rgs = [], isLoading: l1 } = useDobraRgs();
   const { data: fpps = [], isLoading: l2 } = useDobraFpps();
   const { data: settings } = useDobraSettings();
-  const rows = useMemo(() => buildRgCalc(rgs, fpps, settings?.tarefas ?? []), [rgs, fpps, settings]);
+  const rows = useMemo(() => buildRgCalc(rgs, fpps, settings?.tarefas ?? [], settings?.ajuste), [rgs, fpps, settings]);
   return { rows, isLoading: l1 || l2 };
 }
 

@@ -18,15 +18,16 @@ import { EmAbertoTable } from "./EmAbertoTable";
 import { ConcluidasTable, slaOk } from "./ConcluidasTable";
 import { applyFilters, type DobraFilters } from "./filters";
 import {
-  addDaysISO,
+  buildCargaDiaria,
+  buildProducaoDiaria,
   capacidadeTotalSeg,
-  fmtBrDate,
   secToHms,
-  todayISO,
   type Capacidade,
+  type CargaDia,
   type MetaParams,
   type RgCalc,
 } from "@/lib/dobra";
+import { useDobraControleRg } from "@/lib/dobraExtra";
 
 export function DobraDashboard({
   rows,
@@ -42,6 +43,13 @@ export function DobraDashboard({
   onVerTodas: (tab: string) => void;
 }) {
   const [serie, setSerie] = useState<"rgs" | "pecas" | "horas">("rgs");
+  const { data: ctrl } = useDobraControleRg();
+
+  const pecasPorRg = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of ctrl ?? []) if (c.rg_key) m.set(c.rg_key, (m.get(c.rg_key) ?? 0) + (c.quantidade ?? 0));
+    return m;
+  }, [ctrl]);
 
   const abertas = useMemo(() => applyFilters(rows, filters).filter((r) => r.situacao !== "concluida"), [rows, filters]);
   const concluidas = useMemo(
@@ -57,6 +65,7 @@ export function DobraDashboard({
     return {
       sla,
       rgs: concluidas.length,
+      pecas: concluidas.reduce((s, r) => s + (pecasPorRg.get(r.rg_key) ?? 0), 0),
       horas,
       media: concluidas.length / dias,
       pendentes: abertas.filter((r) => r.situacao === "aguardando" || r.situacao === "disponivel").length,
@@ -65,45 +74,14 @@ export function DobraDashboard({
       aguardando: abertas.filter((r) => r.situacao === "aguardando").length,
       atrasadas: abertas.filter((r) => r.atrasada).length,
     };
-  }, [concluidas, abertas]);
+  }, [concluidas, abertas, pecasPorRg]);
 
   /* Produção por período — últimos 14 dias com conclusão */
-  const producao = useMemo(() => {
-    const map = new Map<string, { rgs: number; horas: number }>();
-    for (const r of concluidas) {
-      if (!r.data_conclusao) continue;
-      const cur = map.get(r.data_conclusao) ?? { rgs: 0, horas: 0 };
-      cur.rgs += 1;
-      cur.horas += (r.tempo_seg ?? r.tempoEstimadoSeg) / 3600;
-      map.set(r.data_conclusao, cur);
-    }
-    return Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .slice(-14)
-      .map(([d, v]) => ({ label: fmtBrDate(d).slice(0, 5), rgs: v.rgs, horas: Number(v.horas.toFixed(1)), pecas: v.rgs }));
-  }, [concluidas]);
+  const producao = useMemo(() => buildProducaoDiaria(concluidas, pecasPorRg), [concluidas, pecasPorRg]);
 
   /* Carga de dobra por dia — próximos 7 dias */
   const capSeg = capacidadeTotalSeg(capacidade);
-  const carga = useMemo(() => {
-    const hoje = todayISO();
-    return Array.from({ length: 7 }, (_, i) => addDaysISO(hoje, i)).map((d) => {
-      const list = abertas.filter((r) => (r.data_planejamento ?? "") <= d && (i(d) ? true : true) && r.data_planejamento === d);
-      const horas = list.reduce((s, r) => s + r.tempoEstimadoSeg, 0) / 3600;
-      const capH = capSeg / 3600;
-      return {
-        label: fmtBrDate(d).slice(0, 5),
-        horas: Number(horas.toFixed(1)),
-        capacidade: Number(capH.toFixed(1)),
-        util: capH ? Number(((horas / capH) * 100).toFixed(1)) : 0,
-        rgs: list.length,
-        fpps: new Set(list.map((r) => r.fpp_key)).size,
-      };
-    });
-    function i(_d: string) {
-      return true;
-    }
-  }, [abertas, capSeg]);
+  const carga = useMemo(() => buildCargaDiaria(abertas, capSeg), [abertas, capSeg]);
 
   const alertas = useMemo(
     () =>
@@ -122,14 +100,14 @@ export function DobraDashboard({
     [kpis.atrasadas, abertas, carga],
   );
 
-  const barColor = (u: number) => (u > 100 ? "var(--destructive)" : u >= 85 ? "var(--warning)" : "var(--chart-1)");
+  const barColor = (u: number) => (u > 100 ? "var(--destructive)" : u >= 85 ? "var(--warning)" : "var(--success)");
 
   return (
     <div className="space-y-4">
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-6">
         <Kpi label="Entrega SLA" value={`${kpis.sla.toFixed(1)}%`} sub={`Meta: ${meta.metaSla}%`} tone={kpis.sla >= meta.metaSla ? "success" : "destructive"} />
         <Kpi label="RGs produzidas" value={kpis.rgs} sub="No período" tone="primary" onClick={() => onVerTodas("concluidas")} />
-        <Kpi label="Peças produzidas" value={kpis.rgs} sub="RGs concluídas" />
+        <Kpi label="Peças produzidas" value={kpis.pecas.toLocaleString("pt-BR")} sub="Quantidade do controle de RG" />
         <Kpi label="Horas produzidas" value={secToHms(kpis.horas)} sub="Tempo real/estimado" tone="primary" />
         <Kpi
           label="Média de RGs/dia"
@@ -184,6 +162,9 @@ export function DobraDashboard({
             </div>
           }
         >
+          <p className="px-4 pt-3 text-xs text-muted-foreground">
+            Últimos 14 dias com conclusão de RG. Barras mostram {serie === "horas" ? "as horas produzidas" : serie === "pecas" ? "as peças concluídas" : "a quantidade de RGs"} por dia e a linha compara sempre o volume de RGs; a linha tracejada é a meta de {meta.metaRgsDia} RGs/dia.
+          </p>
           <div className="h-64 p-3">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={producao}>
@@ -200,6 +181,9 @@ export function DobraDashboard({
         </Card>
 
         <Card title="Carga de dobra por dia (próximos 7 dias)">
+          <p className="px-4 pt-3 text-xs text-muted-foreground">
+            Horas necessárias por dia contra a capacidade de {(capSeg / 3600).toFixed(1)}h (linha tracejada). O primeiro dia acumula tudo que está atrasado ou sem data. Verde = folga, amarelo ≥ 85%, vermelho acima da capacidade.
+          </p>
           <div className="h-64 p-3">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={carga}>
@@ -212,7 +196,7 @@ export function DobraDashboard({
                 />
                 <ReferenceLine y={capSeg / 3600} stroke="var(--destructive)" strokeDasharray="4 4" />
                 <Bar dataKey="horas" radius={[4, 4, 0, 0]}>
-                  {carga.map((c, i) => (
+                  {carga.map((c: CargaDia, i: number) => (
                     <Cell key={i} fill={barColor(c.util)} />
                   ))}
                 </Bar>

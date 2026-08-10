@@ -41,7 +41,7 @@ export function useTickerMetrics(): { metrics: TickerMetric[]; loading: boolean 
   const pr = paradas.data ?? [];
 
   const dobra = useMemo(
-    () => buildRgCalc(rgs.data ?? [], fpps.data ?? [], settings.data?.tarefas ?? []),
+    () => buildRgCalc(rgs.data ?? [], fpps.data ?? [], settings.data?.tarefas ?? [], settings.data?.ajuste),
     [rgs.data, fpps.data, settings.data],
   );
 

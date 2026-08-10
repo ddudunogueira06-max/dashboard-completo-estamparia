@@ -11,7 +11,7 @@ import {
   oeeByDay,
   paradasTop,
 } from "@/lib/dashboardData";
-import { buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings, fmtBrDate, capacidadeTotalSeg, todayISO, addDaysISO } from "@/lib/dobra";
+import { buildCargaDiaria, buildProducaoDiaria, buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings, fmtBrDate, capacidadeTotalSeg, todayISO, addDaysISO } from "@/lib/dobra";
 import { controleRgPorMes, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
 import type { MetricModule } from "@/components/widgets/metrics";
 
@@ -23,7 +23,7 @@ export interface SeriesDef {
   xKey: string;
   /** séries numéricas disponíveis */
   keys: { key: string; label: string }[];
-  data: Record<string, string | number>[];
+  data: Record<string, unknown>[];
 }
 
 /** Catálogo de séries disponíveis para montar gráficos personalizados. */
@@ -39,35 +39,20 @@ export function useSeriesCatalog(): { series: SeriesDef[]; loading: boolean } {
   const perf = useDobraPerformance();
 
   const series = useMemo<SeriesDef[]>(() => {
-    const dobra = buildRgCalc(rgs.data ?? [], fpps.data ?? [], settings.data?.tarefas ?? []);
+    const dobra = buildRgCalc(rgs.data ?? [], fpps.data ?? [], settings.data?.tarefas ?? [], settings.data?.ajuste);
     const abertas = dobra.filter((r) => r.situacao !== "concluida");
     const concluidas = dobra.filter((r) => r.situacao === "concluida");
 
-    // produção diária da dobra
-    const prodMap = new Map<string, { rgs: number; horas: number }>();
-    for (const r of concluidas) {
-      if (!r.data_conclusao) continue;
-      const cur = prodMap.get(r.data_conclusao) ?? { rgs: 0, horas: 0 };
-      cur.rgs += 1;
-      cur.horas += (r.tempo_seg ?? r.tempoEstimadoSeg) / 3600;
-      prodMap.set(r.data_conclusao, cur);
+    // peças reais por RG (BD-CONTROLE-RG)
+    const pecasPorRg = new Map<string, number>();
+    for (const c of ctrl.data ?? []) {
+      if (c.rg_key) pecasPorRg.set(c.rg_key, (pecasPorRg.get(c.rg_key) ?? 0) + (c.quantidade ?? 0));
     }
-    const dobraProducao = Array.from(prodMap.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .slice(-14)
-      .map(([d, v]) => ({ label: fmtBrDate(d).slice(0, 5), rgs: v.rgs, horas: Number(v.horas.toFixed(1)) }));
 
-    // carga x capacidade nos próximos 7 dias
-    const capH = capacidadeTotalSeg(settings.data?.capacidade ?? ({} as never)) / 3600;
-    const hoje = todayISO();
-    const dobraCarga = Array.from({ length: 7 }, (_, i) => addDaysISO(hoje, i)).map((d) => {
-      const list = abertas.filter((r) => r.data_planejamento === d);
-      return {
-        label: fmtBrDate(d).slice(0, 5),
-        horas: Number((list.reduce((s, r) => s + r.tempoEstimadoSeg, 0) / 3600).toFixed(1)),
-        capacidade: Number(capH.toFixed(1)),
-      };
-    });
+    const dobraProducao = buildProducaoDiaria(concluidas, pecasPorRg);
+
+    const capH = capacidadeTotalSeg(settings.data?.capacidade ?? ({} as never));
+    const dobraCarga = buildCargaDiaria(abertas, capH);
 
     const statusDobra = [
       { label: "Em produção", valor: abertas.filter((r) => r.situacao === "em_producao").length },
@@ -147,6 +132,7 @@ export function useSeriesCatalog(): { series: SeriesDef[]; loading: boolean } {
         xKey: "label",
         keys: [
           { key: "rgs", label: "RGs" },
+          { key: "pecas", label: "Peças" },
           { key: "horas", label: "Horas" },
         ],
         data: dobraProducao,
