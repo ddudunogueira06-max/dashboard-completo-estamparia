@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GripVertical, X } from "lucide-react";
+import { Copy, GripVertical, X } from "lucide-react";
 
 export interface GridItem {
   i: string;
