@@ -60,6 +60,8 @@ export interface WidgetDef {
   id: string;
   title: string;
   module: WidgetModule;
+  /** Explicação curta mostrada na biblioteca de widgets. */
+  description?: string;
   defaultW: number;
   defaultH: number;
   Component: (props: { config?: Record<string, unknown> }) => React.ReactElement;
@@ -99,6 +101,14 @@ const tooltipStyle = {
   fontSize: 12,
 };
 
+/** Tooltip legível em ambos os temas (o texto herdava a cor da barra). */
+const tip = {
+  contentStyle: tooltipStyle,
+  labelStyle: { color: "var(--popover-foreground)", fontWeight: 600 },
+  itemStyle: { color: "var(--popover-foreground)" },
+  cursor: { fill: "color-mix(in oklab, var(--foreground) 8%, transparent)" },
+} as const;
+
 function useDobraCalc() {
   const { data: rgs = [], isLoading: l1 } = useDobraRgs();
   const { data: fpps = [], isLoading: l2 } = useDobraFpps();
@@ -110,6 +120,7 @@ function useDobraCalc() {
 export const WIDGETS: WidgetDef[] = [
   {
     id: "waste.kpi.perda",
+    description: "Fator de perda médio de material no período importado.",
     title: "Perda média ponderada",
     module: "Programação",
     defaultW: 3,
@@ -125,6 +136,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "waste.kpi.kg",
+    description: "Quilos solicitados x retalho gerado nos registros de desperdício.",
     title: "Total solicitado (kg)",
     module: "Programação",
     defaultW: 3,
@@ -136,6 +148,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "waste.chart.mensal",
+    description: "Evolução mensal do desperdício de material.",
     title: "Perda por mês (%)",
     module: "Programação",
     defaultW: 6,
@@ -153,7 +166,7 @@ export const WIDGETS: WidgetDef[] = [
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={38} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmtPct(v)} />
+                <Tooltip {...tip} formatter={(v: number) => fmtPct(v)} />
                 <Bar dataKey="perda" fill={COLORS[0]} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -164,6 +177,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "waste.chart.material",
+    description: "Ranking de desperdício por tipo de material.",
     title: "Distribuição por material (kg)",
     module: "Programação",
     defaultW: 4,
@@ -183,7 +197,7 @@ export const WIDGETS: WidgetDef[] = [
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => `${fmtInt(v)} kg`} />
+                <Tooltip {...tip} formatter={(v: number) => `${fmtInt(v)} kg`} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -193,6 +207,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "prod.kpi.pecas",
+    description: "Total de peças programadas/produzidas no período.",
     title: "Peças programadas",
     module: "Programação",
     defaultW: 3,
@@ -204,6 +219,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "prod.kpi.horas",
+    description: "Horas de produção acumuladas nas FPPs.",
     title: "Horas de execução",
     module: "Programação",
     defaultW: 3,
@@ -216,6 +232,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "prod.chart.maquina",
+    description: "Volume por máquina (2000, 3000 e 5000).",
     title: "Produção por máquina",
     module: "Programação",
     defaultW: 5,
@@ -233,7 +250,7 @@ export const WIDGETS: WidgetDef[] = [
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={40} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip {...tip} />
                 <Bar dataKey="pecas" name="Peças" fill={COLORS[2]} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -244,6 +261,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "prod.chart.dia",
+    description: "Produção diária dos últimos dias registrados.",
     title: "Peças por dia",
     module: "Programação",
     defaultW: 6,
@@ -261,7 +279,7 @@ export const WIDGETS: WidgetDef[] = [
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={40} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip {...tip} />
                 <Line type="monotone" dataKey="pecas" stroke={COLORS[0]} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -272,6 +290,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "oee.kpi.medio",
+    description: "OEE médio das puncionadeiras no período importado.",
     title: "OEE médio",
     module: "Puncionadeira",
     defaultW: 3,
@@ -287,6 +306,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "oee.chart.diario",
+    description: "OEE dia a dia com a meta de referência.",
     title: "OEE diário",
     module: "Puncionadeira",
     defaultW: 6,
@@ -304,7 +324,7 @@ export const WIDGETS: WidgetDef[] = [
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={38} domain={[0, 100]} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmtPct(v, 1)} />
+                <Tooltip {...tip} formatter={(v: number) => fmtPct(v, 1)} />
                 <Line type="monotone" dataKey="oee" stroke={COLORS[1]} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -315,6 +335,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "oee.chart.paradas",
+    description: "Principais categorias de parada por tempo total.",
     title: "Maiores paradas (h)",
     module: "Puncionadeira",
     defaultW: 5,
@@ -331,7 +352,7 @@ export const WIDGETS: WidgetDef[] = [
               <BarChart data={series} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
                 <XAxis type="number" tick={axis} />
                 <YAxis type="category" dataKey="label" tick={{ ...axis, fontSize: 10 }} width={110} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => `${fmtNum(v, 1)} h`} />
+                <Tooltip {...tip} formatter={(v: number) => `${fmtNum(v, 1)} h`} />
                 <Bar dataKey="horas" fill={COLORS[3]} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -344,6 +365,7 @@ export const WIDGETS: WidgetDef[] = [
   /* ---------------------- Dobra ---------------------- */
   {
     id: "dobra.kpi.sla",
+    description: "Percentual de RGs concluídas dentro da data planejada.",
     title: "SLA da dobra",
     module: "Dobra",
     defaultW: 3,
@@ -360,6 +382,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.kpi.abertas",
+    description: "RGs em aberto separadas por situação.",
     title: "RGs em aberto",
     module: "Dobra",
     defaultW: 3,
@@ -384,6 +407,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.kpi.horas",
+    description: "Horas estimadas ainda pendentes na dobra.",
     title: "Horas a produzir",
     module: "Dobra",
     defaultW: 3,
@@ -396,6 +420,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.kpi.performance",
+    description: "Performance da dobra (tempo real x planejado).",
     title: "Performance das FPPs",
     module: "Dobra",
     defaultW: 3,
@@ -412,6 +437,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.chart.status",
+    description: "Distribuição das RGs por situação.",
     title: "Situação das RGs",
     module: "Dobra",
     defaultW: 4,
@@ -437,7 +463,7 @@ export const WIDGETS: WidgetDef[] = [
                   ))}
                 </Pie>
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip {...tip} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -447,6 +473,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.chart.producao",
+    description: "RGs, peças e horas concluídas por dia.",
     title: "Produção da dobra por dia",
     module: "Dobra",
     defaultW: 6,
@@ -455,6 +482,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.chart.carga",
+    description: "Carga programada por dia contra a capacidade.",
     title: "Carga x capacidade (7 dias)",
     module: "Dobra",
     defaultW: 6,
@@ -465,6 +493,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.chart.sla",
+    description: "Tendência do SLA de entrega da dobra.",
     title: "SLA por mês",
     module: "Dobra",
     defaultW: 6,
@@ -473,6 +502,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.chart.performance",
+    description: "Performance por máquina/apontamento de dobra.",
     title: "Performance por FPP",
     module: "Dobra",
     defaultW: 6,
@@ -483,6 +513,7 @@ export const WIDGETS: WidgetDef[] = [
   /* ---------------------- Geral ---------------------- */
   {
     id: "geral.ticker",
+    description: "Painel rotativo com as informações que você selecionar.",
     title: "Painel rotativo",
     module: "Geral",
     defaultW: 4,
@@ -496,6 +527,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "geral.letreiro",
+    description: "Faixa contínua estilo letreiro de aeroporto.",
     title: "Letreiro contínuo",
     module: "Geral",
     defaultW: 12,
@@ -550,14 +582,14 @@ export function SeriesChart({
               ))}
             </Pie>
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip {...tip} />
           </PieChart>
         ) : kind === "line" ? (
           <LineChart data={def.data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis dataKey={def.xKey} tick={axis} />
             <YAxis tick={axis} width={40} />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip {...tip} />
             {use.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
             {use.map((k, i) => (
               <Line key={k} type="monotone" dataKey={k} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
@@ -568,7 +600,7 @@ export function SeriesChart({
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis dataKey={def.xKey} tick={axis} />
             <YAxis tick={axis} width={40} />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip {...tip} />
             {use.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
             {use.map((k, i) => (
               <Area key={k} type="monotone" dataKey={k} stroke={COLORS[i % COLORS.length]} fill={COLORS[i % COLORS.length]} fillOpacity={0.25} />
@@ -579,7 +611,7 @@ export function SeriesChart({
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis dataKey={def.xKey} tick={axis} />
             <YAxis tick={axis} width={40} />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip {...tip} />
             {use.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
             {use.map((k, i) => (
               <Bar key={k} dataKey={k} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />

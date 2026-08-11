@@ -35,6 +35,8 @@ export function ModularDashboard() {
   const [editing, setEditing] = useState(false);
   const [palette, setPalette] = useState(false);
   const [tickerCfg, setTickerCfg] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [modFiltro, setModFiltro] = useState<WidgetModule | "Todos">("Todos");
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
   const { metrics } = useTickerMetrics();
 
@@ -82,11 +84,23 @@ export function ModularDashboard() {
     setPalette(false);
   };
 
+  const duplicate = (item: Placed) => {
+    persist([...items, { ...item, i: `w${Date.now()}`, y: item.y + item.h }]);
+    setEditing(true);
+  };
+
   const grouped = useMemo(() => {
+    const q = busca.trim().toLowerCase();
     const g = new Map<WidgetModule, typeof WIDGETS>();
-    for (const w of WIDGETS) g.set(w.module, [...(g.get(w.module) ?? []), w]);
+    for (const w of WIDGETS) {
+      if (modFiltro !== "Todos" && w.module !== modFiltro) continue;
+      if (q && !`${w.title} ${w.module} ${w.description ?? ""}`.toLowerCase().includes(q)) continue;
+      g.set(w.module, [...(g.get(w.module) ?? []), w]);
+    }
     return Array.from(g.entries());
-  }, []);
+  }, [busca, modFiltro]);
+
+  const usados = useMemo(() => new Set(items.map((i) => i.widgetId)), [items]);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -137,6 +151,13 @@ export function ModularDashboard() {
         </div>
       </div>
 
+      {editing && (
+        <div className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm text-foreground">
+          Modo de edição: arraste o cabeçalho do widget para mover, use o canto inferior direito para
+          redimensionar e o X para remover. Clique em <b>Concluir edição</b> para salvar — o layout fica salvo neste navegador.
+        </div>
+      )}
+
       <GridBoard
         items={items}
         editing={editing}
@@ -146,6 +167,10 @@ export function ModularDashboard() {
           )
         }
         onRemove={(id) => persist(items.filter((it) => it.i !== id))}
+        onDuplicate={(id) => {
+          const it = items.find((x) => x.i === id);
+          if (it) duplicate(it);
+        }}
         titleFor={(it) => WIDGET_MAP.get((it as Placed).widgetId)?.title ?? "Widget"}
         renderItem={(it) => {
           const def = WIDGET_MAP.get((it as Placed).widgetId);
@@ -168,6 +193,29 @@ export function ModularDashboard() {
                 <X className="size-4" />
               </button>
             </div>
+            <input
+              autoFocus
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Pesquisar widget..."
+              className="mb-3 w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+            />
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              {(["Todos", "Programação", "Puncionadeira", "Dobra", "Geral"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setModFiltro(m)}
+                  className={`rounded-md px-2.5 py-1 text-xs ${
+                    modFiltro === m ? "bg-primary text-primary-foreground" : "border border-border hover:bg-secondary"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            {grouped.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhum widget encontrado para "{busca}".</p>
+            )}
             <div className="space-y-5">
               {grouped.map(([mod, list]) => (
                 <div key={mod}>
@@ -179,7 +227,17 @@ export function ModularDashboard() {
                         onClick={() => addWidget(w.id)}
                         className="w-full text-left rounded-lg border border-border px-3 py-2.5 text-sm hover:border-primary hover:bg-secondary/40"
                       >
-                        {w.title}
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="font-medium">{w.title}</span>
+                          {usados.has(w.id) && (
+                            <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                              no painel
+                            </span>
+                          )}
+                        </span>
+                        {w.description && (
+                          <span className="mt-0.5 block text-xs text-muted-foreground">{w.description}</span>
+                        )}
                       </button>
                     ))}
                   </div>

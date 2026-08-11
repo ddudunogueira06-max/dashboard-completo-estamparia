@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { DataTable, type Column } from "./ui";
-import { fmtBrDate, secToHms, type RgCalc } from "@/lib/dobra";
+import { fmtBrDate, secToHms, secToHoraDia, type RgCalc } from "@/lib/dobra";
 
 export function ConcluidasTable({ rows, pageSize = 15 }: { rows: RgCalc[]; pageSize?: number }) {
   const cols: Column<RgCalc>[] = [
@@ -12,10 +12,15 @@ export function ConcluidasTable({ rows, pageSize = 15 }: { rows: RgCalc[]; pageS
     { key: "item", header: "Item OV", cell: (r) => r.item_ov ?? "—" },
     { key: "plan", header: "Data plan.", cell: (r) => fmtBrDate(r.data_planejamento), sortValue: (r) => r.data_planejamento ?? "" },
     { key: "concl", header: "Conclusão", cell: (r) => fmtBrDate(r.data_conclusao), sortValue: (r) => r.data_conclusao ?? "" },
+    {
+      key: "hora",
+      header: "Hora conclusão",
+      cell: (r) => <span className="tabular-nums">{secToHoraDia(r.horaConclusaoSeg)}</span>,
+      sortValue: (r) => r.horaConclusaoSeg ?? -1,
+    },
     { key: "op", header: "Operador", cell: (r) => r.operador ?? "—", sortValue: (r) => r.operador ?? "" },
     { key: "maq", header: "Máquina", cell: (r) => r.maquina_ativa ?? "—" },
     { key: "est", header: "Tempo estimado", cell: (r) => <span className="tabular-nums">{secToHms(r.tempoEstimadoSeg)}</span>, sortValue: (r) => r.tempoEstimadoSeg },
-    { key: "real", header: "Tempo real", cell: (r) => <span className="tabular-nums">{r.tempo_seg ? secToHms(r.tempo_seg) : "—"}</span>, sortValue: (r) => r.tempo_seg ?? 0 },
     {
       key: "sla",
       header: "SLA",
@@ -32,13 +37,16 @@ export function ConcluidasTable({ rows, pageSize = 15 }: { rows: RgCalc[]; pageS
   ];
 
   const totals = useMemo(() => {
-    const seg = rows.reduce((s, r) => s + (r.tempo_seg ?? r.tempoEstimadoSeg), 0);
+    const seg = rows.reduce((s, r) => s + r.tempoEstimadoSeg, 0);
     const avaliadas = rows.filter((r) => slaOk(r) !== null);
     const ok = avaliadas.filter((r) => slaOk(r) === true).length;
+    const dias = new Set(rows.map((r) => r.data_conclusao).filter(Boolean)).size;
     return {
       total: rows.length,
       seg,
       media: rows.length ? seg / rows.length : 0,
+      dias,
+      porDia: dias ? rows.length / dias : 0,
       sla: avaliadas.length ? (ok / avaliadas.length) * 100 : 0,
     };
   }, [rows]);
@@ -51,14 +59,17 @@ export function ConcluidasTable({ rows, pageSize = 15 }: { rows: RgCalc[]; pageS
       footer={
         <span className="flex flex-wrap gap-x-4 gap-y-1">
           <span>RGs concluídas: <b>{totals.total}</b></span>
-          <span>Horas produzidas: <b className="tabular-nums">{secToHms(totals.seg)}</b></span>
+          <span>Horas estimadas: <b className="tabular-nums">{secToHms(totals.seg)}</b></span>
           <span>Média por RG: <b className="tabular-nums">{secToHms(totals.media)}</b></span>
+          <span>Dias com produção: <b>{totals.dias}</b></span>
+          <span>RGs/dia: <b className="tabular-nums">{totals.porDia.toFixed(1)}</b></span>
           <span>SLA: <b className="text-[var(--success)]">{totals.sla.toFixed(1)}%</b></span>
         </span>
       }
     />
   );
 }
+
 
 export function slaOk(r: RgCalc): boolean | null {
   if (!r.data_conclusao || !r.data_planejamento) return null;

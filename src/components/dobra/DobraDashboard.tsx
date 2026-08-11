@@ -60,7 +60,7 @@ export function DobraDashboard({
   const kpis = useMemo(() => {
     const avaliadas = concluidas.filter((r) => slaOk(r) !== null);
     const sla = avaliadas.length ? (avaliadas.filter((r) => slaOk(r) === true).length / avaliadas.length) * 100 : 0;
-    const horas = concluidas.reduce((s, r) => s + (r.tempo_seg ?? r.tempoEstimadoSeg), 0);
+    const horas = concluidas.reduce((s, r) => s + r.tempoEstimadoSeg, 0);
     const dias = new Set(concluidas.map((r) => r.data_conclusao).filter(Boolean)).size || 1;
     return {
       sla,
@@ -102,13 +102,25 @@ export function DobraDashboard({
 
   const barColor = (u: number) => (u > 100 ? "var(--destructive)" : u >= 85 ? "var(--warning)" : "var(--success)");
 
+  const tooltipProps = {
+    contentStyle: {
+      background: "var(--popover)",
+      border: "1px solid var(--border)",
+      borderRadius: 8,
+      color: "var(--popover-foreground)",
+    },
+    labelStyle: { color: "var(--popover-foreground)", fontWeight: 600 },
+    itemStyle: { color: "var(--popover-foreground)" },
+    cursor: { fill: "color-mix(in oklab, var(--foreground) 8%, transparent)" },
+  } as const;
+
   return (
     <div className="space-y-4">
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-6">
         <Kpi label="Entrega SLA" value={`${kpis.sla.toFixed(1)}%`} sub={`Meta: ${meta.metaSla}%`} tone={kpis.sla >= meta.metaSla ? "success" : "destructive"} />
         <Kpi label="RGs produzidas" value={kpis.rgs} sub="No período" tone="primary" onClick={() => onVerTodas("concluidas")} />
         <Kpi label="Peças produzidas" value={kpis.pecas.toLocaleString("pt-BR")} sub="Quantidade do controle de RG" />
-        <Kpi label="Horas produzidas" value={secToHms(kpis.horas)} sub="Tempo real/estimado" tone="primary" />
+        <Kpi label="Horas produzidas" value={secToHms(kpis.horas)} sub="Tempo estimado das RGs concluídas" tone="primary" />
         <Kpi
           label="Média de RGs/dia"
           value={kpis.media.toFixed(1)}
@@ -163,7 +175,7 @@ export function DobraDashboard({
           }
         >
           <p className="px-4 pt-3 text-xs text-muted-foreground">
-            Últimos 14 dias com conclusão de RG. Barras mostram {serie === "horas" ? "as horas produzidas" : serie === "pecas" ? "as peças concluídas" : "a quantidade de RGs"} por dia e a linha compara sempre o volume de RGs; a linha tracejada é a meta de {meta.metaRgsDia} RGs/dia.
+            Últimos 14 dias com conclusão de RG. Barras mostram {serie === "horas" ? "as horas estimadas produzidas" : serie === "pecas" ? "as peças concluídas" : "a quantidade de RGs"} por dia e a linha compara sempre o volume de RGs; a linha tracejada é a meta de {meta.metaRgsDia} RGs/dia.
           </p>
           <div className="h-64 p-3">
             <ResponsiveContainer width="100%" height="100%">
@@ -171,18 +183,23 @@ export function DobraDashboard({
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
                 <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
-                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }} />
+                <Tooltip {...tooltipProps} />
                 <Bar dataKey={serie} fill="var(--chart-1)" radius={[4, 4, 0, 0]} name={serie === "horas" ? "Horas" : serie === "pecas" ? "Peças" : "RGs"} />
                 {serie === "rgs" && <ReferenceLine y={meta.metaRgsDia} stroke="var(--destructive)" strokeDasharray="4 4" />}
                 <Line type="monotone" dataKey="rgs" stroke="var(--chart-2)" dot={false} name="RGs" />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
+          <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+            {producao.length} dia(s) · RGs: <b className="text-foreground">{producao.reduce((s, p) => s + p.rgs, 0)}</b> · Peças:{" "}
+            <b className="text-foreground">{producao.reduce((s, p) => s + p.pecas, 0).toLocaleString("pt-BR")}</b> · Horas:{" "}
+            <b className="text-foreground">{producao.reduce((s, p) => s + p.horas, 0).toFixed(1)}h</b>
+          </div>
         </Card>
 
         <Card title="Carga de dobra por dia (próximos 7 dias)">
           <p className="px-4 pt-3 text-xs text-muted-foreground">
-            Horas necessárias por dia contra a capacidade de {(capSeg / 3600).toFixed(1)}h (linha tracejada). O primeiro dia acumula tudo que está atrasado ou sem data. Verde = folga, amarelo ≥ 85%, vermelho acima da capacidade.
+            Horas necessárias por dia contra a capacidade de {(capSeg / 3600).toFixed(1)}h (linha tracejada). O primeiro dia acumula tudo que está atrasado ou sem data e o último dia acumula tudo com data posterior. Verde = folga, amarelo ≥ 85%, vermelho acima da capacidade.
           </p>
           <div className="h-64 p-3">
             <ResponsiveContainer width="100%" height="100%">
@@ -191,17 +208,26 @@ export function DobraDashboard({
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
                 <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
                 <Tooltip
-                  contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
+                  {...tooltipProps}
                   formatter={(v: number, n: string) => [n === "util" ? `${v}%` : `${v}h`, n === "horas" ? "Horas programadas" : n === "capacidade" ? "Capacidade" : "Utilização"]}
+                  labelFormatter={(l: string) => {
+                    const d = carga.find((c) => c.label === l);
+                    return d ? `${l} — ${d.rgs} RGs · ${d.fpps} FPPs · ${d.util}% da capacidade` : l;
+                  }}
                 />
                 <ReferenceLine y={capSeg / 3600} stroke="var(--destructive)" strokeDasharray="4 4" />
-                <Bar dataKey="horas" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="horas" name="Horas programadas" radius={[4, 4, 0, 0]}>
                   {carga.map((c: CargaDia, i: number) => (
                     <Cell key={i} fill={barColor(c.util)} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+          </div>
+          <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+            Total programado: <b className="text-foreground">{carga.reduce((s, c) => s + c.horas, 0).toFixed(1)}h</b> · RGs:{" "}
+            <b className="text-foreground">{carga.reduce((s, c) => s + c.rgs, 0)}</b> · Dias acima da capacidade:{" "}
+            <b className="text-foreground">{carga.filter((c) => c.util > 100).length}</b>
           </div>
         </Card>
       </div>

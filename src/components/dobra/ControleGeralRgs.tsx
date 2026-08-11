@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, DataTable, StatusBadge, inputCls, type Column } from "./ui";
-import { fmtBrDate, secToHms, type RgCalc } from "@/lib/dobra";
+import { fmtBrDate, secToHms, secToHoraDia, type RgCalc } from "@/lib/dobra";
 import { applyFilters, FiltersBar, type DobraFilters } from "./filters";
 import { Download } from "lucide-react";
 
@@ -34,6 +34,20 @@ export function ControleGeralRgs({
     );
   }, [rows, filters, busca]);
 
+  const resumo = useMemo(
+    () => ({
+      total: filtered.length,
+      concluidas: filtered.filter((r) => r.situacao === "concluida").length,
+      emProducao: filtered.filter((r) => r.situacao === "em_producao").length,
+      disponiveis: filtered.filter((r) => r.situacao === "disponivel").length,
+      aguardando: filtered.filter((r) => r.situacao === "aguardando").length,
+      atrasadas: filtered.filter((r) => r.atrasada).length,
+      fpps: new Set(filtered.map((r) => r.fpp_key).filter(Boolean)).size,
+      seg: filtered.reduce((s, r) => s + r.tempoEstimadoSeg, 0),
+    }),
+    [filtered],
+  );
+
   const cols: Column<RgCalc>[] = [
     { key: "status", header: "Status", cell: (r) => <StatusBadge situacao={r.situacao} atrasada={r.atrasada} /> },
     { key: "rg", header: "Nº RG", cell: (r) => <span className="font-medium">{r.rg}</span>, sortValue: (r) => r.rg },
@@ -48,7 +62,8 @@ export function ControleGeralRgs({
     { key: "maq", header: "Máquina ativa", cell: (r) => r.maquina_ativa ?? "—" },
     { key: "plan", header: "Data planejamento", cell: (r) => fmtBrDate(r.data_planejamento), sortValue: (r) => r.data_planejamento ?? "" },
     { key: "concl", header: "Data conclusão", cell: (r) => fmtBrDate(r.data_conclusao), sortValue: (r) => r.data_conclusao ?? "" },
-    { key: "tempo", header: "Tempo", cell: (r) => <span className="tabular-nums">{r.tempo_seg ? secToHms(r.tempo_seg) : "—"}</span>, sortValue: (r) => r.tempo_seg ?? 0 },
+    { key: "est", header: "Tempo estimado", cell: (r) => <span className="tabular-nums">{secToHms(r.tempoEstimadoSeg)}</span>, sortValue: (r) => r.tempoEstimadoSeg },
+    { key: "hora", header: "Hora conclusão", cell: (r) => <span className="tabular-nums">{secToHoraDia(r.horaConclusaoSeg)}</span>, sortValue: (r) => r.horaConclusaoSeg ?? -1 },
   ];
 
   const exportCsv = () => {
@@ -69,7 +84,8 @@ export function ControleGeralRgs({
           r.maquina_ativa ?? "",
           fmtBrDate(r.data_planejamento),
           fmtBrDate(r.data_conclusao),
-          r.tempo_seg ? secToHms(r.tempo_seg) : "",
+          secToHms(r.tempoEstimadoSeg),
+          secToHoraDia(r.horaConclusaoSeg),
         ].join(";"),
       )
       .join("\n");
@@ -110,7 +126,24 @@ export function ControleGeralRgs({
         </button>
       </div>
       <Card title="Controle Geral de RGs">
-        <DataTable rows={filtered} columns={cols} pageSize={25} />
+
+        <DataTable
+          rows={filtered}
+          columns={cols}
+          pageSize={25}
+          footer={
+            <span className="flex flex-wrap gap-x-4 gap-y-1">
+              <span>RGs: <b>{resumo.total}</b></span>
+              <span>Concluídas: <b className="text-[var(--success)]">{resumo.concluidas}</b></span>
+              <span>Em produção: <b className="text-primary">{resumo.emProducao}</b></span>
+              <span>Disponíveis: <b className="text-accent">{resumo.disponiveis}</b></span>
+              <span>Aguardando: <b>{resumo.aguardando}</b></span>
+              <span>Atrasadas: <b className="text-destructive">{resumo.atrasadas}</b></span>
+              <span>FPPs: <b>{resumo.fpps}</b></span>
+              <span>Horas estimadas: <b className="tabular-nums">{secToHms(resumo.seg)}</b></span>
+            </span>
+          }
+        />
       </Card>
     </div>
   );

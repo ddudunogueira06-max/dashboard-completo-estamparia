@@ -102,6 +102,14 @@ export const secToHms = (sec: number | null | undefined): string => {
   return `${h}:${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 };
 
+/** Hora do dia (HH:MM) a partir de segundos desde a meia-noite. */
+export const secToHoraDia = (sec: number | null | undefined): string => {
+  if (sec === null || sec === undefined) return "—";
+  const s = Math.max(0, Math.round(sec)) % 86400;
+  return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}`;
+};
+
+
 export function hmsToSec(v: string | null | undefined): number {
   if (!v) return 0;
   const m = String(v).trim().match(/^(\d{1,4}):(\d{1,2})(?::(\d{1,2}))?$/);
@@ -427,6 +435,12 @@ export interface RgCalc extends DobraRg {
   /** nível de dificuldade da dobra aplicado ao produto (1..5) */
   dificuldade: number;
   tempoEstimadoSeg: number;
+  /**
+   * A coluna "Tempo" da planilha BD-SCHED guarda a HORA do dia em que a RG foi
+   * concluída (0..23:59), não a duração da tarefa. Por isso ela nunca entra em
+   * somatórios de horas produzidas — é exibida apenas como hora de conclusão.
+   */
+  horaConclusaoSeg: number | null;
   totalRgsFpp: number;
   rgsRestantesFpp: number;
   horasRestantesFppSeg: number;
@@ -476,6 +490,7 @@ export function buildRgCalc(
       atrasada: situacao !== "concluida" && !!r.data_planejamento && r.data_planejamento.slice(0, 10) < hoje,
       dificuldade: nivel,
       tempoEstimadoSeg: Math.round(porRg),
+      horaConclusaoSeg: situacao === "concluida" ? r.tempo_seg : null,
       totalRgsFpp: total,
       rgsRestantesFpp: restantes,
       horasRestantesFppSeg: Math.round(porRg * restantes),
@@ -591,7 +606,7 @@ export function buildProducaoDiaria(
     const cur = map.get(d) ?? { rgs: 0, pecas: 0, horas: 0 };
     cur.rgs += 1;
     cur.pecas += pecasPorRg.get(r.rg_key) ?? 0;
-    cur.horas += (r.tempo_seg ?? r.tempoEstimadoSeg) / 3600;
+    cur.horas += r.tempoEstimadoSeg / 3600;
     map.set(d, cur);
   }
   return Array.from(map.entries())
