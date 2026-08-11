@@ -102,13 +102,25 @@ export function DobraDashboard({
 
   const barColor = (u: number) => (u > 100 ? "var(--destructive)" : u >= 85 ? "var(--warning)" : "var(--success)");
 
+  const tooltipProps = {
+    contentStyle: {
+      background: "var(--popover)",
+      border: "1px solid var(--border)",
+      borderRadius: 8,
+      color: "var(--popover-foreground)",
+    },
+    labelStyle: { color: "var(--popover-foreground)", fontWeight: 600 },
+    itemStyle: { color: "var(--popover-foreground)" },
+    cursor: { fill: "color-mix(in oklab, var(--foreground) 8%, transparent)" },
+  } as const;
+
   return (
     <div className="space-y-4">
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-6">
         <Kpi label="Entrega SLA" value={`${kpis.sla.toFixed(1)}%`} sub={`Meta: ${meta.metaSla}%`} tone={kpis.sla >= meta.metaSla ? "success" : "destructive"} />
         <Kpi label="RGs produzidas" value={kpis.rgs} sub="No período" tone="primary" onClick={() => onVerTodas("concluidas")} />
         <Kpi label="Peças produzidas" value={kpis.pecas.toLocaleString("pt-BR")} sub="Quantidade do controle de RG" />
-        <Kpi label="Horas produzidas" value={secToHms(kpis.horas)} sub="Tempo real/estimado" tone="primary" />
+        <Kpi label="Horas produzidas" value={secToHms(kpis.horas)} sub="Tempo estimado das RGs concluídas" tone="primary" />
         <Kpi
           label="Média de RGs/dia"
           value={kpis.media.toFixed(1)}
