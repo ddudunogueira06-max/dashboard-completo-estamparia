@@ -112,7 +112,7 @@ export function ControleGeralRgs({
         </button>
       </div>
       <Card title="Controle Geral de RGs">
-      <Card title="Controle Geral de RGs">
+
         <DataTable
           rows={filtered}
           columns={cols}
