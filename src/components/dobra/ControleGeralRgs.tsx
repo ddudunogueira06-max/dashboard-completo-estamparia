@@ -70,7 +70,8 @@ export function ControleGeralRgs({
           r.maquina_ativa ?? "",
           fmtBrDate(r.data_planejamento),
           fmtBrDate(r.data_conclusao),
-          r.tempo_seg ? secToHms(r.tempo_seg) : "",
+          secToHms(r.tempoEstimadoSeg),
+          secToHoraDia(r.horaConclusaoSeg),
         ].join(";"),
       )
       .join("\n");
