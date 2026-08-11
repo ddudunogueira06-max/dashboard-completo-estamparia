@@ -112,7 +112,24 @@ export function ControleGeralRgs({
         </button>
       </div>
       <Card title="Controle Geral de RGs">
-        <DataTable rows={filtered} columns={cols} pageSize={25} />
+      <Card title="Controle Geral de RGs">
+        <DataTable
+          rows={filtered}
+          columns={cols}
+          pageSize={25}
+          footer={
+            <span className="flex flex-wrap gap-x-4 gap-y-1">
+              <span>RGs: <b>{resumo.total}</b></span>
+              <span>Concluídas: <b className="text-[var(--success)]">{resumo.concluidas}</b></span>
+              <span>Em produção: <b className="text-primary">{resumo.emProducao}</b></span>
+              <span>Disponíveis: <b className="text-accent">{resumo.disponiveis}</b></span>
+              <span>Aguardando: <b>{resumo.aguardando}</b></span>
+              <span>Atrasadas: <b className="text-destructive">{resumo.atrasadas}</b></span>
+              <span>FPPs: <b>{resumo.fpps}</b></span>
+              <span>Horas estimadas: <b className="tabular-nums">{secToHms(resumo.seg)}</b></span>
+            </span>
+          }
+        />
       </Card>
     </div>
   );
