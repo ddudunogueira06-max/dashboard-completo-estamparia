@@ -117,6 +117,14 @@ export function FppsPage({
                 { key: "est", header: "Tempo/RG", cell: (r) => secToHms(r.tempoEstimadoSeg) },
               ]}
               pageSize={10}
+              footer={
+                <span className="flex flex-wrap gap-x-4 gap-y-1">
+                  <span>RGs: <b>{detalhe.length}</b></span>
+                  <span>Concluídas: <b className="text-[var(--success)]">{detalhe.filter((r) => r.situacao === "concluida").length}</b></span>
+                  <span>Atrasadas: <b className="text-destructive">{detalhe.filter((r) => r.atrasada).length}</b></span>
+                  <span>Tempo estimado: <b className="tabular-nums">{secToHms(detalhe.reduce((s, r) => s + r.tempoEstimadoSeg, 0))}</b></span>
+                </span>
+              }
             />
           </div>
         </div>
