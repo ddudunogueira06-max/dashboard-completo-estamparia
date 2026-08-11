@@ -80,6 +80,34 @@ function PainelTv() {
           <span className="text-xs text-muted-foreground tabular-nums">
             {page + 1}/{pages}
           </span>
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            Troca a cada
+            <select
+              value={segundos}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setSegundos(v);
+                try {
+                  localStorage.setItem(SPEED_KEY, String(v));
+                } catch {
+                  /* ignore */
+                }
+              }}
+              className="rounded-md border border-border bg-input px-2 py-1 text-xs text-foreground"
+            >
+              {SPEEDS.map((s) => (
+                <option key={s} value={s}>
+                  {s}s
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            onClick={() => setPage((p) => (p + 1) % pages)}
+            className="rounded-md border border-border px-2.5 py-1.5 text-xs hover:bg-secondary"
+          >
+            Próxima
+          </button>
           <button
             onClick={() => setPlaying((v) => !v)}
             className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs hover:bg-secondary"
