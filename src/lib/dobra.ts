@@ -606,7 +606,7 @@ export function buildProducaoDiaria(
     const cur = map.get(d) ?? { rgs: 0, pecas: 0, horas: 0 };
     cur.rgs += 1;
     cur.pecas += pecasPorRg.get(r.rg_key) ?? 0;
-    cur.horas += (r.tempo_seg ?? r.tempoEstimadoSeg) / 3600;
+    cur.horas += r.tempoEstimadoSeg / 3600;
     map.set(d, cur);
   }
   return Array.from(map.entries())
