@@ -68,7 +68,22 @@ export function FppsPage({
     <div className="p-4 md:p-6 space-y-4">
       <FiltersBar filters={filters} onChange={onFilters} rows={rows} />
       <Card title={`FPPs / FPGs (${list.length})`}>
-        <DataTable rows={list} columns={cols} pageSize={20} onRowClick={setSel} />
+        <DataTable
+          rows={list}
+          columns={cols}
+          pageSize={20}
+          onRowClick={setSel}
+          footer={
+            <span className="flex flex-wrap gap-x-4 gap-y-1">
+              <span>FPPs: <b>{list.length}</b></span>
+              <span>RGs: <b>{list.reduce((s, r) => s + r.total, 0)}</b></span>
+              <span>Concluídas: <b className="text-[var(--success)]">{list.reduce((s, r) => s + r.concluidas, 0)}</b></span>
+              <span>Atrasadas: <b className="text-destructive">{list.filter((r) => r.prazo === "Atrasada").length}</b></span>
+              <span>Tempo restante: <b className="tabular-nums text-accent">{secToHms(list.reduce((s, r) => s + r.tempoRestanteSeg, 0))}</b></span>
+              <span>Tempo total: <b className="tabular-nums">{secToHms(list.reduce((s, r) => s + r.tempoTotalSeg, 0))}</b></span>
+            </span>
+          }
+        />
       </Card>
 
       {sel && (
