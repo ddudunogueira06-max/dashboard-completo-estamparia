@@ -120,6 +120,7 @@ function useDobraCalc() {
 export const WIDGETS: WidgetDef[] = [
   {
     id: "waste.kpi.perda",
+    description: "Fator de perda médio de material no período importado.",
     title: "Perda média ponderada",
     module: "Programação",
     defaultW: 3,
@@ -135,6 +136,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "waste.kpi.kg",
+    description: "Quilos solicitados x retalho gerado nos registros de desperdício.",
     title: "Total solicitado (kg)",
     module: "Programação",
     defaultW: 3,
@@ -146,6 +148,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "waste.chart.mensal",
+    description: "Evolução mensal do desperdício de material.",
     title: "Perda por mês (%)",
     module: "Programação",
     defaultW: 6,
@@ -174,6 +177,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "waste.chart.material",
+    description: "Ranking de desperdício por tipo de material.",
     title: "Distribuição por material (kg)",
     module: "Programação",
     defaultW: 4,
@@ -203,6 +207,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "prod.kpi.pecas",
+    description: "Total de peças programadas/produzidas no período.",
     title: "Peças programadas",
     module: "Programação",
     defaultW: 3,
@@ -214,6 +219,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "prod.kpi.horas",
+    description: "Horas de produção acumuladas nas FPPs.",
     title: "Horas de execução",
     module: "Programação",
     defaultW: 3,
@@ -226,6 +232,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "prod.chart.maquina",
+    description: "Volume por máquina (2000, 3000 e 5000).",
     title: "Produção por máquina",
     module: "Programação",
     defaultW: 5,
@@ -254,6 +261,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "prod.chart.dia",
+    description: "Produção diária dos últimos dias registrados.",
     title: "Peças por dia",
     module: "Programação",
     defaultW: 6,
@@ -282,6 +290,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "oee.kpi.medio",
+    description: "OEE médio das puncionadeiras no período importado.",
     title: "OEE médio",
     module: "Puncionadeira",
     defaultW: 3,
@@ -297,6 +306,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "oee.chart.diario",
+    description: "OEE dia a dia com a meta de referência.",
     title: "OEE diário",
     module: "Puncionadeira",
     defaultW: 6,
@@ -325,6 +335,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "oee.chart.paradas",
+    description: "Principais categorias de parada por tempo total.",
     title: "Maiores paradas (h)",
     module: "Puncionadeira",
     defaultW: 5,
@@ -354,6 +365,7 @@ export const WIDGETS: WidgetDef[] = [
   /* ---------------------- Dobra ---------------------- */
   {
     id: "dobra.kpi.sla",
+    description: "Percentual de RGs concluídas dentro da data planejada.",
     title: "SLA da dobra",
     module: "Dobra",
     defaultW: 3,
@@ -370,6 +382,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.kpi.abertas",
+    description: "RGs em aberto separadas por situação.",
     title: "RGs em aberto",
     module: "Dobra",
     defaultW: 3,
@@ -394,6 +407,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.kpi.horas",
+    description: "Horas estimadas ainda pendentes na dobra.",
     title: "Horas a produzir",
     module: "Dobra",
     defaultW: 3,
@@ -406,6 +420,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.kpi.performance",
+    description: "Performance da dobra (tempo real x planejado).",
     title: "Performance das FPPs",
     module: "Dobra",
     defaultW: 3,
@@ -422,6 +437,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.chart.status",
+    description: "Distribuição das RGs por situação.",
     title: "Situação das RGs",
     module: "Dobra",
     defaultW: 4,
@@ -457,6 +473,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.chart.producao",
+    description: "RGs, peças e horas concluídas por dia.",
     title: "Produção da dobra por dia",
     module: "Dobra",
     defaultW: 6,
@@ -465,6 +482,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.chart.carga",
+    description: "Carga programada por dia contra a capacidade.",
     title: "Carga x capacidade (7 dias)",
     module: "Dobra",
     defaultW: 6,
@@ -475,6 +493,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.chart.sla",
+    description: "Tendência do SLA de entrega da dobra.",
     title: "SLA por mês",
     module: "Dobra",
     defaultW: 6,
@@ -483,6 +502,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "dobra.chart.performance",
+    description: "Performance por máquina/apontamento de dobra.",
     title: "Performance por FPP",
     module: "Dobra",
     defaultW: 6,
@@ -493,6 +513,7 @@ export const WIDGETS: WidgetDef[] = [
   /* ---------------------- Geral ---------------------- */
   {
     id: "geral.ticker",
+    description: "Painel rotativo com as informações que você selecionar.",
     title: "Painel rotativo",
     module: "Geral",
     defaultW: 4,
@@ -506,6 +527,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     id: "geral.letreiro",
+    description: "Faixa contínua estilo letreiro de aeroporto.",
     title: "Letreiro contínuo",
     module: "Geral",
     defaultW: 12,
