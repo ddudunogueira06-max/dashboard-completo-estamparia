@@ -435,6 +435,12 @@ export interface RgCalc extends DobraRg {
   /** nível de dificuldade da dobra aplicado ao produto (1..5) */
   dificuldade: number;
   tempoEstimadoSeg: number;
+  /**
+   * A coluna "Tempo" da planilha BD-SCHED guarda a HORA do dia em que a RG foi
+   * concluída (0..23:59), não a duração da tarefa. Por isso ela nunca entra em
+   * somatórios de horas produzidas — é exibida apenas como hora de conclusão.
+   */
+  horaConclusaoSeg: number | null;
   totalRgsFpp: number;
   rgsRestantesFpp: number;
   horasRestantesFppSeg: number;
