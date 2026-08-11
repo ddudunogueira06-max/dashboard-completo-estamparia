@@ -60,6 +60,8 @@ export interface WidgetDef {
   id: string;
   title: string;
   module: WidgetModule;
+  /** Explicação curta mostrada na biblioteca de widgets. */
+  description?: string;
   defaultW: number;
   defaultH: number;
   Component: (props: { config?: Record<string, unknown> }) => React.ReactElement;

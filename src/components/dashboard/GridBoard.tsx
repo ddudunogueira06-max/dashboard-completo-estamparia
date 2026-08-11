@@ -18,6 +18,7 @@ interface Props {
   editing: boolean;
   onChange: (items: GridItem[]) => void;
   onRemove: (id: string) => void;
+  onDuplicate?: (id: string) => void;
   renderItem: (item: GridItem) => React.ReactNode;
   titleFor: (item: GridItem) => string;
 }
@@ -26,7 +27,7 @@ type Drag =
   | { mode: "move" | "resize"; id: string; startX: number; startY: number; item: GridItem }
   | null;
 
-export function GridBoard({ items, editing, onChange, onRemove, renderItem, titleFor }: Props) {
+export function GridBoard({ items, editing, onChange, onRemove, onDuplicate, renderItem, titleFor }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1200);
   const [drag, setDrag] = useState<Drag>(null);
@@ -127,6 +128,15 @@ export function GridBoard({ items, editing, onChange, onRemove, renderItem, titl
                 <GripVertical className="size-3.5 shrink-0" />
                 <span className="truncate">{titleFor(item)}</span>
               </button>
+              {onDuplicate && (
+                <button
+                  onClick={() => onDuplicate(item.i)}
+                  className="text-muted-foreground hover:text-primary p-1 rounded"
+                  title="Duplicar widget"
+                >
+                  <Copy className="size-3.5" />
+                </button>
+              )}
               <button
                 onClick={() => onRemove(item.i)}
                 className="text-muted-foreground hover:text-destructive p-1 rounded"
