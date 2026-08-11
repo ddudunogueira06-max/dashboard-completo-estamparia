@@ -102,6 +102,14 @@ export const secToHms = (sec: number | null | undefined): string => {
   return `${h}:${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 };
 
+/** Hora do dia (HH:MM) a partir de segundos desde a meia-noite. */
+export const secToHoraDia = (sec: number | null | undefined): string => {
+  if (sec === null || sec === undefined) return "—";
+  const s = Math.max(0, Math.round(sec)) % 86400;
+  return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}`;
+};
+
+
 export function hmsToSec(v: string | null | undefined): number {
   if (!v) return 0;
   const m = String(v).trim().match(/^(\d{1,4}):(\d{1,2})(?::(\d{1,2}))?$/);
