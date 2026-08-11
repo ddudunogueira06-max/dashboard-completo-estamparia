@@ -29,13 +29,15 @@ interface Placed {
 }
 
 const PER_PAGE = 6;
-const PAGE_MS = 12000;
+const SPEEDS = [20, 30, 45, 60, 90];
+const SPEED_KEY = "dashboard.tv.speed";
 
 function PainelTv() {
   const [selected, setSelected] = useState<string[]>([]);
   const [layout, setLayout] = useState<Placed[]>([]);
   const [page, setPage] = useState(0);
   const [playing, setPlaying] = useState(true);
+  const [segundos, setSegundos] = useState(30);
 
   useEffect(() => {
     try {
@@ -43,6 +45,8 @@ function PainelTv() {
       if (raw) setSelected(JSON.parse(raw) as string[]);
       const lay = localStorage.getItem("dashboard.layout.v1");
       if (lay) setLayout(JSON.parse(lay) as Placed[]);
+      const sp = Number(localStorage.getItem(SPEED_KEY));
+      if (SPEEDS.includes(sp)) setSegundos(sp);
     } catch {
       /* ignore */
     }
@@ -56,9 +60,9 @@ function PainelTv() {
 
   useEffect(() => {
     if (!playing || pages <= 1) return;
-    const t = setInterval(() => setPage((p) => (p + 1) % pages), PAGE_MS);
+    const t = setInterval(() => setPage((p) => (p + 1) % pages), segundos * 1000);
     return () => clearInterval(t);
-  }, [playing, pages]);
+  }, [playing, pages, segundos]);
 
   const visible = widgets.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
 
