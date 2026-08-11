@@ -99,6 +99,14 @@ const tooltipStyle = {
   fontSize: 12,
 };
 
+/** Tooltip legível em ambos os temas (o texto herdava a cor da barra). */
+const tip = {
+  contentStyle: tooltipStyle,
+  labelStyle: { color: "var(--popover-foreground)", fontWeight: 600 },
+  itemStyle: { color: "var(--popover-foreground)" },
+  cursor: { fill: "color-mix(in oklab, var(--foreground) 8%, transparent)" },
+} as const;
+
 function useDobraCalc() {
   const { data: rgs = [], isLoading: l1 } = useDobraRgs();
   const { data: fpps = [], isLoading: l2 } = useDobraFpps();
@@ -153,7 +161,7 @@ export const WIDGETS: WidgetDef[] = [
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={38} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmtPct(v)} />
+                <Tooltip {...tip} formatter={(v: number) => fmtPct(v)} />
                 <Bar dataKey="perda" fill={COLORS[0]} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -183,7 +191,7 @@ export const WIDGETS: WidgetDef[] = [
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => `${fmtInt(v)} kg`} />
+                <Tooltip {...tip} formatter={(v: number) => `${fmtInt(v)} kg`} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -233,7 +241,7 @@ export const WIDGETS: WidgetDef[] = [
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={40} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip {...tip} />
                 <Bar dataKey="pecas" name="Peças" fill={COLORS[2]} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -261,7 +269,7 @@ export const WIDGETS: WidgetDef[] = [
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={40} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip {...tip} />
                 <Line type="monotone" dataKey="pecas" stroke={COLORS[0]} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -304,7 +312,7 @@ export const WIDGETS: WidgetDef[] = [
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="label" tick={axis} />
                 <YAxis tick={axis} width={38} domain={[0, 100]} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmtPct(v, 1)} />
+                <Tooltip {...tip} formatter={(v: number) => fmtPct(v, 1)} />
                 <Line type="monotone" dataKey="oee" stroke={COLORS[1]} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -331,7 +339,7 @@ export const WIDGETS: WidgetDef[] = [
               <BarChart data={series} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
                 <XAxis type="number" tick={axis} />
                 <YAxis type="category" dataKey="label" tick={{ ...axis, fontSize: 10 }} width={110} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => `${fmtNum(v, 1)} h`} />
+                <Tooltip {...tip} formatter={(v: number) => `${fmtNum(v, 1)} h`} />
                 <Bar dataKey="horas" fill={COLORS[3]} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -437,7 +445,7 @@ export const WIDGETS: WidgetDef[] = [
                   ))}
                 </Pie>
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip {...tip} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -550,14 +558,14 @@ export function SeriesChart({
               ))}
             </Pie>
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip {...tip} />
           </PieChart>
         ) : kind === "line" ? (
           <LineChart data={def.data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis dataKey={def.xKey} tick={axis} />
             <YAxis tick={axis} width={40} />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip {...tip} />
             {use.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
             {use.map((k, i) => (
               <Line key={k} type="monotone" dataKey={k} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
@@ -568,7 +576,7 @@ export function SeriesChart({
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis dataKey={def.xKey} tick={axis} />
             <YAxis tick={axis} width={40} />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip {...tip} />
             {use.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
             {use.map((k, i) => (
               <Area key={k} type="monotone" dataKey={k} stroke={COLORS[i % COLORS.length]} fill={COLORS[i % COLORS.length]} fillOpacity={0.25} />
@@ -579,7 +587,7 @@ export function SeriesChart({
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis dataKey={def.xKey} tick={axis} />
             <YAxis tick={axis} width={40} />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip {...tip} />
             {use.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
             {use.map((k, i) => (
               <Bar key={k} dataKey={k} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />
