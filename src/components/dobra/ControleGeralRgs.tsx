@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, DataTable, StatusBadge, inputCls, type Column } from "./ui";
-import { fmtBrDate, secToHms, type RgCalc } from "@/lib/dobra";
+import { fmtBrDate, secToHms, secToHoraDia, type RgCalc } from "@/lib/dobra";
 import { applyFilters, FiltersBar, type DobraFilters } from "./filters";
 import { Download } from "lucide-react";
 
@@ -48,7 +48,8 @@ export function ControleGeralRgs({
     { key: "maq", header: "Máquina ativa", cell: (r) => r.maquina_ativa ?? "—" },
     { key: "plan", header: "Data planejamento", cell: (r) => fmtBrDate(r.data_planejamento), sortValue: (r) => r.data_planejamento ?? "" },
     { key: "concl", header: "Data conclusão", cell: (r) => fmtBrDate(r.data_conclusao), sortValue: (r) => r.data_conclusao ?? "" },
-    { key: "tempo", header: "Tempo", cell: (r) => <span className="tabular-nums">{r.tempo_seg ? secToHms(r.tempo_seg) : "—"}</span>, sortValue: (r) => r.tempo_seg ?? 0 },
+    { key: "est", header: "Tempo estimado", cell: (r) => <span className="tabular-nums">{secToHms(r.tempoEstimadoSeg)}</span>, sortValue: (r) => r.tempoEstimadoSeg },
+    { key: "hora", header: "Hora conclusão", cell: (r) => <span className="tabular-nums">{secToHoraDia(r.horaConclusaoSeg)}</span>, sortValue: (r) => r.horaConclusaoSeg ?? -1 },
   ];
 
   const exportCsv = () => {
