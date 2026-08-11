@@ -490,6 +490,7 @@ export function buildRgCalc(
       atrasada: situacao !== "concluida" && !!r.data_planejamento && r.data_planejamento.slice(0, 10) < hoje,
       dificuldade: nivel,
       tempoEstimadoSeg: Math.round(porRg),
+      horaConclusaoSeg: situacao === "concluida" ? r.tempo_seg : null,
       totalRgsFpp: total,
       rgsRestantesFpp: restantes,
       horasRestantesFppSeg: Math.round(porRg * restantes),
