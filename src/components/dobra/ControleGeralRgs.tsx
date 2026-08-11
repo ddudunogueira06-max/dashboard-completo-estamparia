@@ -34,6 +34,20 @@ export function ControleGeralRgs({
     );
   }, [rows, filters, busca]);
 
+  const resumo = useMemo(
+    () => ({
+      total: filtered.length,
+      concluidas: filtered.filter((r) => r.situacao === "concluida").length,
+      emProducao: filtered.filter((r) => r.situacao === "em_producao").length,
+      disponiveis: filtered.filter((r) => r.situacao === "disponivel").length,
+      aguardando: filtered.filter((r) => r.situacao === "aguardando").length,
+      atrasadas: filtered.filter((r) => r.atrasada).length,
+      fpps: new Set(filtered.map((r) => r.fpp_key).filter(Boolean)).size,
+      seg: filtered.reduce((s, r) => s + r.tempoEstimadoSeg, 0),
+    }),
+    [filtered],
+  );
+
   const cols: Column<RgCalc>[] = [
     { key: "status", header: "Status", cell: (r) => <StatusBadge situacao={r.situacao} atrasada={r.atrasada} /> },
     { key: "rg", header: "Nº RG", cell: (r) => <span className="font-medium">{r.rg}</span>, sortValue: (r) => r.rg },
