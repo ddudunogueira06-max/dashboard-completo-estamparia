@@ -9,8 +9,10 @@ const PRAZO_CLS: Record<string, string> = {
   Hoje: "text-accent font-semibold",
   "Amanhã": "text-warning font-medium",
   "Dentro do prazo": "text-[var(--success)]",
+  "Concluída": "text-muted-foreground",
   "—": "text-muted-foreground",
 };
+
 
 export function FppsPage({
   rows,
@@ -44,6 +46,13 @@ export function FppsPage({
     { key: "prod", header: "Em produção", cell: (r) => <span className="text-primary">{r.emProducao}</span>, sortValue: (r) => r.emProducao },
     { key: "disp", header: "Disponíveis", cell: (r) => <span className="text-accent">{r.disponiveis}</span>, sortValue: (r) => r.disponiveis },
     { key: "agu", header: "Aguardando", cell: (r) => r.aguardando, sortValue: (r) => r.aguardando },
+    {
+      key: "atr",
+      header: "Atrasadas",
+      cell: (r) => (r.atrasadas ? <span className="text-destructive font-semibold">{r.atrasadas}</span> : "—"),
+      sortValue: (r) => r.atrasadas,
+    },
+
     { key: "tc", header: "Tempo concluído", cell: (r) => <span className="tabular-nums">{secToHms(r.tempoConcluidoSeg)}</span>, sortValue: (r) => r.tempoConcluidoSeg },
     { key: "tr", header: "Tempo restante", cell: (r) => <span className="tabular-nums text-accent">{secToHms(r.tempoRestanteSeg)}</span>, sortValue: (r) => r.tempoRestanteSeg },
     {

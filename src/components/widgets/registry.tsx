@@ -38,6 +38,8 @@ import { resumoControleRg, resumoPerformance, useDobraControleRg, useDobraPerfor
 import { useSeriesCatalog } from "@/components/widgets/series";
 import { useTickerMetrics } from "@/components/widgets/metrics";
 import type { CustomWidget } from "@/components/widgets/customWidgets";
+import { useDashboardFilters } from "@/components/dashboard/filters";
+
 
 const COLORS = [
   "var(--chart-1)",
@@ -406,6 +408,34 @@ export const WIDGETS: WidgetDef[] = [
     },
   },
   {
+    id: "dobra.kpi.atrasadas",
+    description: "RGs da dobra com data de planejamento vencida.",
+    title: "RGs em atraso",
+    module: "Dobra",
+    defaultW: 3,
+    defaultH: 2,
+    Component: () => {
+      const { rows, isLoading } = useDobraCalc();
+      const abertas = rows.filter((r) => r.situacao !== "concluida");
+      const atrasadas = abertas.filter((r) => r.atrasada);
+      const seg = atrasadas.reduce((s, r) => s + r.tempoEstimadoSeg, 0);
+      return (
+        <Shell title="RGs em atraso">
+          {isLoading ? (
+            <Loading />
+          ) : (
+            <Stat
+              value={fmtInt(atrasadas.length)}
+              hint={`${secToHms(seg)} em horas estimadas · ${abertas.length ? ((atrasadas.length / abertas.length) * 100).toFixed(0) : 0}% das RGs abertas`}
+              tone={atrasadas.length ? "text-destructive" : "text-[var(--success)]"}
+            />
+          )}
+        </Shell>
+      );
+    },
+  },
+  {
+
     id: "dobra.kpi.horas",
     description: "Horas estimadas ainda pendentes na dobra.",
     title: "Horas a produzir",
@@ -556,13 +586,17 @@ export function SeriesChart({
   title: string;
 }) {
   const { series, loading } = useSeriesCatalog();
+  const { dias } = useDashboardFilters();
   const def = series.find((s) => s.id === seriesId);
 
   if (loading) return <Shell title={title}><Loading /></Shell>;
   if (!def) return <Shell title={title}><div className="text-xs text-muted-foreground">Fonte de dados indisponível.</div></Shell>;
   const use = keys.length ? keys : [def.keys[0]?.key].filter(Boolean) as string[];
+  // Séries temporais respeitam o período escolhido no painel.
+  const temporal = /dia|mes|producao|carga|diario|sla/i.test(def.id);
+  const data = dias > 0 && temporal ? def.data.slice(-dias) : def.data;
 
-  if (def.data.length === 0)
+  if (data.length === 0)
     return (
       <Shell title={title}>
         <div className="h-full grid place-items-center text-xs text-muted-foreground text-center px-3">
@@ -576,8 +610,8 @@ export function SeriesChart({
       <ResponsiveContainer>
         {kind === "pie" ? (
           <PieChart>
-            <Pie data={def.data} dataKey={use[0]} nameKey={def.xKey} innerRadius="45%" outerRadius="75%">
-              {def.data.map((_, i) => (
+            <Pie data={data} dataKey={use[0]} nameKey={def.xKey} innerRadius="45%" outerRadius="75%">
+              {data.map((_, i) => (
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
               ))}
             </Pie>
@@ -585,7 +619,8 @@ export function SeriesChart({
             <Tooltip {...tip} />
           </PieChart>
         ) : kind === "line" ? (
-          <LineChart data={def.data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+          <LineChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis dataKey={def.xKey} tick={axis} />
             <YAxis tick={axis} width={40} />
@@ -596,7 +631,7 @@ export function SeriesChart({
             ))}
           </LineChart>
         ) : kind === "area" ? (
-          <AreaChart data={def.data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+          <AreaChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis dataKey={def.xKey} tick={axis} />
             <YAxis tick={axis} width={40} />
@@ -607,7 +642,7 @@ export function SeriesChart({
             ))}
           </AreaChart>
         ) : (
-          <BarChart data={def.data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+          <BarChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis dataKey={def.xKey} tick={axis} />
             <YAxis tick={axis} width={40} />

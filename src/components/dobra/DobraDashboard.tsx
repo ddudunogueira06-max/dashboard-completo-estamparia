@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { Card, Kpi } from "./ui";
 import { EmAbertoTable } from "./EmAbertoTable";
 import { ConcluidasTable, slaOk } from "./ConcluidasTable";
@@ -43,6 +43,7 @@ export function DobraDashboard({
   onVerTodas: (tab: string) => void;
 }) {
   const [serie, setSerie] = useState<"rgs" | "pecas" | "horas">("rgs");
+  const [alerta, setAlerta] = useState<{ label: string; rows: RgCalc[] } | null>(null);
   const { data: ctrl } = useDobraControleRg();
 
   const pecasPorRg = useMemo(() => {
@@ -56,6 +57,20 @@ export function DobraDashboard({
     () => applyFilters(rows.filter((r) => r.situacao === "concluida"), filters, "data_conclusao"),
     [rows, filters],
   );
+
+  /* SLA fixo do mês — vem pronto da planilha (BD-CONTROLE-RG, coluna SLA). */
+  const slaMes = useMemo(() => {
+    const mes = (filters.dataFim || filters.dataIni || new Date().toISOString().slice(0, 10)).slice(0, 7);
+    const doMes = (ctrl ?? []).filter((c) => (c.data_conclusao ?? c.data_rg ?? "").slice(0, 7) === mes);
+    const avaliados = doMes.filter((c) => c.sla);
+    const ok = avaliados.filter((c) => /OK/i.test(c.sla ?? "") && !/N[ÃA]O/i.test(c.sla ?? "")).length;
+    return {
+      mes,
+      pct: avaliados.length ? (ok / avaliados.length) * 100 : 0,
+      ok,
+      total: avaliados.length,
+    };
+  }, [ctrl, filters.dataIni, filters.dataFim]);
 
   const kpis = useMemo(() => {
     const avaliadas = concluidas.filter((r) => slaOk(r) !== null);
@@ -86,19 +101,19 @@ export function DobraDashboard({
   const alertas = useMemo(
     () =>
       [
-        { label: "RGs atrasadas", n: kpis.atrasadas, detail: "Data de planejamento vencida" },
-        { label: "RGs sem FPP/FPG", n: abertas.filter((r) => !r.fpp_key).length, detail: "Sem vínculo com pacote" },
-        { label: "RGs sem tempo estimado", n: abertas.filter((r) => !r.tempoEstimadoSeg).length, detail: "FPP sem tempo" },
-        { label: "RGs sem tarefa descrição", n: abertas.filter((r) => !r.tarefa_desc).length, detail: "Aguardando etapa anterior" },
-        { label: "RGs sem data de planejamento", n: abertas.filter((r) => !r.data_planejamento).length, detail: "Sem prazo definido" },
-        {
-          label: "Carga acima da capacidade",
-          n: carga.filter((c) => c.util > 100).length,
-          detail: "Dias com sobrecarga nos próximos 7 dias",
-        },
-      ].filter((a) => a.n > 0),
-    [kpis.atrasadas, abertas, carga],
+        { label: "RGs atrasadas", rows: abertas.filter((r) => r.atrasada), detail: "Data de planejamento vencida" },
+        { label: "RGs sem FPP/FPG", rows: abertas.filter((r) => !r.fpp_key), detail: "Sem vínculo com pacote" },
+        { label: "RGs sem tempo estimado", rows: abertas.filter((r) => !r.tempoEstimadoSeg), detail: "FPP sem tempo" },
+        { label: "RGs sem tarefa descrição", rows: abertas.filter((r) => !r.tarefa_desc), detail: "Aguardando etapa anterior" },
+        { label: "RGs sem data de planejamento", rows: abertas.filter((r) => !r.data_planejamento), detail: "Sem prazo definido" },
+      ]
+        .map((a) => ({ ...a, n: a.rows.length }))
+        .filter((a) => a.n > 0),
+    [abertas],
   );
+
+  const diasSobrecarga = carga.filter((c) => c.util > 100).length;
+
 
   const barColor = (u: number) => (u > 100 ? "var(--destructive)" : u >= 85 ? "var(--warning)" : "var(--success)");
 
@@ -117,7 +132,13 @@ export function DobraDashboard({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-6">
-        <Kpi label="Entrega SLA" value={`${kpis.sla.toFixed(1)}%`} sub={`Meta: ${meta.metaSla}%`} tone={kpis.sla >= meta.metaSla ? "success" : "destructive"} />
+        <Kpi
+          label={`SLA ${slaMes.mes.slice(5)}/${slaMes.mes.slice(2, 4)}`}
+          value={`${slaMes.pct.toFixed(1)}%`}
+          sub={slaMes.total ? `${slaMes.ok}/${slaMes.total} RGs no prazo · meta ${meta.metaSla}%` : "Sem controle de RG no mês"}
+          tone={slaMes.pct >= meta.metaSla ? "success" : "destructive"}
+        />
+
         <Kpi label="RGs produzidas" value={kpis.rgs} sub="No período" tone="primary" onClick={() => onVerTodas("concluidas")} />
         <Kpi label="Peças produzidas" value={kpis.pecas.toLocaleString("pt-BR")} sub="Quantidade do controle de RG" />
         <Kpi label="Horas produzidas" value={secToHms(kpis.horas)} sub="Tempo estimado das RGs concluídas" tone="primary" />
@@ -232,22 +253,58 @@ export function DobraDashboard({
         </Card>
       </div>
 
-      {alertas.length > 0 && (
+      {(alertas.length > 0 || diasSobrecarga > 0) && (
         <Card title="Alertas importantes">
           <div className="divide-y divide-border">
             {alertas.map((a) => (
-              <div key={a.label} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 text-sm">
-                <div className="flex min-w-0 items-center gap-2">
+              <button
+                key={a.label}
+                onClick={() => setAlerta({ label: a.label, rows: a.rows })}
+                className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-secondary/50"
+              >
+                <span className="flex min-w-0 items-center gap-2">
                   <AlertTriangle className="size-4 shrink-0 text-accent" />
                   <span className="truncate">{a.label}</span>
-                  <span className="truncate text-xs text-muted-foreground hidden sm:inline">— {a.detail}</span>
-                </div>
+                  <span className="hidden truncate text-xs text-muted-foreground sm:inline">— {a.detail} · clique para ver a lista</span>
+                </span>
                 <span className="shrink-0 rounded-md bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent tabular-nums">{a.n}</span>
-              </div>
+              </button>
             ))}
+            {diasSobrecarga > 0 && (
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 text-sm">
+                <span className="flex min-w-0 items-center gap-2">
+                  <AlertTriangle className="size-4 shrink-0 text-accent" />
+                  <span className="truncate">Carga acima da capacidade</span>
+                  <span className="hidden truncate text-xs text-muted-foreground sm:inline">— dias com sobrecarga nos próximos 7 dias</span>
+                </span>
+                <span className="shrink-0 rounded-md bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent tabular-nums">{diasSobrecarga}</span>
+              </div>
+            )}
           </div>
         </Card>
       )}
+
+      {alerta && (
+        <div className="fixed inset-0 z-50 grid place-items-center p-4" onClick={() => setAlerta(null)}>
+          <div className="absolute inset-0 bg-black/60" />
+          <div
+            className="relative max-h-[85vh] w-full max-w-5xl overflow-auto rounded-xl border border-border bg-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="sticky top-0 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-card px-4 py-3">
+              <div className="min-w-0">
+                <div className="truncate font-semibold">{alerta.label}</div>
+                <div className="text-xs text-muted-foreground">{alerta.rows.length} RG(s) neste alerta</div>
+              </div>
+              <button onClick={() => setAlerta(null)} className="rounded p-1.5 hover:bg-secondary">
+                <X className="size-4" />
+              </button>
+            </header>
+            <EmAbertoTable rows={alerta.rows} pageSize={15} />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
