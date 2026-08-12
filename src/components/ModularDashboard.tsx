@@ -1,12 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { GridBoard, type GridItem } from "@/components/dashboard/GridBoard";
 import { WIDGETS, WIDGET_MAP, type WidgetModule } from "@/components/widgets/registry";
 import { useTickerMetrics } from "@/components/widgets/metrics";
+import {
+  ALL_MODULES,
+  DashboardFilterContext,
+  PERIODOS,
+  loadFilters,
+  saveFilters,
+  type DashboardFilters,
+} from "@/components/dashboard/filters";
 import { LayoutGrid, Plus, Save, RotateCcw, Tv, Settings2, X } from "lucide-react";
 
 const STORAGE_KEY = "dashboard.layout.v1";
 const TICKER_KEY = "dashboard.ticker.v1";
+
 
 interface Placed extends GridItem {
   widgetId: string;
@@ -38,27 +47,42 @@ export function ModularDashboard() {
   const [busca, setBusca] = useState("");
   const [modFiltro, setModFiltro] = useState<WidgetModule | "Todos">("Todos");
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
+  const [filtros, setFiltros] = useState<DashboardFilters>({ dias: 0, modules: ALL_MODULES });
+  const loaded = useRef(false);
   const { metrics } = useTickerMetrics();
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setItems(JSON.parse(raw) as Placed[]);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Placed[];
+        if (Array.isArray(parsed) && parsed.length) setItems(parsed);
+      }
       const t = localStorage.getItem(TICKER_KEY);
       if (t) setSelectedMetrics(JSON.parse(t) as string[]);
+      setFiltros(loadFilters());
     } catch {
       /* ignore */
     }
+    loaded.current = true;
   }, []);
 
   const persist = useCallback((next: Placed[]) => {
     setItems(next);
+    if (!loaded.current) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
       /* ignore */
     }
   }, []);
+
+  const setFiltrosPersist = (patch: Partial<DashboardFilters>) => {
+    const next = { ...filtros, ...patch };
+    setFiltros(next);
+    saveFilters(next);
+  };
+
 
   const toggleMetric = (id: string) => {
     const next = selectedMetrics.includes(id)
@@ -102,8 +126,18 @@ export function ModularDashboard() {
 
   const usados = useMemo(() => new Set(items.map((i) => i.widgetId)), [items]);
 
+  const visiveis = useMemo(
+    () =>
+      editing
+        ? items
+        : items.filter((it) => filtros.modules.includes(WIDGET_MAP.get(it.widgetId)?.module ?? "Geral")),
+    [items, editing, filtros.modules],
+  );
+
   return (
+    <DashboardFilterContext.Provider value={filtros}>
     <div className="p-4 md:p-6 space-y-4">
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
@@ -158,14 +192,54 @@ export function ModularDashboard() {
         </div>
       )}
 
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Período</span>
+        <select
+          value={filtros.dias}
+          onChange={(e) => setFiltrosPersist({ dias: Number(e.target.value) })}
+          className="h-7 rounded-md border border-border bg-input px-2 text-xs"
+          aria-label="Período dos gráficos"
+        >
+          {PERIODOS.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+        <span className="ml-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Exibir</span>
+        {ALL_MODULES.map((m) => {
+          const on = filtros.modules.includes(m);
+          return (
+            <button
+              key={m}
+              onClick={() =>
+                setFiltrosPersist({
+                  modules: on ? filtros.modules.filter((x) => x !== m) : [...filtros.modules, m],
+                })
+              }
+              className={`rounded-md px-2.5 py-1 text-xs ${on ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:bg-secondary"}`}
+            >
+              {m}
+            </button>
+          );
+        })}
+        <span className="ml-auto text-xs text-muted-foreground">
+          {visiveis.length} de {items.length} widgets · vale também para o Modo TV
+        </span>
+      </div>
+
       <GridBoard
-        items={items}
+        items={visiveis}
         editing={editing}
         onChange={(next) =>
           persist(
-            next.map((n) => ({ ...n, widgetId: items.find((it) => it.i === n.i)?.widgetId ?? "" })),
+            items.map((it) => {
+              const n = next.find((x) => x.i === it.i);
+              return n ? { ...it, x: n.x, y: n.y, w: n.w, h: n.h } : it;
+            }),
           )
         }
+
         onRemove={(id) => persist(items.filter((it) => it.i !== id))}
         onDuplicate={(id) => {
           const it = items.find((x) => x.i === id);
@@ -287,5 +361,7 @@ export function ModularDashboard() {
         </div>
       )}
     </div>
+    </DashboardFilterContext.Provider>
+
   );
 }

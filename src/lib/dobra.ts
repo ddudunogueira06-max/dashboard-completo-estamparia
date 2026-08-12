@@ -94,6 +94,11 @@ export function displayCode(raw: string | null | undefined): string {
   return `${pref}-${num}`;
 }
 
+/** Prefixo do código do pacote: FPP, FPG, DIV... */
+export const tipoCode = (raw: string | null | undefined): string =>
+  normKey(raw).match(/^([A-Z]+)/)?.[1] ?? "";
+
+
 export const secToHms = (sec: number | null | undefined): string => {
   const s = Math.max(0, Math.round(sec ?? 0));
   const h = Math.floor(s / 3600);
@@ -522,10 +527,11 @@ export interface FppCalc {
   emProducao: number;
   disponiveis: number;
   aguardando: number;
+  atrasadas: number;
   tempoConcluidoSeg: number;
   tempoRestanteSeg: number;
   pctConcluido: number;
-  prazo: "Atrasada" | "Hoje" | "Amanhã" | "Dentro do prazo" | "—";
+  prazo: "Atrasada" | "Hoje" | "Amanhã" | "Dentro do prazo" | "Concluída" | "—";
 }
 
 export function buildFppCalc(rgs: RgCalc[], fpps: DobraFpp[]): FppCalc[] {
@@ -544,16 +550,22 @@ export function buildFppCalc(rgs: RgCalc[], fpps: DobraFpp[]): FppCalc[] {
     const total = list.length;
     const porRg = list[0]?.tempoEstimadoSeg ?? 0;
     const concluidas = list.filter((r) => r.situacao === "concluida").length;
-    const plan = meta?.dt_planejamento ?? list.find((r) => r.data_planejamento)?.data_planejamento ?? null;
+    const abertas = list.filter((r) => r.situacao !== "concluida");
+    const atrasadas = abertas.filter((r) => r.atrasada).length;
+    // Prazo da FPP = prazo das RGs que ainda estão abertas (o da planilha pode
+    // estar vencido mesmo com todas as RGs restantes dentro do prazo).
+    const prazoAberto = abertas
+      .map((r) => (r.data_planejamento ?? "").slice(0, 10))
+      .filter(Boolean)
+      .sort()[0] ?? null;
+    const plan = prazoAberto ?? meta?.dt_planejamento ?? list.find((r) => r.data_planejamento)?.data_planejamento ?? null;
     const restante = total - concluidas;
     let prazo: FppCalc["prazo"] = "—";
-    if (plan) {
-      if (restante === 0) prazo = "Dentro do prazo";
-      else if (plan < hoje) prazo = "Atrasada";
-      else if (plan === hoje) prazo = "Hoje";
-      else if (plan === amanha) prazo = "Amanhã";
-      else prazo = "Dentro do prazo";
-    }
+    if (restante === 0) prazo = "Concluída";
+    else if (atrasadas > 0) prazo = "Atrasada";
+    else if (prazoAberto === hoje) prazo = "Hoje";
+    else if (prazoAberto === amanha) prazo = "Amanhã";
+    else if (prazoAberto) prazo = "Dentro do prazo";
     return {
       fpp_key: key,
       fpp: list[0]?.fpp ?? displayCode(key),
@@ -565,6 +577,7 @@ export function buildFppCalc(rgs: RgCalc[], fpps: DobraFpp[]): FppCalc[] {
       emProducao: list.filter((r) => r.situacao === "em_producao").length,
       disponiveis: list.filter((r) => r.situacao === "disponivel").length,
       aguardando: list.filter((r) => r.situacao === "aguardando").length,
+      atrasadas,
       tempoConcluidoSeg: Math.round(porRg * concluidas),
       tempoRestanteSeg: Math.round(porRg * restante),
       pctConcluido: total ? (concluidas / total) * 100 : 0,
@@ -572,6 +585,7 @@ export function buildFppCalc(rgs: RgCalc[], fpps: DobraFpp[]): FppCalc[] {
     };
   });
 }
+
 
 export function capacidadeTotalSeg(c: Capacidade): number {
   if (c.manual) return hmsToSec(c.capacidadeManual);

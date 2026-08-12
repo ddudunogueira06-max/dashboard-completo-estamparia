@@ -3,6 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import { TickerPanel } from "@/components/TickerPanel";
 import { MODULE_ACCENT, WIDGET_MAP } from "@/components/widgets/registry";
 import { ArrowLeft, Pause, Play } from "lucide-react";
+import {
+  DEFAULT_FILTERS,
+  DashboardFilterContext,
+  loadFilters,
+  type DashboardFilters,
+} from "@/components/dashboard/filters";
+
 
 export const Route = createFileRoute("/_app/painel-tv")({
   ssr: false,
@@ -28,9 +35,31 @@ interface Placed {
   h: number;
 }
 
-const PER_PAGE = 6;
+const COLS = 12;
+/** Altura máxima (em linhas do grid do painel) exibida por página de TV. */
+const MAX_ROWS = 10;
 const SPEEDS = [20, 30, 45, 60, 90];
 const SPEED_KEY = "dashboard.tv.speed";
+
+/** Agrupa os widgets em páginas respeitando a posição/altura salvas no painel. */
+function paginate(items: Placed[]): Placed[][] {
+  const sorted = [...items].sort((a, b) => a.y - b.y || a.x - b.x);
+  const pages: Placed[][] = [];
+  let cur: Placed[] = [];
+  let baseY = 0;
+  for (const it of sorted) {
+    const bottom = it.y + it.h;
+    if (cur.length && bottom - baseY > MAX_ROWS) {
+      pages.push(cur);
+      cur = [];
+      baseY = it.y;
+    }
+    if (!cur.length) baseY = it.y;
+    cur.push(it);
+  }
+  if (cur.length) pages.push(cur);
+  return pages;
+}
 
 function PainelTv() {
   const [selected, setSelected] = useState<string[]>([]);
@@ -38,6 +67,7 @@ function PainelTv() {
   const [page, setPage] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [segundos, setSegundos] = useState(30);
+  const [filtros, setFiltros] = useState<DashboardFilters>(DEFAULT_FILTERS);
 
   useEffect(() => {
     try {
@@ -47,16 +77,23 @@ function PainelTv() {
       if (lay) setLayout(JSON.parse(lay) as Placed[]);
       const sp = Number(localStorage.getItem(SPEED_KEY));
       if (SPEEDS.includes(sp)) setSegundos(sp);
+      setFiltros(loadFilters());
     } catch {
       /* ignore */
     }
   }, []);
 
-  const widgets = useMemo(
-    () => layout.map((p) => ({ key: p.i, def: WIDGET_MAP.get(p.widgetId) })).filter((w) => w.def),
-    [layout],
+  const valid = useMemo(
+    () =>
+      layout.filter((p) => {
+        const def = WIDGET_MAP.get(p.widgetId);
+        return !!def && filtros.modules.includes(def.module);
+      }),
+    [layout, filtros.modules],
   );
-  const pages = Math.max(1, Math.ceil(widgets.length / PER_PAGE));
+
+  const pagesArr = useMemo(() => paginate(valid), [valid]);
+  const pages = Math.max(1, pagesArr.length);
 
   useEffect(() => {
     if (!playing || pages <= 1) return;
@@ -64,10 +101,14 @@ function PainelTv() {
     return () => clearInterval(t);
   }, [playing, pages, segundos]);
 
-  const visible = widgets.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+  const cur = pagesArr[Math.min(page, pages - 1)] ?? [];
+  const minY = cur.reduce((m, it) => Math.min(m, it.y), Infinity);
+  const rows = Math.max(1, cur.reduce((m, it) => Math.max(m, it.y + it.h - minY), 1));
 
   return (
+    <DashboardFilterContext.Provider value={filtros}>
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
+
       <header className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> Voltar ao painel
@@ -78,7 +119,7 @@ function PainelTv() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground tabular-nums">
-            {page + 1}/{pages}
+            {Math.min(page, pages - 1) + 1}/{pages}
           </span>
           <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
             Troca a cada
@@ -118,34 +159,43 @@ function PainelTv() {
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 p-4">
-        {visible.length === 0 ? (
+      <main className="min-h-0 flex-1 p-3">
+        {cur.length === 0 ? (
           <div className="grid h-full place-items-center text-sm text-muted-foreground">
             Nenhum widget no painel. Adicione widgets no Painel para exibi-los aqui.
           </div>
         ) : (
-          <div key={page} className="grid h-full animate-fade-in grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {visible.map(({ key, def }) => {
-              const D = def!;
+          <div key={page} className="relative h-full w-full animate-fade-in">
+            {cur.map((p) => {
+              const D = WIDGET_MAP.get(p.widgetId)!;
               const C = D.Component;
               return (
                 <section
-                  key={key}
-                  className="min-h-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm"
-                  style={{ borderLeft: `4px solid ${MODULE_ACCENT[D.module]}` }}
+                  key={p.i}
+                  className="absolute overflow-hidden rounded-lg border border-border bg-card shadow-sm"
+                  style={{
+                    left: `calc(${(p.x / COLS) * 100}% + 4px)`,
+                    width: `calc(${(p.w / COLS) * 100}% - 8px)`,
+                    top: `calc(${((p.y - minY) / rows) * 100}% + 4px)`,
+                    height: `calc(${(p.h / rows) * 100}% - 8px)`,
+                    borderLeft: `4px solid ${MODULE_ACCENT[D.module]}`,
+                  }}
                 >
-                  <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
-                    <span className="truncate text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1">
+                    <span className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       {D.title}
                     </span>
                     <span
                       className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase"
-                      style={{ background: `color-mix(in oklab, ${MODULE_ACCENT[D.module]} 18%, transparent)`, color: MODULE_ACCENT[D.module] }}
+                      style={{
+                        background: `color-mix(in oklab, ${MODULE_ACCENT[D.module]} 18%, transparent)`,
+                        color: MODULE_ACCENT[D.module],
+                      }}
                     >
                       {D.module}
                     </span>
                   </div>
-                  <div className="h-[calc(100%-2.25rem)]">
+                  <div className="h-[calc(100%-1.75rem)]">
                     <C config={{ metrics: selected }} />
                   </div>
                 </section>
@@ -155,7 +205,7 @@ function PainelTv() {
         )}
       </main>
 
-      <footer className="h-24 shrink-0 border-t border-border bg-card/70">
+      <footer className="h-20 shrink-0 border-t border-border bg-card/70">
         <TickerPanel selected={selected} variant="tv" mode="marquee" speed={42} />
       </footer>
     </div>
