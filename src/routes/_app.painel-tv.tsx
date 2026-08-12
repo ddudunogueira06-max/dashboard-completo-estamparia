@@ -209,5 +209,7 @@ function PainelTv() {
         <TickerPanel selected={selected} variant="tv" mode="marquee" speed={42} />
       </footer>
     </div>
+    </DashboardFilterContext.Provider>
+
   );
 }
