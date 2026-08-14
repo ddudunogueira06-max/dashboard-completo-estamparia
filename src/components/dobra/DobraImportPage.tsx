@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, Field } from "./ui";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
 import {
   parseFppsSheet,
   parseRgsSheet,
@@ -141,6 +141,44 @@ export function DobraImportPage() {
     }
   };
 
+  const ALL = "00000000-0000-0000-0000-000000000000";
+
+  const limparHistorico = async () => {
+    if (!confirm("Apagar o histórico de importações? Os dados importados serão mantidos.")) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.from("dobra_imports").delete().neq("id", ALL);
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["dobra_imports"] });
+      toast.success("Histórico de importações apagado.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao apagar o histórico.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const limparLancamentos = async () => {
+    if (!confirm("Apagar TODOS os lançamentos antigos da Dobra (RGs, FPPs, performance e controle)? Esta ação não pode ser desfeita.")) return;
+    setBusy(true);
+    try {
+      for (const t of ["dobra_rgs", "dobra_fpps", "dobra_performance", "dobra_controle_rg"] as const) {
+        const { error } = await supabase.from(t).delete().neq("id", ALL);
+        if (error) throw error;
+      }
+      const { error: impErr } = await supabase.from("dobra_imports").delete().neq("id", ALL);
+      if (impErr) throw impErr;
+      for (const k of ["dobra_rgs", "dobra_fpps", "dobra_performance", "dobra_controle_rg", "dobra_imports"]) {
+        await qc.invalidateQueries({ queryKey: [k] });
+      }
+      toast.success("Lançamentos antigos apagados.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao apagar os lançamentos.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <Card title="Importação de dados — Dobra">
@@ -228,6 +266,22 @@ export function DobraImportPage() {
       )}
 
       <Card title="Histórico de importações">
+        <div className="flex flex-wrap gap-2 border-b border-border p-3">
+          <button
+            onClick={limparHistorico}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-secondary disabled:opacity-60"
+          >
+            <Trash2 className="size-3.5" /> Apagar histórico
+          </button>
+          <button
+            onClick={limparLancamentos}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/20 disabled:opacity-60"
+          >
+            <Trash2 className="size-3.5" /> Apagar lançamentos antigos
+          </button>
+        </div>
         <div className="divide-y divide-border">
           {(imports ?? []).length === 0 && (
             <div className="p-6 text-center text-sm text-muted-foreground">Nenhuma importação registrada.</div>

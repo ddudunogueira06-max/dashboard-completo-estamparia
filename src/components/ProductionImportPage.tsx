@@ -165,6 +165,16 @@ export function ProductionImportPage() {
         <div className="px-4 py-3 border-b border-border flex items-center gap-2">
           <History className="size-4 text-muted-foreground" />
           <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Histórico de importações</h3>
+          <button
+            onClick={async () => {
+              if (!confirm("Apagar o histórico de importações?")) return;
+              await supabase.from("production_imports").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+              qc.invalidateQueries({ queryKey: ["production_imports"] });
+            }}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs hover:bg-secondary"
+          >
+            <Trash2 className="size-3.5" /> Apagar histórico
+          </button>
         </div>
         <div className="overflow-auto max-h-96">
           <table className="w-full text-sm">
