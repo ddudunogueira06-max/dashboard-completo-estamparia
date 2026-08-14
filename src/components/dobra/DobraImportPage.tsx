@@ -266,6 +266,22 @@ export function DobraImportPage() {
       )}
 
       <Card title="Histórico de importações">
+        <div className="flex flex-wrap gap-2 border-b border-border p-3">
+          <button
+            onClick={limparHistorico}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-secondary disabled:opacity-60"
+          >
+            <Trash2 className="size-3.5" /> Apagar histórico
+          </button>
+          <button
+            onClick={limparLancamentos}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/20 disabled:opacity-60"
+          >
+            <Trash2 className="size-3.5" /> Apagar lançamentos antigos
+          </button>
+        </div>
         <div className="divide-y divide-border">
           {(imports ?? []).length === 0 && (
             <div className="p-6 text-center text-sm text-muted-foreground">Nenhuma importação registrada.</div>
