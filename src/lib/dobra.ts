@@ -148,18 +148,25 @@ function cellStr(v: unknown): string | null {
   return s === "" || s.toUpperCase() === "N/A" ? null : s;
 }
 
+function validDate(y: number, m: number, d: number): string | null {
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d) || y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const parsed = new Date(Date.UTC(y, m - 1, d));
+  if (parsed.getUTCFullYear() !== y || parsed.getUTCMonth() !== m - 1 || parsed.getUTCDate() !== d) return null;
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
 function cellDate(v: unknown): string | null {
   if (v === null || v === undefined || v === "") return null;
-  if (v instanceof Date) return isNaN(v.getTime()) ? null : v.toISOString().slice(0, 10);
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : validDate(v.getUTCFullYear(), v.getUTCMonth() + 1, v.getUTCDate());
   if (typeof v === "number") {
     const d = XLSX.SSF.parse_date_code(v);
-    return d ? `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}` : null;
+    return d ? validDate(d.y, d.m, d.d) : null;
   }
   const s = String(v).trim();
   const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  if (br) return validDate(Number(br[3]), Number(br[2]), Number(br[1]));
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return iso[0];
+  if (iso) return validDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
   return null;
 }
 
