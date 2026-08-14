@@ -112,25 +112,50 @@ export function DobraImportPage() {
         return Array.from(map.values());
       };
 
-      for (const part of chunk(dedupe(preview.fpps as unknown as Record<string, unknown>[], "fpp_key"))) {
+      // Última barreira antes do banco: datas inválidas da planilha não podem
+      // derrubar o lote inteiro (ex.: mês zero em "2026-00-13").
+      const dateFields = new Set([
+        "dt_programada", "data_rg", "dt_pacote", "dt_fim_prog", "dt_planejamento",
+        "data_conclusao", "data_inicio", "data_final",
+      ]);
+      const safeRows = (rows: Record<string, unknown>[]) => rows.map((row) => {
+        const clean = { ...row };
+        for (const field of dateFields) {
+          const value = clean[field];
+          if (typeof value !== "string" || value === "") continue;
+          const match = value.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+          if (!match) {
+            clean[field] = null;
+            continue;
+          }
+          const y = Number(match[1]);
+          const m = Number(match[2]);
+          const d = Number(match[3]);
+          const parsed = new Date(Date.UTC(y, m - 1, d));
+          if (m < 1 || m > 12 || d < 1 || d > 31 || parsed.getUTCFullYear() !== y || parsed.getUTCMonth() !== m - 1 || parsed.getUTCDate() !== d) clean[field] = null;
+        }
+        return clean;
+      });
+
+      for (const part of chunk(safeRows(dedupe(preview.fpps as unknown as Record<string, unknown>[], "fpp_key")))) {
         const { error } = await supabase
           .from("dobra_fpps")
           .upsert(part.map((f) => ({ ...f, import_id })) as never, { onConflict: "fpp_key" });
         if (error) throw error;
       }
-      for (const part of chunk(dedupe(preview.rgs as unknown as Record<string, unknown>[], "rg_key"))) {
+      for (const part of chunk(safeRows(dedupe(preview.rgs as unknown as Record<string, unknown>[], "rg_key")))) {
         const { error } = await supabase
           .from("dobra_rgs")
           .upsert(part.map((r) => ({ ...r, import_id })) as never, { onConflict: "rg_key" });
         if (error) throw error;
       }
-      for (const part of chunk(dedupe(preview.performance as unknown as Record<string, unknown>[], "fpp_key"))) {
+      for (const part of chunk(safeRows(dedupe(preview.performance as unknown as Record<string, unknown>[], "fpp_key")))) {
         const { error } = await supabase
           .from("dobra_performance")
           .upsert(part.map((r) => ({ ...r, import_id })) as never, { onConflict: "fpp_key" });
         if (error) throw error;
       }
-      for (const part of chunk(dedupe(preview.controle as unknown as Record<string, unknown>[], "rg_key"))) {
+      for (const part of chunk(safeRows(dedupe(preview.controle as unknown as Record<string, unknown>[], "rg_key")))) {
         const { error } = await supabase
           .from("dobra_controle_rg")
           .upsert(part.map((r) => ({ ...r, import_id })) as never, { onConflict: "rg_key" });

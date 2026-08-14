@@ -65,25 +65,32 @@ export const num = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+const validDate = (y: number, m: number, d: number): string | null => {
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d) || y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const parsed = new Date(Date.UTC(y, m - 1, d));
+  if (parsed.getUTCFullYear() !== y || parsed.getUTCMonth() !== m - 1 || parsed.getUTCDate() !== d) return null;
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+};
+
 const date = (v: unknown): string | null => {
   if (v === null || v === undefined || v === "") return null;
-  if (v instanceof Date) return isNaN(v.getTime()) ? null : v.toISOString().slice(0, 10);
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : validDate(v.getUTCFullYear(), v.getUTCMonth() + 1, v.getUTCDate());
   if (typeof v === "number") {
     const d = XLSX.SSF.parse_date_code(v);
-    return d ? `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}` : null;
+    return d ? validDate(d.y, d.m, d.d) : null;
   }
   const s = String(v).trim();
   const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (br) {
     const y = br[3].length === 2 ? `20${br[3]}` : br[3];
-    return `${y}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+    return validDate(Number(y), Number(br[2]), Number(br[1]));
   }
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return iso[0];
+  if (iso) return validDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
   const n = Number(s.replace(",", "."));
   if (Number.isFinite(n) && n > 20000 && n < 80000) {
     const d = XLSX.SSF.parse_date_code(n);
-    return d ? `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}` : null;
+    return d ? validDate(d.y, d.m, d.d) : null;
   }
   return null;
 };
