@@ -141,6 +141,44 @@ export function DobraImportPage() {
     }
   };
 
+  const ALL = "00000000-0000-0000-0000-000000000000";
+
+  const limparHistorico = async () => {
+    if (!confirm("Apagar o histórico de importações? Os dados importados serão mantidos.")) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.from("dobra_imports").delete().neq("id", ALL);
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["dobra_imports"] });
+      toast.success("Histórico de importações apagado.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao apagar o histórico.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const limparLancamentos = async () => {
+    if (!confirm("Apagar TODOS os lançamentos antigos da Dobra (RGs, FPPs, performance e controle)? Esta ação não pode ser desfeita.")) return;
+    setBusy(true);
+    try {
+      for (const t of ["dobra_rgs", "dobra_fpps", "dobra_performance", "dobra_controle_rg"] as const) {
+        const { error } = await supabase.from(t).delete().neq("id", ALL);
+        if (error) throw error;
+      }
+      const { error: impErr } = await supabase.from("dobra_imports").delete().neq("id", ALL);
+      if (impErr) throw impErr;
+      for (const k of ["dobra_rgs", "dobra_fpps", "dobra_performance", "dobra_controle_rg", "dobra_imports"]) {
+        await qc.invalidateQueries({ queryKey: [k] });
+      }
+      toast.success("Lançamentos antigos apagados.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao apagar os lançamentos.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <Card title="Importação de dados — Dobra">
