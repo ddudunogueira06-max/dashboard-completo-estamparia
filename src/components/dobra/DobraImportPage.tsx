@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, Field } from "./ui";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
 import {
   parseFppsSheet,
   parseRgsSheet,
