@@ -147,7 +147,15 @@ export function DobraImportPage() {
       setPreview(null);
       if (inputRef.current) inputRef.current.value = "";
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao gravar os dados.");
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e === "object" && e && "message" in e
+            ? String((e as { message: unknown }).message)
+            : "Falha ao gravar os dados.";
+      console.error("Erro na importação Dobra:", e);
+      toast.error(`Falha ao gravar os dados: ${msg}`);
+
     } finally {
       setBusy(false);
     }
