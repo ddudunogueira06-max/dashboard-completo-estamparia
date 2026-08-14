@@ -101,30 +101,42 @@ export function DobraImportPage() {
       const chunk = <T,>(arr: T[], n = 500) =>
         Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
 
-      for (const part of chunk(preview.fpps)) {
+      // Postgres não aceita a mesma chave duas vezes no mesmo upsert
+      const dedupe = <T extends Record<string, unknown>>(arr: T[], key: string) => {
+        const map = new Map<string, T>();
+        for (const row of arr) {
+          const k = String(row[key] ?? "");
+          if (!k) continue;
+          map.set(k, row);
+        }
+        return Array.from(map.values());
+      };
+
+      for (const part of chunk(dedupe(preview.fpps as unknown as Record<string, unknown>[], "fpp_key"))) {
         const { error } = await supabase
           .from("dobra_fpps")
           .upsert(part.map((f) => ({ ...f, import_id })) as never, { onConflict: "fpp_key" });
         if (error) throw error;
       }
-      for (const part of chunk(preview.rgs)) {
+      for (const part of chunk(dedupe(preview.rgs as unknown as Record<string, unknown>[], "rg_key"))) {
         const { error } = await supabase
           .from("dobra_rgs")
           .upsert(part.map((r) => ({ ...r, import_id })) as never, { onConflict: "rg_key" });
         if (error) throw error;
       }
-      for (const part of chunk(preview.performance)) {
+      for (const part of chunk(dedupe(preview.performance as unknown as Record<string, unknown>[], "fpp_key"))) {
         const { error } = await supabase
           .from("dobra_performance")
           .upsert(part.map((r) => ({ ...r, import_id })) as never, { onConflict: "fpp_key" });
         if (error) throw error;
       }
-      for (const part of chunk(preview.controle)) {
+      for (const part of chunk(dedupe(preview.controle as unknown as Record<string, unknown>[], "rg_key"))) {
         const { error } = await supabase
           .from("dobra_controle_rg")
           .upsert(part.map((r) => ({ ...r, import_id })) as never, { onConflict: "rg_key" });
         if (error) throw error;
       }
+
 
       await qc.invalidateQueries({ queryKey: ["dobra_rgs"] });
       await qc.invalidateQueries({ queryKey: ["dobra_fpps"] });
@@ -135,7 +147,15 @@ export function DobraImportPage() {
       setPreview(null);
       if (inputRef.current) inputRef.current.value = "";
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao gravar os dados.");
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e === "object" && e && "message" in e
+            ? String((e as { message: unknown }).message)
+            : "Falha ao gravar os dados.";
+      console.error("Erro na importação Dobra:", e);
+      toast.error(`Falha ao gravar os dados: ${msg}`);
+
     } finally {
       setBusy(false);
     }
