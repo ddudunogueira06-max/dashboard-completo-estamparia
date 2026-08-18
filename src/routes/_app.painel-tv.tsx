@@ -205,8 +205,11 @@ function PainelTv() {
                     </span>
                   </div>
                   <div className="h-[calc(100%-1.75rem)]">
-                    <C config={{ metrics: selected }} />
+                    <DashboardFilterContext.Provider value={{ ...filtros, dias: p.dias ?? 0 }}>
+                      <C config={{ metrics: selected }} />
+                    </DashboardFilterContext.Provider>
                   </div>
+
                 </section>
               );
             })}
