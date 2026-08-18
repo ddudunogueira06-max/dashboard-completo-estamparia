@@ -21,13 +21,16 @@ interface Props {
   onDuplicate?: (id: string) => void;
   renderItem: (item: GridItem) => React.ReactNode;
   titleFor: (item: GridItem) => string;
+  /** Controles extras exibidos no cabeçalho do widget durante a edição. */
+  headerExtra?: (item: GridItem) => React.ReactNode;
 }
+
 
 type Drag =
   | { mode: "move" | "resize"; id: string; startX: number; startY: number; item: GridItem }
   | null;
 
-export function GridBoard({ items, editing, onChange, onRemove, onDuplicate, renderItem, titleFor }: Props) {
+export function GridBoard({ items, editing, onChange, onRemove, onDuplicate, renderItem, titleFor, headerExtra }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1200);
   const [drag, setDrag] = useState<Drag>(null);
@@ -128,7 +131,9 @@ export function GridBoard({ items, editing, onChange, onRemove, onDuplicate, ren
                 <GripVertical className="size-3.5 shrink-0" />
                 <span className="truncate">{titleFor(item)}</span>
               </button>
+              {headerExtra?.(item)}
               {onDuplicate && (
+
                 <button
                   onClick={() => onDuplicate(item.i)}
                   className="text-muted-foreground hover:text-primary p-1 rounded"

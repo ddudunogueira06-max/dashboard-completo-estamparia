@@ -30,7 +30,10 @@ const STORAGE_KEY = LAYOUT_KEY;
 
 interface Placed extends GridItem {
   widgetId: string;
+  /** Período próprio do widget (dias). undefined = padrão (tudo). */
+  dias?: number;
 }
+
 
 const DEFAULT_LAYOUT: Placed[] = [
   { i: "w1", widgetId: "waste.kpi.perda", x: 0, y: 0, w: 3, h: 2 },
@@ -133,6 +136,11 @@ export function ModularDashboard() {
     setEditing(true);
   };
 
+  const setWidgetDias = (id: string, dias: number) =>
+    persist(items.map((it) => (it.i === id ? { ...it, dias } : it)));
+
+
+
   const grouped = useMemo(() => {
     const q = busca.trim().toLowerCase();
     const g = new Map<WidgetModule, typeof WIDGETS>();
@@ -223,25 +231,13 @@ export function ModularDashboard() {
       {editing && (
         <div className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm text-foreground">
           Modo de edição: arraste o cabeçalho do widget para mover, use o canto inferior direito para
-          redimensionar e o X para remover. Clique em <b>Concluir edição</b> para salvar — o layout fica salvo neste navegador.
+          redimensionar e o X para remover. No cabeçalho de cada widget você também define o <b>período</b> só
+          daquele card. Clique em <b>Concluir edição</b> para salvar.
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Período</span>
-        <select
-          value={filtros.dias}
-          onChange={(e) => setFiltrosPersist({ dias: Number(e.target.value) })}
-          className="h-7 rounded-md border border-border bg-input px-2 text-xs"
-          aria-label="Período dos gráficos"
-        >
-          {PERIODOS.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-        <span className="ml-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Exibir</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Exibir</span>
         {ALL_MODULES.map((m) => {
           const on = filtros.modules.includes(m);
           return (
@@ -259,7 +255,7 @@ export function ModularDashboard() {
           );
         })}
         <span className="ml-auto text-xs text-muted-foreground">
-          {visiveis.length} de {items.length} widgets · vale também para o Modo TV
+          {visiveis.length} de {items.length} widgets · período agora é definido widget a widget na edição
         </span>
       </div>
 
@@ -281,11 +277,33 @@ export function ModularDashboard() {
           if (it) duplicate(it);
         }}
         titleFor={(it) => WIDGET_MAP.get((it as Placed).widgetId)?.title ?? "Widget"}
+        headerExtra={(it) => (
+          <select
+            value={(it as Placed).dias ?? 0}
+            onChange={(e) => setWidgetDias(it.i, Number(e.target.value))}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="h-6 rounded border border-border bg-input px-1 text-[11px] text-foreground"
+            title="Período deste widget"
+            aria-label="Período deste widget"
+          >
+            {PERIODOS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        )}
         renderItem={(it) => {
           const def = WIDGET_MAP.get((it as Placed).widgetId);
           if (!def) return <div className="p-3 text-xs text-muted-foreground">Widget indisponível</div>;
           const C = def.Component;
-          return <C config={{ metrics: selectedMetrics }} />;
+          const dias = (it as Placed).dias ?? 0;
+          return (
+            <DashboardFilterContext.Provider value={{ ...filtros, dias }}>
+              <C config={{ metrics: selectedMetrics }} />
+            </DashboardFilterContext.Provider>
+          );
+
         }}
       />
 
