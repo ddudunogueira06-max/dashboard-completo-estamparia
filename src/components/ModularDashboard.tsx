@@ -30,7 +30,10 @@ const STORAGE_KEY = LAYOUT_KEY;
 
 interface Placed extends GridItem {
   widgetId: string;
+  /** Período próprio do widget (dias). undefined = padrão (tudo). */
+  dias?: number;
 }
+
 
 const DEFAULT_LAYOUT: Placed[] = [
   { i: "w1", widgetId: "waste.kpi.perda", x: 0, y: 0, w: 3, h: 2 },
