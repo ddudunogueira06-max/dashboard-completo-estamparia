@@ -367,20 +367,30 @@ export const WIDGETS: WidgetDef[] = [
   /* ---------------------- Dobra ---------------------- */
   {
     id: "dobra.kpi.sla",
-    description: "Percentual de RGs concluídas dentro da data planejada.",
+    description: "Percentual de RGs concluídas dentro do prazo no período (padrão: mês corrente).",
     title: "SLA da dobra",
     module: "Dobra",
     defaultW: 3,
     defaultH: 2,
     Component: () => {
       const { data = [], isLoading } = useDobraControleRg();
-      const r = resumoControleRg(data);
+      const { dias } = useDashboardFilters();
+      const rows = filtrarCtrlPorPeriodo(data, dias);
+      const r = resumoControleRg(rows);
+      const avaliadas = r.noPrazo + Math.max(0, Math.round((r.slaPct ? r.noPrazo / (r.slaPct / 100) : 0) - r.noPrazo));
+      const periodo = dias > 0 ? `últimos ${dias} dias` : "mês corrente";
+      const tone = r.slaPct >= 95 ? "text-[var(--success)]" : r.slaPct >= 85 ? "text-[var(--warning)]" : "text-[var(--danger)]";
       return (
         <Shell title="SLA da dobra">
-          {isLoading ? <Loading /> : <Stat value={fmtPct(r.slaPct, 1)} hint={`${fmtInt(r.concluidos)} RGs concluídas`} tone="text-[var(--success)]" />}
+          {isLoading ? (
+            <Loading />
+          ) : (
+            <Stat value={fmtPct(r.slaPct, 1)} hint={`${fmtInt(avaliadas)} RGs avaliadas · ${periodo}`} tone={tone} />
+          )}
         </Shell>
       );
     },
+
   },
   {
     id: "dobra.kpi.abertas",
