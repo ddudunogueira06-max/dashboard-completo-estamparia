@@ -30,7 +30,7 @@ type Drag =
   | { mode: "move" | "resize"; id: string; startX: number; startY: number; item: GridItem }
   | null;
 
-export function GridBoard({ items, editing, onChange, onRemove, onDuplicate, renderItem, titleFor }: Props) {
+export function GridBoard({ items, editing, onChange, onRemove, onDuplicate, renderItem, titleFor, headerExtra }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1200);
   const [drag, setDrag] = useState<Drag>(null);
