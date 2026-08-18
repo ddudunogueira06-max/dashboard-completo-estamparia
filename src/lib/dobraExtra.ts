@@ -368,6 +368,9 @@ export interface CtrlResumo {
   total: number;
   concluidos: number;
   noPrazo: number;
+  /** Registros com SLA classificável (OK / Não OK). */
+  avaliados: number;
+
   slaPct: number;
   leadMedioDias: number;
   eficienciaMedia: number;
