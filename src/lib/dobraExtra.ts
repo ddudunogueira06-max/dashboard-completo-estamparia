@@ -461,12 +461,19 @@ export function filtrarCtrlPorIntervalo(rows: DobraCtrlRg[], de?: string, ate?: 
 }
 
 /**
- * SLA da dobra exatamente como na página Dobra: usa a coluna SLA já preenchida
- * na planilha (BD-CONTROLE-RG), contando "OK" (e descartando "NÃO OK").
+ * SLA da dobra exatamente como na página Dobra: RG concluída dentro do prazo
+ * quando a data de conclusão é menor ou igual à data de planejamento.
+ * Considera apenas RGs concluídas no intervalo informado.
  */
 export function slaPlanilha(rows: DobraCtrlRg[], de?: string, ate?: string) {
-  const base = filtrarCtrlPorIntervalo(rows, de, ate);
-  const avaliados = base.filter((c) => c.sla && String(c.sla).trim() !== "");
-  const ok = avaliados.filter((c) => /OK/i.test(c.sla ?? "") && !/N[ÃA]O/i.test(c.sla ?? "")).length;
+  const avaliados = rows.filter((r) => {
+    if (!r.data_conclusao || !r.data_planejamento) return false;
+    const d = r.data_conclusao.slice(0, 10);
+    if (de && d < de) return false;
+    if (ate && d > ate) return false;
+    return true;
+  });
+  const ok = avaliados.filter((r) => (r.data_conclusao ?? "") <= (r.data_planejamento ?? "")).length;
   return { pct: avaliados.length ? (ok / avaliados.length) * 100 : 0, ok, total: avaliados.length };
 }
+
