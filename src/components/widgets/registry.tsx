@@ -377,7 +377,7 @@ export const WIDGETS: WidgetDef[] = [
       const { dias } = useDashboardFilters();
       const rows = filtrarCtrlPorPeriodo(data, dias);
       const r = resumoControleRg(rows);
-      const avaliadas = r.noPrazo + Math.max(0, Math.round((r.slaPct ? r.noPrazo / (r.slaPct / 100) : 0) - r.noPrazo));
+      const avaliadas = r.avaliados;
       const periodo = dias > 0 ? `últimos ${dias} dias` : "mês corrente";
       const tone = r.slaPct >= 95 ? "text-[var(--success)]" : r.slaPct >= 85 ? "text-[var(--warning)]" : "text-[var(--danger)]";
       return (
