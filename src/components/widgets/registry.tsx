@@ -379,10 +379,15 @@ export const WIDGETS: WidgetDef[] = [
       const mesAtual = new Date().toISOString().slice(0, 7);
       const de = r ? r.de : `${mesAtual}-01`;
       const ate = r ? r.ate : undefined;
-      const sla = slaPlanilha(data, de === "0000-01-01" ? undefined : de, ate);
-      const periodo = r
-        ? `${de === "0000-01-01" ? "início" : de.split("-").reverse().join("/")} a ${(ate ?? "").split("-").reverse().join("/")}`
-        : "mês corrente";
+      const noPeriodo = slaPlanilha(data, de === "0000-01-01" ? undefined : de, ate);
+      // Sem RGs com SLA preenchido no período? cai para a base completa (igual à página Dobra).
+      const usouFallback = noPeriodo.total === 0;
+      const sla = usouFallback ? slaPlanilha(data) : noPeriodo;
+      const periodo = usouFallback
+        ? "base completa (sem SLA no período)"
+        : r
+          ? `${de === "0000-01-01" ? "início" : de.split("-").reverse().join("/")} a ${(ate ?? "").split("-").reverse().join("/")}`
+          : "mês corrente";
       const tone = sla.pct >= 95 ? "text-[var(--success)]" : sla.pct >= 85 ? "text-[var(--warning)]" : "text-[var(--danger)]";
       return (
         <Shell title="SLA da dobra">
@@ -390,14 +395,15 @@ export const WIDGETS: WidgetDef[] = [
             <Loading />
           ) : (
             <Stat
-              value={fmtPct(sla.pct, 1)}
-              hint={`${fmtInt(sla.ok)}/${fmtInt(sla.total)} RGs no prazo · ${periodo}`}
-              tone={tone}
+              value={sla.total === 0 ? "—" : fmtPct(sla.pct, 1)}
+              hint={sla.total === 0 ? "Sem RGs com SLA preenchido" : `${fmtInt(sla.ok)}/${fmtInt(sla.total)} RGs no prazo · ${periodo}`}
+              tone={sla.total === 0 ? undefined : tone}
             />
           )}
         </Shell>
       );
     },
+
 
   },
   {

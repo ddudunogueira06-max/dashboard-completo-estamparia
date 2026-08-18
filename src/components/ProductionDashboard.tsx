@@ -371,14 +371,24 @@ export function ProductionDashboard() {
       }
     });
 
-    // RGs vindos da base da Dobra — mesma regra de quantidade por data de planejamento
+    // RGs vindos da base da Dobra — programados (data de planejamento) e realizados (data de conclusão)
+    const rgRealByDay = new Map<string, Set<string>>();
     dobraRgs.forEach(r => {
+      const id = r.rg_key || r.rg;
       const plan = parseLocalDate((r.data_planejamento ?? "").slice(0, 10) || null);
-      if (!plan || !isWorkingDay(plan) || !inRange(plan)) return;
-      const dk = ymd(plan);
-      let s = rgByDay.get(dk);
-      if (!s) { s = new Set(); rgByDay.set(dk, s); }
-      s.add(r.rg_key || r.rg);
+      if (plan && isWorkingDay(plan) && inRange(plan)) {
+        const dk = ymd(plan);
+        let s = rgByDay.get(dk);
+        if (!s) { s = new Set(); rgByDay.set(dk, s); }
+        s.add(id);
+      }
+      const done = parseLocalDate((r.data_conclusao ?? "").slice(0, 10) || null);
+      if (done && isWorkingDay(done) && inRange(done)) {
+        const dk = ymd(done);
+        let s = rgRealByDay.get(dk);
+        if (!s) { s = new Set(); rgRealByDay.set(dk, s); }
+        s.add(id);
+      }
     });
 
     const days = byDay.size;
@@ -394,7 +404,7 @@ export function ProductionDashboard() {
     rgByDay.forEach(s => { rgTotal += s.size; });
     const rgDays = rgByDay.size;
     const rgAvg = rgDays > 0 ? rgTotal / rgDays : 0;
-    const allKeys = new Set<string>([...byDay.keys(), ...plannedByDay.keys(), ...rgByDay.keys()]);
+    const allKeys = new Set<string>([...byDay.keys(), ...plannedByDay.keys(), ...rgByDay.keys(), ...rgRealByDay.keys()]);
     const series = Array.from(allKeys)
       .sort((a, b) => a.localeCompare(b))
       .map((dk) => ({
@@ -404,12 +414,15 @@ export function ProductionDashboard() {
         planejado: plannedByDay.get(dk)?.size ?? 0,
         media: +avg.toFixed(2),
         rg: rgByDay.get(dk)?.size ?? 0,
+        rgReal: rgRealByDay.get(dk)?.size ?? 0,
         rgs: Array.from(rgByDay.get(dk) ?? []),
+        rgsReal: Array.from(rgRealByDay.get(dk) ?? []),
         fpps: Array.from(byDay.get(dk) ?? []),
         fppsPlanejado: Array.from(plannedByDay.get(dk) ?? []),
       }));
     return { avg, days, total, perMachine, series, rgAvg, rgTotal, rgDays };
   }, [filtered, fromDate, toDate, dobraRgs]);
+
 
 
 
@@ -585,7 +598,8 @@ export function ProductionDashboard() {
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Planejado (DT Planejamento · col. L)</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> Realizado ≥ média</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> Realizado &lt; média</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.78 0.16 75)" }} /> RGs (Dobra)</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.78 0.16 75)" }} /> RG programado</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.62 0.13 75)" }} /> RG realizado</span>
               <span className="text-muted-foreground">média = <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)} FPP/dia</span></span>
               <span className="text-primary text-[10px] uppercase tracking-wider">clique p/ ver tudo →</span>
             </div>
@@ -605,7 +619,8 @@ export function ProductionDashboard() {
                     formatter={(v: number, name) => {
                       if (name === "planejado") return [`${v} FPPs`, "Para o dia (planejado)"];
                       if (name === "count") return [`${v} FPPs`, "Feito no dia"];
-                      if (name === "rg") return [`${v} RGs`, "RGs planejados (Dobra)"];
+                      if (name === "rg") return [`${v}`, "RG programado"];
+                      if (name === "rgReal") return [`${v}`, "RG realizado"];
                       if (name === "media") return [`${fmtNum(v, 1)} FPPs`, "Média do período"];
                       return [`${v}`, name];
                     }}
@@ -620,9 +635,8 @@ export function ProductionDashboard() {
                     ))}
                     <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={600} />
                   </Bar>
-                  <Bar dataKey="rg" radius={[4, 4, 0, 0]} maxBarSize={22} fill="oklch(0.78 0.16 75)">
-                    <LabelList dataKey="rg" position="top" fill="oklch(0.88 0.1 75)" fontSize={10} fontWeight={600} />
-                  </Bar>
+                  <Bar dataKey="rg" radius={[4, 4, 0, 0]} maxBarSize={14} fill="oklch(0.78 0.16 75)" />
+                  <Bar dataKey="rgReal" radius={[4, 4, 0, 0]} maxBarSize={14} fill="oklch(0.62 0.13 75)" />
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
                   <ReferenceLine y={perDay.rgAvg} stroke="oklch(0.75 0.16 300)" strokeDasharray="2 4" />
 
@@ -936,7 +950,8 @@ export function ProductionDashboard() {
                     formatter={(v: number, name) => {
                       if (name === "planejado") return [`${v} FPPs`, "Para o dia (planejado · col. L)"];
                       if (name === "count") return [`${v} FPPs`, "Feito no dia"];
-                      if (name === "rg") return [`${v} RGs`, "RGs planejados (Dobra)"];
+                      if (name === "rg") return [`${v}`, "RG programado"];
+                      if (name === "rgReal") return [`${v}`, "RG realizado"];
                       if (name === "media") return [`${fmtNum(v, 1)} FPPs`, "Média do período"];
 
                       return [`${v}`, name];
@@ -981,18 +996,27 @@ export function ProductionDashboard() {
                     ))}
                     <LabelList dataKey="count" position="top" fill="oklch(0.97 0.01 240)" fontSize={12} fontWeight={800} />
                   </Bar>
-                  <Bar dataKey="rg" radius={[8, 8, 0, 0]} maxBarSize={56} fill="oklch(0.78 0.16 75)" style={{ cursor: "pointer" }}
-                    onClick={(d: { label: string; rg: number; rgs: string[] }) => setDetail({
-                      title: `Dia ${d.label} — RGs planejados (Dobra)`,
+                  <Bar dataKey="rg" radius={[8, 8, 0, 0]} maxBarSize={26} fill="oklch(0.78 0.16 75)" style={{ cursor: "pointer" }}
+                    onClick={(d: { label: string; rg: number; rgReal: number; rgs: string[] }) => setDetail({
+                      title: `Dia ${d.label} — RG programado`,
                       rows: [
-                        { label: "RGs no dia", value: fmtInt(d.rg) },
-                        { label: "Média diária de RGs", value: `${fmtNum(perDay.rgAvg, 1)} RG/dia` },
+                        { label: "RG programado", value: fmtInt(d.rg) },
+                        { label: "RG realizado", value: fmtInt(d.rgReal) },
+                        { label: "Média diária de RG", value: `${fmtNum(perDay.rgAvg, 1)} RG/dia` },
                       ],
-                      fppLists: [{ label: "RGs", fpps: d.rgs }],
+                      fppLists: [{ label: "RG", fpps: d.rgs }],
                     })}
-                  >
-                    <LabelList dataKey="rg" position="top" fill="oklch(0.9 0.1 75)" fontSize={12} fontWeight={700} />
-                  </Bar>
+                  />
+                  <Bar dataKey="rgReal" radius={[8, 8, 0, 0]} maxBarSize={26} fill="oklch(0.62 0.13 75)" style={{ cursor: "pointer" }}
+                    onClick={(d: { label: string; rg: number; rgReal: number; rgsReal: string[] }) => setDetail({
+                      title: `Dia ${d.label} — RG realizado`,
+                      rows: [
+                        { label: "RG realizado", value: fmtInt(d.rgReal) },
+                        { label: "RG programado", value: fmtInt(d.rg) },
+                      ],
+                      fppLists: [{ label: "RG", fpps: d.rgsReal }],
+                    })}
+                  />
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.82 0.17 75)" strokeDasharray="5 4" strokeWidth={2} label={{ value: `média ${perDay.avg.toFixed(1)}`, fill: "oklch(0.9 0.08 75)", fontSize: 12, position: "right", fontWeight: 700 }} />
                   <ReferenceLine y={perDay.rgAvg} stroke="oklch(0.75 0.16 300)" strokeDasharray="2 5" strokeWidth={2} label={{ value: `média RG ${perDay.rgAvg.toFixed(1)}`, fill: "oklch(0.85 0.12 300)", fontSize: 12, position: "insideTopRight", fontWeight: 700 }} />
 
