@@ -34,11 +34,11 @@ import {
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { TickerPanel } from "@/components/TickerPanel";
 import { buildRgCalc, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
-import { filtrarCtrlPorPeriodo, resumoControleRg, resumoPerformance, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
+import { slaPlanilha, resumoPerformance, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
 import { useSeriesCatalog } from "@/components/widgets/series";
 import { useTickerMetrics } from "@/components/widgets/metrics";
 import type { CustomWidget } from "@/components/widgets/customWidgets";
-import { useDashboardFilters } from "@/components/dashboard/filters";
+import { useDashboardFilters, resolveRange, rangeDays } from "@/components/dashboard/filters";
 
 
 const COLORS = [
@@ -374,18 +374,26 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 2,
     Component: () => {
       const { data = [], isLoading } = useDobraControleRg();
-      const { dias } = useDashboardFilters();
-      const rows = filtrarCtrlPorPeriodo(data, dias);
-      const r = resumoControleRg(rows);
-      const avaliadas = r.avaliados;
-      const periodo = dias > 0 ? `últimos ${dias} dias` : "mês corrente";
-      const tone = r.slaPct >= 95 ? "text-[var(--success)]" : r.slaPct >= 85 ? "text-[var(--warning)]" : "text-[var(--danger)]";
+      const f = useDashboardFilters();
+      const r = resolveRange(f);
+      const mesAtual = new Date().toISOString().slice(0, 7);
+      const de = r ? r.de : `${mesAtual}-01`;
+      const ate = r ? r.ate : undefined;
+      const sla = slaPlanilha(data, de === "0000-01-01" ? undefined : de, ate);
+      const periodo = r
+        ? `${de === "0000-01-01" ? "início" : de.split("-").reverse().join("/")} a ${(ate ?? "").split("-").reverse().join("/")}`
+        : "mês corrente";
+      const tone = sla.pct >= 95 ? "text-[var(--success)]" : sla.pct >= 85 ? "text-[var(--warning)]" : "text-[var(--danger)]";
       return (
         <Shell title="SLA da dobra">
           {isLoading ? (
             <Loading />
           ) : (
-            <Stat value={fmtPct(r.slaPct, 1)} hint={`${fmtInt(avaliadas)} RGs avaliadas · ${periodo}`} tone={tone} />
+            <Stat
+              value={fmtPct(sla.pct, 1)}
+              hint={`${fmtInt(sla.ok)}/${fmtInt(sla.total)} RGs no prazo · ${periodo}`}
+              tone={tone}
+            />
           )}
         </Shell>
       );
@@ -596,7 +604,8 @@ export function SeriesChart({
   title: string;
 }) {
   const { series, loading } = useSeriesCatalog();
-  const { dias } = useDashboardFilters();
+  const f = useDashboardFilters();
+  const dias = rangeDays(f);
   const def = series.find((s) => s.id === seriesId);
 
   if (loading) return <Shell title={title}><Loading /></Shell>;

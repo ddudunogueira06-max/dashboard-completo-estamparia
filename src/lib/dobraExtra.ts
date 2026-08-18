@@ -447,3 +447,26 @@ export function controleRgPorMes(rows: DobraCtrlRg[], meses = 12) {
       lead: v.lead.length ? Number((v.lead.reduce((a, b) => a + b, 0) / v.lead.length).toFixed(1)) : 0,
     }));
 }
+
+/** Filtra o controle de RG por intervalo de datas (YYYY-MM-DD). */
+export function filtrarCtrlPorIntervalo(rows: DobraCtrlRg[], de?: string, ate?: string) {
+  if (!de && !ate) return rows;
+  return rows.filter((r) => {
+    const d = r.data_conclusao ?? r.data_rg;
+    if (!d) return false;
+    if (de && d < de) return false;
+    if (ate && d > ate) return false;
+    return true;
+  });
+}
+
+/**
+ * SLA da dobra exatamente como na página Dobra: usa a coluna SLA já preenchida
+ * na planilha (BD-CONTROLE-RG), contando "OK" (e descartando "NÃO OK").
+ */
+export function slaPlanilha(rows: DobraCtrlRg[], de?: string, ate?: string) {
+  const base = filtrarCtrlPorIntervalo(rows, de, ate);
+  const avaliados = base.filter((c) => c.sla && String(c.sla).trim() !== "");
+  const ok = avaliados.filter((c) => /OK/i.test(c.sla ?? "") && !/N[ÃA]O/i.test(c.sla ?? "")).length;
+  return { pct: avaliados.length ? (ok / avaliados.length) * 100 : 0, ok, total: avaliados.length };
+}
