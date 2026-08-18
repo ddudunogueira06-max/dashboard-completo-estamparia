@@ -342,6 +342,7 @@ export function ProductionDashboard() {
     const byDay = new Map<string, Set<string>>();          // realizado
     const plannedByDay = new Map<string, Set<string>>();   // planejado
     const byMachineDay = new Map<number, Map<string, Set<string>>>();
+    const rgByDay = new Map<string, Set<string>>();        // RGs da dobra por data de planejamento
 
     filtered.forEach(r => {
       if (!r.fpp) return;
@@ -367,6 +368,16 @@ export function ProductionDashboard() {
       }
     });
 
+    // RGs vindos da base da Dobra — mesma regra de quantidade por data de planejamento
+    dobraRgs.forEach(r => {
+      const plan = parseLocalDate((r.data_planejamento ?? "").slice(0, 10) || null);
+      if (!plan || !isWorkingDay(plan) || !inRange(plan)) return;
+      const dk = ymd(plan);
+      let s = rgByDay.get(dk);
+      if (!s) { s = new Set(); rgByDay.set(dk, s); }
+      s.add(r.rg_key || r.rg);
+    });
+
     const days = byDay.size;
     let total = 0;
     byDay.forEach(s => { total += s.size; });
@@ -376,7 +387,11 @@ export function ProductionDashboard() {
       return { machine: m, avg: mm.size > 0 ? t / mm.size : 0, days: mm.size };
     }).sort((a, b) => a.machine - b.machine);
     const avg = days > 0 ? total / days : 0;
-    const allKeys = new Set<string>([...byDay.keys(), ...plannedByDay.keys()]);
+    let rgTotal = 0;
+    rgByDay.forEach(s => { rgTotal += s.size; });
+    const rgDays = rgByDay.size;
+    const rgAvg = rgDays > 0 ? rgTotal / rgDays : 0;
+    const allKeys = new Set<string>([...byDay.keys(), ...plannedByDay.keys(), ...rgByDay.keys()]);
     const series = Array.from(allKeys)
       .sort((a, b) => a.localeCompare(b))
       .map((dk) => ({
@@ -385,12 +400,14 @@ export function ProductionDashboard() {
         count: byDay.get(dk)?.size ?? 0,
         planejado: plannedByDay.get(dk)?.size ?? 0,
         media: +avg.toFixed(2),
-        rg: 0,
+        rg: rgByDay.get(dk)?.size ?? 0,
+        rgs: Array.from(rgByDay.get(dk) ?? []),
         fpps: Array.from(byDay.get(dk) ?? []),
         fppsPlanejado: Array.from(plannedByDay.get(dk) ?? []),
       }));
-    return { avg, days, total, perMachine, series };
-  }, [filtered, fromDate, toDate]);
+    return { avg, days, total, perMachine, series, rgAvg, rgTotal, rgDays };
+  }, [filtered, fromDate, toDate, dobraRgs]);
+
 
 
   // Série da semana atual (ou últimos 7 dias úteis registrados se semana atual sem dados)
