@@ -21,7 +21,10 @@ interface Props {
   onDuplicate?: (id: string) => void;
   renderItem: (item: GridItem) => React.ReactNode;
   titleFor: (item: GridItem) => string;
+  /** Controles extras exibidos no cabeçalho do widget durante a edição. */
+  headerExtra?: (item: GridItem) => React.ReactNode;
 }
+
 
 type Drag =
   | { mode: "move" | "resize"; id: string; startX: number; startY: number; item: GridItem }
