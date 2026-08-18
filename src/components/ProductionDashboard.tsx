@@ -979,7 +979,19 @@ export function ProductionDashboard() {
                     ))}
                     <LabelList dataKey="count" position="top" fill="oklch(0.97 0.01 240)" fontSize={12} fontWeight={800} />
                   </Bar>
-                  <ReferenceLine y={perDay.avg} stroke="oklch(0.82 0.17 75)" strokeDasharray="5 4" strokeWidth={2} label={{ value: `média ${perDay.avg.toFixed(1)}`, fill: "oklch(0.9 0.08 75)", fontSize: 12, position: "right", fontWeight: 700 }} />
+                  <Bar dataKey="rg" radius={[8, 8, 0, 0]} maxBarSize={56} fill="oklch(0.78 0.16 75)" style={{ cursor: "pointer" }}
+                    onClick={(d: { label: string; rg: number; rgs: string[] }) => setDetail({
+                      title: `Dia ${d.label} — RGs planejados (Dobra)`,
+                      rows: [
+                        { label: "RGs no dia", value: fmtInt(d.rg) },
+                        { label: "Média diária de RGs", value: `${fmtNum(perDay.rgAvg, 1)} RG/dia` },
+                      ],
+                      fppLists: [{ label: "RGs", fpps: d.rgs }],
+                    })}
+                  >
+                    <LabelList dataKey="rg" position="top" fill="oklch(0.9 0.1 75)" fontSize={12} fontWeight={700} />
+                  </Bar>
+
                 </BarChart>
               </ResponsiveContainer>
             )}
