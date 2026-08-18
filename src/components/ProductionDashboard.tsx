@@ -995,18 +995,27 @@ export function ProductionDashboard() {
                     ))}
                     <LabelList dataKey="count" position="top" fill="oklch(0.97 0.01 240)" fontSize={12} fontWeight={800} />
                   </Bar>
-                  <Bar dataKey="rg" radius={[8, 8, 0, 0]} maxBarSize={56} fill="oklch(0.78 0.16 75)" style={{ cursor: "pointer" }}
-                    onClick={(d: { label: string; rg: number; rgs: string[] }) => setDetail({
-                      title: `Dia ${d.label} — RGs planejados (Dobra)`,
+                  <Bar dataKey="rg" radius={[8, 8, 0, 0]} maxBarSize={26} fill="oklch(0.78 0.16 75)" style={{ cursor: "pointer" }}
+                    onClick={(d: { label: string; rg: number; rgReal: number; rgs: string[] }) => setDetail({
+                      title: `Dia ${d.label} — RG programado`,
                       rows: [
-                        { label: "RGs no dia", value: fmtInt(d.rg) },
-                        { label: "Média diária de RGs", value: `${fmtNum(perDay.rgAvg, 1)} RG/dia` },
+                        { label: "RG programado", value: fmtInt(d.rg) },
+                        { label: "RG realizado", value: fmtInt(d.rgReal) },
+                        { label: "Média diária de RG", value: `${fmtNum(perDay.rgAvg, 1)} RG/dia` },
                       ],
-                      fppLists: [{ label: "RGs", fpps: d.rgs }],
+                      fppLists: [{ label: "RG", fpps: d.rgs }],
                     })}
-                  >
-                    <LabelList dataKey="rg" position="top" fill="oklch(0.9 0.1 75)" fontSize={12} fontWeight={700} />
-                  </Bar>
+                  />
+                  <Bar dataKey="rgReal" radius={[8, 8, 0, 0]} maxBarSize={26} fill="oklch(0.62 0.13 75)" style={{ cursor: "pointer" }}
+                    onClick={(d: { label: string; rg: number; rgReal: number; rgsReal: string[] }) => setDetail({
+                      title: `Dia ${d.label} — RG realizado`,
+                      rows: [
+                        { label: "RG realizado", value: fmtInt(d.rgReal) },
+                        { label: "RG programado", value: fmtInt(d.rg) },
+                      ],
+                      fppLists: [{ label: "RG", fpps: d.rgsReal }],
+                    })}
+                  />
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.82 0.17 75)" strokeDasharray="5 4" strokeWidth={2} label={{ value: `média ${perDay.avg.toFixed(1)}`, fill: "oklch(0.9 0.08 75)", fontSize: 12, position: "right", fontWeight: 700 }} />
                   <ReferenceLine y={perDay.rgAvg} stroke="oklch(0.75 0.16 300)" strokeDasharray="2 5" strokeWidth={2} label={{ value: `média RG ${perDay.rgAvg.toFixed(1)}`, fill: "oklch(0.85 0.12 300)", fontSize: 12, position: "insideTopRight", fontWeight: 700 }} />
 
