@@ -37,6 +37,8 @@ interface Placed {
   h: number;
   /** Período próprio do widget (dias). */
   dias?: number;
+  de?: string;
+  ate?: string;
 }
 
 
@@ -208,7 +210,7 @@ function PainelTv() {
                     </span>
                   </div>
                   <div className="h-[calc(100%-1.75rem)]">
-                    <DashboardFilterContext.Provider value={{ ...filtros, dias: p.dias ?? 0 }}>
+                    <DashboardFilterContext.Provider value={{ ...filtros, dias: p.dias ?? 0, de: p.de, ate: p.ate }}>
                       <C config={{ metrics: selected }} />
                     </DashboardFilterContext.Provider>
                   </div>

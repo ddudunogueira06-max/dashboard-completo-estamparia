@@ -6,11 +6,11 @@ import { useTickerMetrics } from "@/components/widgets/metrics";
 import {
   ALL_MODULES,
   DashboardFilterContext,
-  PERIODOS,
   loadFilters,
   saveFilters,
   type DashboardFilters,
 } from "@/components/dashboard/filters";
+import { WidgetDateRange } from "@/components/dashboard/WidgetDateRange";
 import { LayoutGrid, Plus, Save, RotateCcw, Tv, Settings2, X, Cloud } from "lucide-react";
 import {
   LAYOUT_KEY,
@@ -32,6 +32,9 @@ interface Placed extends GridItem {
   widgetId: string;
   /** Período próprio do widget (dias). undefined = padrão (tudo). */
   dias?: number;
+  /** Intervalo de datas próprio do widget (YYYY-MM-DD). */
+  de?: string;
+  ate?: string;
 }
 
 
@@ -136,8 +139,8 @@ export function ModularDashboard() {
     setEditing(true);
   };
 
-  const setWidgetDias = (id: string, dias: number) =>
-    persist(items.map((it) => (it.i === id ? { ...it, dias } : it)));
+  const setWidgetRange = (id: string, de?: string, ate?: string) =>
+    persist(items.map((it) => (it.i === id ? { ...it, de, ate } : it)));
 
 
 
@@ -255,7 +258,7 @@ export function ModularDashboard() {
           );
         })}
         <span className="ml-auto text-xs text-muted-foreground">
-          {visiveis.length} de {items.length} widgets · período agora é definido widget a widget na edição
+          {visiveis.length} de {items.length} widgets · período definido por widget (calendário na edição)
         </span>
       </div>
 
@@ -278,28 +281,19 @@ export function ModularDashboard() {
         }}
         titleFor={(it) => WIDGET_MAP.get((it as Placed).widgetId)?.title ?? "Widget"}
         headerExtra={(it) => (
-          <select
-            value={(it as Placed).dias ?? 0}
-            onChange={(e) => setWidgetDias(it.i, Number(e.target.value))}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="h-6 rounded border border-border bg-input px-1 text-[11px] text-foreground"
-            title="Período deste widget"
-            aria-label="Período deste widget"
-          >
-            {PERIODOS.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+          <WidgetDateRange
+            de={(it as Placed).de}
+            ate={(it as Placed).ate}
+            onChange={(de, ate) => setWidgetRange(it.i, de, ate)}
+          />
         )}
         renderItem={(it) => {
           const def = WIDGET_MAP.get((it as Placed).widgetId);
           if (!def) return <div className="p-3 text-xs text-muted-foreground">Widget indisponível</div>;
           const C = def.Component;
-          const dias = (it as Placed).dias ?? 0;
+          const p = it as Placed;
           return (
-            <DashboardFilterContext.Provider value={{ ...filtros, dias }}>
+            <DashboardFilterContext.Provider value={{ ...filtros, dias: p.dias ?? 0, de: p.de, ate: p.ate }}>
               <C config={{ metrics: selectedMetrics }} />
             </DashboardFilterContext.Provider>
           );
