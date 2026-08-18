@@ -27,7 +27,7 @@ import {
   type MetaParams,
   type RgCalc,
 } from "@/lib/dobra";
-import { useDobraControleRg } from "@/lib/dobraExtra";
+import { useDobraControleRg, slaPlanilha } from "@/lib/dobraExtra";
 
 export function DobraDashboard({
   rows,
