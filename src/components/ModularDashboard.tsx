@@ -11,10 +11,21 @@ import {
   saveFilters,
   type DashboardFilters,
 } from "@/components/dashboard/filters";
-import { LayoutGrid, Plus, Save, RotateCcw, Tv, Settings2, X } from "lucide-react";
+import { LayoutGrid, Plus, Save, RotateCcw, Tv, Settings2, X, Cloud } from "lucide-react";
+import {
+  LAYOUT_KEY,
+  TICKER_KEY,
+  fetchSharedDashboard,
+  saveSharedDashboard,
+  readLocal,
+  writeLocal,
+} from "@/lib/dashboardConfig";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
-const STORAGE_KEY = "dashboard.layout.v1";
-const TICKER_KEY = "dashboard.ticker.v1";
+const STORAGE_KEY = LAYOUT_KEY;
+
+
 
 
 interface Placed extends GridItem {
