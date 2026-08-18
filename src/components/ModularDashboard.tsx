@@ -292,8 +292,13 @@ export function ModularDashboard() {
           const def = WIDGET_MAP.get((it as Placed).widgetId);
           if (!def) return <div className="p-3 text-xs text-muted-foreground">Widget indisponível</div>;
           const C = def.Component;
+          const dias = (it as Placed).dias ?? 0;
+          return (
+            <DashboardFilterContext.Provider value={{ ...filtros, dias }}>
+              <C config={{ metrics: selectedMetrics }} />
+            </DashboardFilterContext.Provider>
+          );
 
-          return <C config={{ metrics: selectedMetrics }} />;
         }}
       />
 
