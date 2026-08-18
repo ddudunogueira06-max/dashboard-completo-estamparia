@@ -60,33 +60,45 @@ export function ModularDashboard() {
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
   const [filtros, setFiltros] = useState<DashboardFilters>({ dias: 0, modules: ALL_MODULES });
   const loaded = useRef(false);
+  const [saving, setSaving] = useState(false);
   const { metrics } = useTickerMetrics();
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Placed[];
-        if (Array.isArray(parsed) && parsed.length) setItems(parsed);
-      }
-      const t = localStorage.getItem(TICKER_KEY);
-      if (t) setSelectedMetrics(JSON.parse(t) as string[]);
-      setFiltros(loadFilters());
-    } catch {
-      /* ignore */
-    }
+    // 1) cache local (rápido) 2) configuração compartilhada do banco (vale para todos)
+    const local = readLocal<Placed[]>(STORAGE_KEY);
+    if (Array.isArray(local) && local.length) setItems(local);
+    const t = readLocal<string[]>(TICKER_KEY);
+    if (Array.isArray(t)) setSelectedMetrics(t);
+    setFiltros(loadFilters());
     loaded.current = true;
+
+    fetchSharedDashboard().then((cfg) => {
+      if (!cfg) return;
+      if (Array.isArray(cfg.layout) && cfg.layout.length) {
+        setItems(cfg.layout as Placed[]);
+        writeLocal(STORAGE_KEY, cfg.layout);
+      }
+      if (Array.isArray(cfg.ticker)) {
+        setSelectedMetrics(cfg.ticker);
+        writeLocal(TICKER_KEY, cfg.ticker);
+      }
+    });
   }, []);
 
   const persist = useCallback((next: Placed[]) => {
     setItems(next);
     if (!loaded.current) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      /* ignore */
-    }
+    writeLocal(STORAGE_KEY, next);
   }, []);
+
+  const publicar = async () => {
+    setSaving(true);
+    const err = await saveSharedDashboard({ layout: items, ticker: selectedMetrics });
+    setSaving(false);
+    if (err) toast.error("Não foi possível salvar para todos: " + err);
+    else toast.success("Painel salvo para todos os usuários.");
+  };
 
   const setFiltrosPersist = (patch: Partial<DashboardFilters>) => {
     const next = { ...filtros, ...patch };
@@ -100,12 +112,9 @@ export function ModularDashboard() {
       ? selectedMetrics.filter((m) => m !== id)
       : [...selectedMetrics, id];
     setSelectedMetrics(next);
-    try {
-      localStorage.setItem(TICKER_KEY, JSON.stringify(next));
-    } catch {
-      /* ignore */
-    }
+    writeLocal(TICKER_KEY, next);
   };
+
 
   const addWidget = (widgetId: string) => {
     const def = WIDGET_MAP.get(widgetId);
