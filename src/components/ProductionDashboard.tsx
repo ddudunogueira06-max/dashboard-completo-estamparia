@@ -624,6 +624,8 @@ export function ProductionDashboard() {
                     <LabelList dataKey="rg" position="top" fill="oklch(0.88 0.1 75)" fontSize={10} fontWeight={600} />
                   </Bar>
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
+                  <ReferenceLine y={perDay.rgAvg} stroke="oklch(0.75 0.16 300)" strokeDasharray="2 4" />
+
 
                 </BarChart>
               </ResponsiveContainer>
