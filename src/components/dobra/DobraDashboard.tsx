@@ -27,7 +27,7 @@ import {
   type MetaParams,
   type RgCalc,
 } from "@/lib/dobra";
-import { useDobraControleRg } from "@/lib/dobraExtra";
+import { useDobraControleRg, slaPlanilha } from "@/lib/dobraExtra";
 
 export function DobraDashboard({
   rows,
@@ -58,19 +58,15 @@ export function DobraDashboard({
     [rows, filters],
   );
 
-  /* SLA fixo do mês — vem pronto da planilha (BD-CONTROLE-RG, coluna SLA). */
+  /* SLA do mês — RG concluída até a data de planejamento (mesma regra do widget). */
   const slaMes = useMemo(() => {
-    const mes = (filters.dataFim || filters.dataIni || new Date().toISOString().slice(0, 10)).slice(0, 7);
-    const doMes = (ctrl ?? []).filter((c) => (c.data_conclusao ?? c.data_rg ?? "").slice(0, 7) === mes);
-    const avaliados = doMes.filter((c) => c.sla);
-    const ok = avaliados.filter((c) => /OK/i.test(c.sla ?? "") && !/N[ÃA]O/i.test(c.sla ?? "")).length;
-    return {
-      mes,
-      pct: avaliados.length ? (ok / avaliados.length) * 100 : 0,
-      ok,
-      total: avaliados.length,
-    };
+    const base = ctrl ?? [];
+    const ultimo = base.reduce<string>((mx, c) => (c.data_conclusao && c.data_conclusao > mx ? c.data_conclusao : mx), "");
+    const mes = (filters.dataFim || filters.dataIni || ultimo || new Date().toISOString().slice(0, 10)).slice(0, 7);
+    const r = slaPlanilha(base, `${mes}-01`, `${mes}-31`);
+    return { mes, pct: r.pct, ok: r.ok, total: r.total };
   }, [ctrl, filters.dataIni, filters.dataFim]);
+
 
   const kpis = useMemo(() => {
     const avaliadas = concluidas.filter((r) => slaOk(r) !== null);
