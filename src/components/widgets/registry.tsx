@@ -38,7 +38,7 @@ import { filtrarCtrlPorPeriodo, resumoControleRg, resumoPerformance, useDobraCon
 import { useSeriesCatalog } from "@/components/widgets/series";
 import { useTickerMetrics } from "@/components/widgets/metrics";
 import type { CustomWidget } from "@/components/widgets/customWidgets";
-import { useDashboardFilters } from "@/components/dashboard/filters";
+import { useDashboardFilters, resolveRange, rangeDays } from "@/components/dashboard/filters";
 
 
 const COLORS = [
