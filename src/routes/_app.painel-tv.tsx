@@ -35,7 +35,10 @@ interface Placed {
   y: number;
   w: number;
   h: number;
+  /** Período próprio do widget (dias). */
+  dias?: number;
 }
+
 
 const COLS = 12;
 /** Altura máxima (em linhas do grid do painel) exibida por página de TV. */
