@@ -176,6 +176,9 @@ export function ProductionDashboard() {
   const { data: records = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["production_records"], queryFn: fetchAllProduction,
   });
+  // Base da Dobra reaproveitada aqui (RGs por data de planejamento)
+  const { data: dobraRgs = [] } = useDobraRgs();
+
 
   const [machineFilter, setMachineFilter] = usePersistentState<string>("prog.prod.maquina", ""); // "" all, or "2000"
   const [urgencyFilter, setUrgencyFilter] = usePersistentState<string>("prog.prod.urgencia", ""); // "", "urg", "nor"
