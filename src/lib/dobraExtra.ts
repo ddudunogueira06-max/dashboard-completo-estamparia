@@ -400,6 +400,24 @@ export function resumoControleRg(rows: DobraCtrlRg[]): CtrlResumo {
   };
 }
 
+/**
+ * Filtra registros de controle de RG por período.
+ * dias > 0 → últimos N dias; dias = 0 → mês corrente (referência padrão do SLA).
+ */
+export function filtrarCtrlPorPeriodo(rows: DobraCtrlRg[], dias: number) {
+  const hoje = new Date();
+  const ini =
+    dias > 0
+      ? new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - (dias - 1))
+      : new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const iniStr = `${ini.getFullYear()}-${String(ini.getMonth() + 1).padStart(2, "0")}-${String(ini.getDate()).padStart(2, "0")}`;
+  return rows.filter((r) => {
+    const d = r.data_conclusao ?? r.data_rg;
+    return !!d && d >= iniStr;
+  });
+}
+
+
 export function controleRgPorMes(rows: DobraCtrlRg[], meses = 12) {
   const map = new Map<string, { total: number; ok: number; pecas: number; lead: number[] }>();
   for (const r of rows) {
