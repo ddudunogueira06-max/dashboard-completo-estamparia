@@ -396,6 +396,8 @@ export function resumoControleRg(rows: DobraCtrlRg[]): CtrlResumo {
     total: rows.length,
     concluidos: concluidos.length,
     noPrazo: avaliados.filter(Boolean).length,
+    avaliados: avaliados.length,
+
     slaPct: avaliados.length ? (avaliados.filter(Boolean).length / avaliados.length) * 100 : 0,
     leadMedioDias: leads.length ? leads.reduce((a, b) => a + b, 0) / leads.length : 0,
     eficienciaMedia: efis.length ? efis.reduce((a, b) => a + b, 0) / efis.length : 0,
