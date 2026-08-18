@@ -950,7 +950,8 @@ export function ProductionDashboard() {
                     formatter={(v: number, name) => {
                       if (name === "planejado") return [`${v} FPPs`, "Para o dia (planejado · col. L)"];
                       if (name === "count") return [`${v} FPPs`, "Feito no dia"];
-                      if (name === "rg") return [`${v} RGs`, "RGs planejados (Dobra)"];
+                      if (name === "rg") return [`${v}`, "RG programado"];
+                      if (name === "rgReal") return [`${v}`, "RG realizado"];
                       if (name === "media") return [`${fmtNum(v, 1)} FPPs`, "Média do período"];
 
                       return [`${v}`, name];
