@@ -9,6 +9,8 @@ import {
   loadFilters,
   type DashboardFilters,
 } from "@/components/dashboard/filters";
+import { fetchSharedDashboard } from "@/lib/dashboardConfig";
+
 
 
 export const Route = createFileRoute("/_app/painel-tv")({
