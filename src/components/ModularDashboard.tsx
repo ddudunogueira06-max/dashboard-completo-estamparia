@@ -136,6 +136,11 @@ export function ModularDashboard() {
     setEditing(true);
   };
 
+  const setWidgetDias = (id: string, dias: number) =>
+    persist(items.map((it) => (it.i === id ? { ...it, dias } : it)));
+
+
+
   const grouped = useMemo(() => {
     const q = busca.trim().toLowerCase();
     const g = new Map<WidgetModule, typeof WIDGETS>();
