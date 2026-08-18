@@ -193,8 +193,22 @@ export function ModularDashboard() {
           >
             <RotateCcw className="size-4" />
           </button>
+          {isAdmin && (
+            <button
+              onClick={publicar}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent disabled:opacity-60"
+              title="Salvar este painel como padrão para todos os usuários"
+            >
+              <Cloud className="size-4" /> {saving ? "Salvando..." : "Salvar para todos"}
+            </button>
+          )}
           <button
-            onClick={() => setEditing((v) => !v)}
+            onClick={() => {
+              const next = !editing;
+              setEditing(next);
+              if (!next && isAdmin) void publicar();
+            }}
             className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${
               editing ? "bg-primary text-primary-foreground" : "border border-input hover:bg-accent"
             }`}
@@ -202,6 +216,7 @@ export function ModularDashboard() {
             {editing ? <Save className="size-4" /> : <LayoutGrid className="size-4" />}
             {editing ? "Concluir edição" : "Editar layout"}
           </button>
+
         </div>
       </div>
 
