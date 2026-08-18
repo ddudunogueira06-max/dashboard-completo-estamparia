@@ -377,10 +377,12 @@ export interface CtrlResumo {
 const slaPositivo = (v: string | null) => {
   if (!v) return null;
   const k = normKey(v);
+  // negativos primeiro: "NÃO OK" normaliza para "NAOOK" e não pode cair no ramo positivo
+  if (k.startsWith("NAO") || k.includes("FORA") || k.includes("ATRAS") || k.includes("NOK")) return false;
   if (k.includes("NOPRAZO") || k === "OK" || k.includes("DENTRO") || k === "SIM") return true;
-  if (k.includes("FORA") || k.includes("ATRAS") || k === "NAO") return false;
   return null;
 };
+
 
 export function resumoControleRg(rows: DobraCtrlRg[]): CtrlResumo {
   const concluidos = rows.filter((r) => r.data_conclusao);
