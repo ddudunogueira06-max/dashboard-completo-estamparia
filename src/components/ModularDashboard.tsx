@@ -11,10 +11,21 @@ import {
   saveFilters,
   type DashboardFilters,
 } from "@/components/dashboard/filters";
-import { LayoutGrid, Plus, Save, RotateCcw, Tv, Settings2, X } from "lucide-react";
+import { LayoutGrid, Plus, Save, RotateCcw, Tv, Settings2, X, Cloud } from "lucide-react";
+import {
+  LAYOUT_KEY,
+  TICKER_KEY,
+  fetchSharedDashboard,
+  saveSharedDashboard,
+  readLocal,
+  writeLocal,
+} from "@/lib/dashboardConfig";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
-const STORAGE_KEY = "dashboard.layout.v1";
-const TICKER_KEY = "dashboard.ticker.v1";
+const STORAGE_KEY = LAYOUT_KEY;
+
+
 
 
 interface Placed extends GridItem {
@@ -49,33 +60,45 @@ export function ModularDashboard() {
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
   const [filtros, setFiltros] = useState<DashboardFilters>({ dias: 0, modules: ALL_MODULES });
   const loaded = useRef(false);
+  const [saving, setSaving] = useState(false);
   const { metrics } = useTickerMetrics();
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Placed[];
-        if (Array.isArray(parsed) && parsed.length) setItems(parsed);
-      }
-      const t = localStorage.getItem(TICKER_KEY);
-      if (t) setSelectedMetrics(JSON.parse(t) as string[]);
-      setFiltros(loadFilters());
-    } catch {
-      /* ignore */
-    }
+    // 1) cache local (rápido) 2) configuração compartilhada do banco (vale para todos)
+    const local = readLocal<Placed[]>(STORAGE_KEY);
+    if (Array.isArray(local) && local.length) setItems(local);
+    const t = readLocal<string[]>(TICKER_KEY);
+    if (Array.isArray(t)) setSelectedMetrics(t);
+    setFiltros(loadFilters());
     loaded.current = true;
+
+    fetchSharedDashboard().then((cfg) => {
+      if (!cfg) return;
+      if (Array.isArray(cfg.layout) && cfg.layout.length) {
+        setItems(cfg.layout as Placed[]);
+        writeLocal(STORAGE_KEY, cfg.layout);
+      }
+      if (Array.isArray(cfg.ticker)) {
+        setSelectedMetrics(cfg.ticker);
+        writeLocal(TICKER_KEY, cfg.ticker);
+      }
+    });
   }, []);
 
   const persist = useCallback((next: Placed[]) => {
     setItems(next);
     if (!loaded.current) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      /* ignore */
-    }
+    writeLocal(STORAGE_KEY, next);
   }, []);
+
+  const publicar = async () => {
+    setSaving(true);
+    const err = await saveSharedDashboard({ layout: items, ticker: selectedMetrics });
+    setSaving(false);
+    if (err) toast.error("Não foi possível salvar para todos: " + err);
+    else toast.success("Painel salvo para todos os usuários.");
+  };
 
   const setFiltrosPersist = (patch: Partial<DashboardFilters>) => {
     const next = { ...filtros, ...patch };
@@ -89,12 +112,9 @@ export function ModularDashboard() {
       ? selectedMetrics.filter((m) => m !== id)
       : [...selectedMetrics, id];
     setSelectedMetrics(next);
-    try {
-      localStorage.setItem(TICKER_KEY, JSON.stringify(next));
-    } catch {
-      /* ignore */
-    }
+    writeLocal(TICKER_KEY, next);
   };
+
 
   const addWidget = (widgetId: string) => {
     const def = WIDGET_MAP.get(widgetId);
@@ -173,8 +193,22 @@ export function ModularDashboard() {
           >
             <RotateCcw className="size-4" />
           </button>
+          {isAdmin && (
+            <button
+              onClick={publicar}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent disabled:opacity-60"
+              title="Salvar este painel como padrão para todos os usuários"
+            >
+              <Cloud className="size-4" /> {saving ? "Salvando..." : "Salvar para todos"}
+            </button>
+          )}
           <button
-            onClick={() => setEditing((v) => !v)}
+            onClick={() => {
+              const next = !editing;
+              setEditing(next);
+              if (!next && isAdmin) void publicar();
+            }}
             className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${
               editing ? "bg-primary text-primary-foreground" : "border border-input hover:bg-accent"
             }`}
@@ -182,6 +216,7 @@ export function ModularDashboard() {
             {editing ? <Save className="size-4" /> : <LayoutGrid className="size-4" />}
             {editing ? "Concluir edição" : "Editar layout"}
           </button>
+
         </div>
       </div>
 

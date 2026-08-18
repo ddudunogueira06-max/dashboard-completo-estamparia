@@ -9,6 +9,8 @@ import {
   loadFilters,
   type DashboardFilters,
 } from "@/components/dashboard/filters";
+import { fetchSharedDashboard } from "@/lib/dashboardConfig";
+
 
 
 export const Route = createFileRoute("/_app/painel-tv")({
@@ -81,7 +83,14 @@ function PainelTv() {
     } catch {
       /* ignore */
     }
+    // painel compartilhado (salvo pelo admin) prevalece
+    fetchSharedDashboard().then((cfg) => {
+      if (!cfg) return;
+      if (Array.isArray(cfg.layout) && cfg.layout.length) setLayout(cfg.layout as Placed[]);
+      if (Array.isArray(cfg.ticker)) setSelected(cfg.ticker);
+    });
   }, []);
+
 
   const valid = useMemo(
     () =>

@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { usePersistentState } from "@/lib/persistentState";
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { KpiCard } from "@/components/KpiCard";
@@ -118,18 +120,20 @@ export function Dashboard() {
     queryFn: fetchAllRecords,
   });
 
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [tipoFilter, setTipoFilter] = useState<string>("");
-  const [materialFilter, setMaterialFilter] = useState<string>("");
-  const [materialKindFilter, setMaterialKindFilter] = useState<string>(""); // "", inox, galvanizado, aluminio
-  const [fatorMin, setFatorMin] = useState<string>("");
-  const [search, setSearch] = useState("");
-  const [numeroFilters, setNumeroFilters] = useState<string[]>([]);
-  const [qtyMin, setQtyMin] = useState<string>("");
-  const [qtyMax, setQtyMax] = useState<string>("");
-  const [matrixYear, setMatrixYear] = useState<string>("");
-  const [monthSel, setMonthSel] = useState<string>(""); // "" = mês atual com dados (1-12)
+  // Datas compartilhadas com a aba Produção (mesmo módulo Programação)
+  const [startDate, setStartDate] = usePersistentState("prog.filtro.dataInicial", "");
+  const [endDate, setEndDate] = usePersistentState("prog.filtro.dataFinal", "");
+  const [tipoFilter, setTipoFilter] = usePersistentState<string>("prog.desp.tipo", "");
+  const [materialFilter, setMaterialFilter] = usePersistentState<string>("prog.desp.material", "");
+  const [materialKindFilter, setMaterialKindFilter] = usePersistentState<string>("prog.desp.materialKind", ""); // "", inox, galvanizado, aluminio
+  const [fatorMin, setFatorMin] = usePersistentState<string>("prog.desp.fatorMin", "");
+  const [search, setSearch] = usePersistentState<string>("prog.desp.busca", "");
+  const [numeroFilters, setNumeroFilters] = usePersistentState<string[]>("prog.desp.numeros", []);
+  const [qtyMin, setQtyMin] = usePersistentState<string>("prog.desp.qtdMin", "");
+  const [qtyMax, setQtyMax] = usePersistentState<string>("prog.desp.qtdMax", "");
+  const [matrixYear, setMatrixYear] = usePersistentState<string>("prog.desp.ano", "");
+  const [monthSel, setMonthSel] = usePersistentState<string>("prog.desp.mes", ""); // "" = mês atual com dados (1-12)
+
 
   const [kpiDetail, setKpiDetail] = useState<null | { title: string; kg?: number; m2?: number; pct?: number; count?: number; hint?: string; fpps?: string[] }>(null);
 
