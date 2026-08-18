@@ -9,6 +9,9 @@ import {
 } from "recharts";
 import { Zap, Clock, Gauge as GaugeIcon, Factory, RefreshCw, ListChecks, ChevronDown, ChevronUp, Scissors, LayoutGrid, TrendingUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { usePersistentState } from "@/lib/persistentState";
+import { useDobraRgs } from "@/lib/dobra";
+
 
 interface ProdRecord {
   id: string;
