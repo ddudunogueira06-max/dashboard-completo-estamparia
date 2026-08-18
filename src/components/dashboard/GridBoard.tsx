@@ -131,7 +131,9 @@ export function GridBoard({ items, editing, onChange, onRemove, onDuplicate, ren
                 <GripVertical className="size-3.5 shrink-0" />
                 <span className="truncate">{titleFor(item)}</span>
               </button>
+              {headerExtra?.(item)}
               {onDuplicate && (
+
                 <button
                   onClick={() => onDuplicate(item.i)}
                   className="text-muted-foreground hover:text-primary p-1 rounded"
