@@ -624,6 +624,8 @@ export function ProductionDashboard() {
                     <LabelList dataKey="rg" position="top" fill="oklch(0.88 0.1 75)" fontSize={10} fontWeight={600} />
                   </Bar>
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
+                  <ReferenceLine y={perDay.rgAvg} stroke="oklch(0.75 0.16 300)" strokeDasharray="2 4" />
+
 
                 </BarChart>
               </ResponsiveContainer>
@@ -992,6 +994,8 @@ export function ProductionDashboard() {
                     <LabelList dataKey="rg" position="top" fill="oklch(0.9 0.1 75)" fontSize={12} fontWeight={700} />
                   </Bar>
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.82 0.17 75)" strokeDasharray="5 4" strokeWidth={2} label={{ value: `média ${perDay.avg.toFixed(1)}`, fill: "oklch(0.9 0.08 75)", fontSize: 12, position: "right", fontWeight: 700 }} />
+                  <ReferenceLine y={perDay.rgAvg} stroke="oklch(0.75 0.16 300)" strokeDasharray="2 5" strokeWidth={2} label={{ value: `média RG ${perDay.rgAvg.toFixed(1)}`, fill: "oklch(0.85 0.12 300)", fontSize: 12, position: "insideTopRight", fontWeight: 700 }} />
+
 
 
                 </BarChart>

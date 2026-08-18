@@ -368,6 +368,9 @@ export interface CtrlResumo {
   total: number;
   concluidos: number;
   noPrazo: number;
+  /** Registros com SLA classificável (OK / Não OK). */
+  avaliados: number;
+
   slaPct: number;
   leadMedioDias: number;
   eficienciaMedia: number;
@@ -377,10 +380,12 @@ export interface CtrlResumo {
 const slaPositivo = (v: string | null) => {
   if (!v) return null;
   const k = normKey(v);
+  // negativos primeiro: "NÃO OK" normaliza para "NAOOK" e não pode cair no ramo positivo
+  if (k.startsWith("NAO") || k.includes("FORA") || k.includes("ATRAS") || k.includes("NOK")) return false;
   if (k.includes("NOPRAZO") || k === "OK" || k.includes("DENTRO") || k === "SIM") return true;
-  if (k.includes("FORA") || k.includes("ATRAS") || k === "NAO") return false;
   return null;
 };
+
 
 export function resumoControleRg(rows: DobraCtrlRg[]): CtrlResumo {
   const concluidos = rows.filter((r) => r.data_conclusao);
@@ -391,12 +396,32 @@ export function resumoControleRg(rows: DobraCtrlRg[]): CtrlResumo {
     total: rows.length,
     concluidos: concluidos.length,
     noPrazo: avaliados.filter(Boolean).length,
+    avaliados: avaliados.length,
+
     slaPct: avaliados.length ? (avaliados.filter(Boolean).length / avaliados.length) * 100 : 0,
     leadMedioDias: leads.length ? leads.reduce((a, b) => a + b, 0) / leads.length : 0,
     eficienciaMedia: efis.length ? efis.reduce((a, b) => a + b, 0) / efis.length : 0,
     pecas: rows.reduce((s, r) => s + (r.quantidade ?? 0), 0),
   };
 }
+
+/**
+ * Filtra registros de controle de RG por período.
+ * dias > 0 → últimos N dias; dias = 0 → mês corrente (referência padrão do SLA).
+ */
+export function filtrarCtrlPorPeriodo(rows: DobraCtrlRg[], dias: number) {
+  const hoje = new Date();
+  const ini =
+    dias > 0
+      ? new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - (dias - 1))
+      : new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const iniStr = `${ini.getFullYear()}-${String(ini.getMonth() + 1).padStart(2, "0")}-${String(ini.getDate()).padStart(2, "0")}`;
+  return rows.filter((r) => {
+    const d = r.data_conclusao ?? r.data_rg;
+    return !!d && d >= iniStr;
+  });
+}
+
 
 export function controleRgPorMes(rows: DobraCtrlRg[], meses = 12) {
   const map = new Map<string, { total: number; ok: number; pecas: number; lead: number[] }>();

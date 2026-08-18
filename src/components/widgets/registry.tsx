@@ -34,7 +34,7 @@ import {
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { TickerPanel } from "@/components/TickerPanel";
 import { buildRgCalc, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
-import { resumoControleRg, resumoPerformance, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
+import { filtrarCtrlPorPeriodo, resumoControleRg, resumoPerformance, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
 import { useSeriesCatalog } from "@/components/widgets/series";
 import { useTickerMetrics } from "@/components/widgets/metrics";
 import type { CustomWidget } from "@/components/widgets/customWidgets";
@@ -367,20 +367,30 @@ export const WIDGETS: WidgetDef[] = [
   /* ---------------------- Dobra ---------------------- */
   {
     id: "dobra.kpi.sla",
-    description: "Percentual de RGs concluídas dentro da data planejada.",
+    description: "Percentual de RGs concluídas dentro do prazo no período (padrão: mês corrente).",
     title: "SLA da dobra",
     module: "Dobra",
     defaultW: 3,
     defaultH: 2,
     Component: () => {
       const { data = [], isLoading } = useDobraControleRg();
-      const r = resumoControleRg(data);
+      const { dias } = useDashboardFilters();
+      const rows = filtrarCtrlPorPeriodo(data, dias);
+      const r = resumoControleRg(rows);
+      const avaliadas = r.avaliados;
+      const periodo = dias > 0 ? `últimos ${dias} dias` : "mês corrente";
+      const tone = r.slaPct >= 95 ? "text-[var(--success)]" : r.slaPct >= 85 ? "text-[var(--warning)]" : "text-[var(--danger)]";
       return (
         <Shell title="SLA da dobra">
-          {isLoading ? <Loading /> : <Stat value={fmtPct(r.slaPct, 1)} hint={`${fmtInt(r.concluidos)} RGs concluídas`} tone="text-[var(--success)]" />}
+          {isLoading ? (
+            <Loading />
+          ) : (
+            <Stat value={fmtPct(r.slaPct, 1)} hint={`${fmtInt(avaliadas)} RGs avaliadas · ${periodo}`} tone={tone} />
+          )}
         </Shell>
       );
     },
+
   },
   {
     id: "dobra.kpi.abertas",
