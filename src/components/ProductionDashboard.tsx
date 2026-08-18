@@ -585,6 +585,7 @@ export function ProductionDashboard() {
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Planejado (DT Planejamento · col. L)</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> Realizado ≥ média</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> Realizado &lt; média</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.78 0.16 75)" }} /> RGs (Dobra)</span>
               <span className="text-muted-foreground">média = <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)} FPP/dia</span></span>
               <span className="text-primary text-[10px] uppercase tracking-wider">clique p/ ver tudo →</span>
             </div>
@@ -604,6 +605,7 @@ export function ProductionDashboard() {
                     formatter={(v: number, name) => {
                       if (name === "planejado") return [`${v} FPPs`, "Para o dia (planejado)"];
                       if (name === "count") return [`${v} FPPs`, "Feito no dia"];
+                      if (name === "rg") return [`${v} RGs`, "RGs planejados (Dobra)"];
                       if (name === "media") return [`${fmtNum(v, 1)} FPPs`, "Média do período"];
                       return [`${v}`, name];
                     }}
@@ -618,7 +620,11 @@ export function ProductionDashboard() {
                     ))}
                     <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={600} />
                   </Bar>
+                  <Bar dataKey="rg" radius={[4, 4, 0, 0]} maxBarSize={22} fill="oklch(0.78 0.16 75)">
+                    <LabelList dataKey="rg" position="top" fill="oklch(0.88 0.1 75)" fontSize={10} fontWeight={600} />
+                  </Bar>
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
+
                 </BarChart>
               </ResponsiveContainer>
             )}
