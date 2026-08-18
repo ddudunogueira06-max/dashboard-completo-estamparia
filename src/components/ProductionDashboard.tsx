@@ -177,10 +177,12 @@ export function ProductionDashboard() {
     queryKey: ["production_records"], queryFn: fetchAllProduction,
   });
 
-  const [machineFilter, setMachineFilter] = useState<string>(""); // "" all, or "2000"
-  const [urgencyFilter, setUrgencyFilter] = useState<string>(""); // "", "urg", "nor"
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
+  const [machineFilter, setMachineFilter] = usePersistentState<string>("prog.prod.maquina", ""); // "" all, or "2000"
+  const [urgencyFilter, setUrgencyFilter] = usePersistentState<string>("prog.prod.urgencia", ""); // "", "urg", "nor"
+  // Datas compartilhadas com a aba Desperdícios (mesmo módulo Programação)
+  const [dateFrom, setDateFrom] = usePersistentState<string>("prog.filtro.dataInicial", "");
+  const [dateTo, setDateTo] = usePersistentState<string>("prog.filtro.dataFinal", "");
+
   const [showTable, setShowTable] = useState(false);
   const [detail, setDetail] = useState<null | { title: string; rows: { label: string; value: string }[]; fppLists?: { label: string; fpps: string[] }[] }>(null);
   const [capModalOpen, setCapModalOpen] = useState(false);
