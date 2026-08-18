@@ -635,9 +635,8 @@ export function ProductionDashboard() {
                     ))}
                     <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={600} />
                   </Bar>
-                  <Bar dataKey="rg" radius={[4, 4, 0, 0]} maxBarSize={22} fill="oklch(0.78 0.16 75)">
-                    <LabelList dataKey="rg" position="top" fill="oklch(0.88 0.1 75)" fontSize={10} fontWeight={600} />
-                  </Bar>
+                  <Bar dataKey="rg" radius={[4, 4, 0, 0]} maxBarSize={14} fill="oklch(0.78 0.16 75)" />
+                  <Bar dataKey="rgReal" radius={[4, 4, 0, 0]} maxBarSize={14} fill="oklch(0.62 0.13 75)" />
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
                   <ReferenceLine y={perDay.rgAvg} stroke="oklch(0.75 0.16 300)" strokeDasharray="2 4" />
 
