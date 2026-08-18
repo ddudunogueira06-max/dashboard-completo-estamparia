@@ -535,8 +535,8 @@ export function ProductionDashboard() {
       </section>
 
 
-      {/* Destaque — média de FPPs por dia (capacidade média) */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      {/* Destaque — média de FPPs e de RGs por dia (capacidade média) */}
+      <section className="grid grid-cols-1 lg:grid-cols-4 gap-3">
         <div className="lg:col-span-1 bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 rounded-xl p-4 flex items-center gap-4">
           <div className="size-14 rounded-xl grid place-items-center bg-primary/20 text-primary shrink-0">
             <TrendingUp className="size-7" />
@@ -547,6 +547,19 @@ export function ProductionDashboard() {
             <div className="text-xs text-muted-foreground mt-0.5">{fmtInt(perDay.total)} FPPs em {fmtInt(perDay.days)} dias úteis</div>
           </div>
         </div>
+        <div className="lg:col-span-1 bg-gradient-to-br from-accent/20 to-accent/5 border border-accent/30 rounded-xl p-4 flex items-center gap-4">
+          <div className="size-14 rounded-xl grid place-items-center bg-accent/20 text-accent shrink-0">
+            <ListChecks className="size-7" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Média de RGs por dia</div>
+            <div className="text-3xl font-extrabold leading-tight text-foreground">{fmtNum(perDay.rgAvg, 1)}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {fmtInt(perDay.rgTotal)} RGs em {fmtInt(perDay.rgDays)} dias úteis · base da Dobra (data de planejamento)
+            </div>
+          </div>
+        </div>
+
         <div className="lg:col-span-2 grid grid-cols-2 gap-3">
           <KpiCard label="Programação Punch · méd/dia" value={fmtNum(perDay.avg, 1)} icon={Scissors} accent="warning"
             hint={`${fmtInt(fppPeriod)} FPPs no período · base única`}
