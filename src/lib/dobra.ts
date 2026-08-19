@@ -523,7 +523,14 @@ export function buildRgCalc(
   });
 }
 
-export const SITUACAO_ORDER: Situacao[] = ["em_producao", "disponivel", "aguardando", "concluida"];
+export const SITUACAO_ORDER: Situacao[] = [
+  "em_producao",
+  "disponivel",
+  "aguardando",
+  "separacao",
+  "logistica",
+  "concluida",
+];
 
 export function sortEmAberto(rows: RgCalc[]): RgCalc[] {
   return [...rows].sort((a, b) => {
