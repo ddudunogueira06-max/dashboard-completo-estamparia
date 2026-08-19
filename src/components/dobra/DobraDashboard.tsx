@@ -18,6 +18,7 @@ import { EmAbertoTable } from "./EmAbertoTable";
 import { ConcluidasTable, slaOk } from "./ConcluidasTable";
 import { applyFilters, type DobraFilters } from "./filters";
 import {
+  isDobrada,
   buildCargaDiaria,
   buildProducaoDiaria,
   capacidadeTotalSeg,
