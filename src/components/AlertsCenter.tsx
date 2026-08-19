@@ -1,6 +1,6 @@
 import { AlertTriangle, CheckCircle2, Factory, Gauge, Package } from "lucide-react";
 import { useMemo } from "react";
-import { buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
+import { isDobrada, buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
 import { oeeAverage, useOeeDias, useProduction, useWaste, wasteWeightedLoss } from "@/lib/dashboardData";
 
 export function AlertsCenter() {
@@ -13,7 +13,7 @@ export function AlertsCenter() {
   const dobra = useMemo(() => buildRgCalc(rgs.data ?? [], fpps.data ?? [], settings.data?.tarefas ?? [], settings.data?.ajuste), [rgs.data, fpps.data, settings.data]);
   const alerts = [
     { module: "Dobra", icon: Gauge, tone: "border-mod-dobra", label: "RGs atrasadas", value: dobra.filter((r) => r.atrasada).length, detail: "Planejamento vencido e produção ainda aberta" },
-    { module: "Dobra", icon: Gauge, tone: "border-mod-dobra", label: "RGs sem tempo", value: dobra.filter((r) => r.situacao !== "concluida" && !r.tempoEstimadoSeg).length, detail: "Pacote sem tempo estimado ou sem vínculo" },
+    { module: "Dobra", icon: Gauge, tone: "border-mod-dobra", label: "RGs sem tempo", value: dobra.filter((r) => !isDobrada(r.situacao) && !r.tempoEstimadoSeg).length, detail: "Pacote sem tempo estimado ou sem vínculo" },
     { module: "Puncionadeira", icon: Factory, tone: "border-mod-puncionadeira", label: "OEE abaixo de 85%", value: (oee.data ?? []).filter((r) => (r.oee ?? 0) < 85).length, detail: `Média atual ${oeeAverage(oee.data ?? []).toFixed(1)}%` },
     { module: "Programação", icon: Package, tone: "border-mod-programacao", label: "Registros sem data", value: (production.data ?? []).filter((r) => !r.dt_prog && !r.data_rg).length, detail: "Não aparecem nas análises por período" },
     { module: "Programação", icon: Package, tone: "border-mod-programacao", label: "Perda média", value: Number(wasteWeightedLoss(waste.data ?? []).toFixed(1)), suffix: "%", detail: "Média ponderada dos registros importados" },

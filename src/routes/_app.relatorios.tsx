@@ -12,7 +12,7 @@ import {
   wasteTotalKg,
   wasteWeightedLoss,
 } from "@/lib/dashboardData";
-import { buildCargaDiaria, buildProducaoDiaria, buildRgCalc, capacidadeTotalSeg, fmtBrDate, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
+import { isDobrada, buildCargaDiaria, buildProducaoDiaria, buildRgCalc, capacidadeTotalSeg, fmtBrDate, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
 import { generateGeneralReportPDF, type ReportSection } from "@/lib/generalReport";
 
 export const Route = createFileRoute("/_app/relatorios")({
@@ -97,8 +97,8 @@ function RelatoriosPage() {
     }
 
     if (abas.includes("Dobra")) {
-      const abertas = dobra.filter((r) => r.situacao !== "concluida");
-      const concluidas = dobra.filter((r) => r.situacao === "concluida");
+      const abertas = dobra.filter((r) => !isDobrada(r.situacao));
+      const concluidas = dobra.filter((r) => isDobrada(r.situacao));
       const capSeg = capacidadeTotalSeg(settings.data?.capacidade ?? ({} as never));
       out.push({
         module: "Dobra",

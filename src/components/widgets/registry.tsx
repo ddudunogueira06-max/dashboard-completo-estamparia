@@ -33,12 +33,12 @@ import {
 } from "@/lib/dashboardData";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { TickerPanel } from "@/components/TickerPanel";
-import { buildRgCalc, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
+import { isDobrada, buildRgCalc, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
 import { slaPlanilha, resumoPerformance, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
 import { useSeriesCatalog } from "@/components/widgets/series";
 import { useTickerMetrics } from "@/components/widgets/metrics";
 import type { CustomWidget } from "@/components/widgets/customWidgets";
-import { useDashboardFilters, resolveRange, rangeDays } from "@/components/dashboard/filters";
+import { useDashboardFilters, resolveRange, rangeDays, sliceByRange } from "@/components/dashboard/filters";
 
 
 const COLORS = [
@@ -413,7 +413,7 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 2,
     Component: () => {
       const { rows, isLoading } = useDobraCalc();
-      const abertas = rows.filter((r) => r.situacao !== "concluida");
+      const abertas = rows.filter((r) => !isDobrada(r.situacao));
       return (
         <Shell title="RGs em aberto">
           {isLoading ? (
@@ -438,7 +438,7 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 2,
     Component: () => {
       const { rows, isLoading } = useDobraCalc();
-      const abertas = rows.filter((r) => r.situacao !== "concluida");
+      const abertas = rows.filter((r) => !isDobrada(r.situacao));
       const atrasadas = abertas.filter((r) => r.atrasada);
       const seg = atrasadas.reduce((s, r) => s + r.tempoEstimadoSeg, 0);
       return (
@@ -466,7 +466,7 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 2,
     Component: () => {
       const { rows, isLoading } = useDobraCalc();
-      const seg = rows.filter((r) => r.situacao !== "concluida").reduce((s, r) => s + r.tempoEstimadoSeg, 0);
+      const seg = rows.filter((r) => !isDobrada(r.situacao)).reduce((s, r) => s + r.tempoEstimadoSeg, 0);
       return <Shell title="Horas a produzir">{isLoading ? <Loading /> : <Stat value={secToHms(seg)} tone="text-accent" />}</Shell>;
     },
   },
@@ -496,7 +496,7 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 4,
     Component: () => {
       const { rows, isLoading } = useDobraCalc();
-      const abertas = rows.filter((r) => r.situacao !== "concluida");
+      const abertas = rows.filter((r) => !isDobrada(r.situacao));
       const series = [
         { name: "Em produção", value: abertas.filter((r) => r.situacao === "em_producao").length },
         { name: "Disponíveis", value: abertas.filter((r) => r.situacao === "disponivel").length },
@@ -610,14 +610,16 @@ export function SeriesChart({
   const { series, loading } = useSeriesCatalog();
   const f = useDashboardFilters();
   const dias = rangeDays(f);
+  const r = resolveRange(f);
   const def = series.find((s) => s.id === seriesId);
 
   if (loading) return <Shell title={title}><Loading /></Shell>;
   if (!def) return <Shell title={title}><div className="text-xs text-muted-foreground">Fonte de dados indisponível.</div></Shell>;
   const use = keys.length ? keys : [def.keys[0]?.key].filter(Boolean) as string[];
-  // Séries temporais respeitam o período escolhido no painel.
+  // Séries temporais respeitam o período escolhido no widget.
   const temporal = /dia|mes|producao|carga|diario|sla/i.test(def.id);
-  const data = dias > 0 && temporal ? def.data.slice(-dias) : def.data;
+  const porData = temporal && r ? sliceByRange(def.data, def.xKey, r.de === "0000-01-01" ? undefined : r.de, r.ate) : null;
+  const data: Record<string, unknown>[] = porData ?? (dias > 0 && temporal ? def.data.slice(-dias) : def.data);
 
   if (data.length === 0)
     return (

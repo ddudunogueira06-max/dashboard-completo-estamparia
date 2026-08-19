@@ -461,19 +461,30 @@ export function filtrarCtrlPorIntervalo(rows: DobraCtrlRg[], de?: string, ate?: 
 }
 
 /**
- * SLA da dobra exatamente como na página Dobra: RG concluída dentro do prazo
- * quando a data de conclusão é menor ou igual à data de planejamento.
- * Considera apenas RGs concluídas no intervalo informado.
+ * SLA da dobra usando a coluna "SLA" já preenchida na planilha (OK / Não OK).
+ * O período é aplicado sobre a data de conclusão (ou data do RG quando ausente).
  */
 export function slaPlanilha(rows: DobraCtrlRg[], de?: string, ate?: string) {
-  const avaliados = rows.filter((r) => {
-    if (!r.data_conclusao || !r.data_planejamento) return false;
-    const d = r.data_conclusao.slice(0, 10);
+  const noPeriodo = rows.filter((r) => {
+    const d = (r.data_conclusao ?? r.data_rg ?? "").slice(0, 10);
+    if (!d) return false;
     if (de && d < de) return false;
     if (ate && d > ate) return false;
     return true;
   });
-  const ok = avaliados.filter((r) => (r.data_conclusao ?? "") <= (r.data_planejamento ?? "")).length;
+  const avaliados = noPeriodo.map((r) => slaPositivo(r.sla)).filter((v): v is boolean => v !== null);
+  const ok = avaliados.filter(Boolean).length;
   return { pct: avaliados.length ? (ok / avaliados.length) * 100 : 0, ok, total: avaliados.length };
 }
+
+/** Meses (YYYY-MM) presentes na base de controle, do mais recente para o mais antigo. */
+export function mesesControle(rows: DobraCtrlRg[]): string[] {
+  const set = new Set<string>();
+  for (const r of rows) {
+    const d = (r.data_conclusao ?? r.data_rg ?? "").slice(0, 7);
+    if (d) set.add(d);
+  }
+  return Array.from(set).sort().reverse();
+}
+
 

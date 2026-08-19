@@ -11,7 +11,7 @@ import { CapacidadePage } from "@/components/dobra/CapacidadePage";
 import { DobraImportPage } from "@/components/dobra/DobraImportPage";
 import { Card } from "@/components/dobra/ui";
 import { FiltersBar, applyFilters, EMPTY_FILTERS, type DobraFilters } from "@/components/dobra/filters";
-import { buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
+import { isDobrada, buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
 
 export const Route = createFileRoute("/_app/dobra")({
   ssr: false,
@@ -52,9 +52,9 @@ function DobraModule() {
     ...(isAdmin ? [{ id: "importar", label: "Importar Dobra" }] : []),
   ];
 
-  const abertas = useMemo(() => applyFilters(rows, filters).filter((r) => r.situacao !== "concluida"), [rows, filters]);
+  const abertas = useMemo(() => applyFilters(rows, filters).filter((r) => !isDobrada(r.situacao)), [rows, filters]);
   const concluidas = useMemo(
-    () => applyFilters(rows.filter((r) => r.situacao === "concluida"), filters, "data_conclusao"),
+    () => applyFilters(rows.filter((r) => isDobrada(r.situacao)), filters, "data_conclusao"),
     [rows, filters],
   );
 

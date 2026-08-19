@@ -66,14 +66,20 @@ export interface MetaParams {
   metaSla: number;
 }
 
-export type Situacao = "concluida" | "em_producao" | "disponivel" | "aguardando";
+export type Situacao = "concluida" | "logistica" | "separacao" | "em_producao" | "disponivel" | "aguardando";
 
 export const SITUACAO_LABEL: Record<Situacao, string> = {
   concluida: "Concluída",
+  logistica: "Logística interna",
+  separacao: "Em separação",
   em_producao: "Em produção",
   disponivel: "Disponível para dobrar",
   aguardando: "Aguardando etapa anterior",
 };
+
+/** RGs já dobradas: concluídas ou que seguiram para logística/separação. */
+export const isDobrada = (s: Situacao) => s === "concluida" || s === "logistica" || s === "separacao";
+
 
 /* ------------------------------------------------------------------ */
 /* Normalização / formatação                                           */
@@ -460,7 +466,11 @@ export interface RgCalc extends DobraRg {
 }
 
 const isConcluida = (s: string | null) => normKey(s).startsWith("CONCLUID");
+const isLogistica = (s: string | null) => normKey(s).includes("LOGISTICA");
+const isSeparacao = (s: string | null) => normKey(s).includes("SEPARACAO");
 const isEmProducao = (s: string | null) => normKey(s).includes("EMPRODUCAO") || normKey(s).includes("PRODUCAO");
+/** RG já passou pela dobra (concluída, logística interna ou separação). */
+const jaDobrada = (s: string | null) => isConcluida(s) || isLogistica(s) || isSeparacao(s);
 
 export function buildRgCalc(
   rgs: DobraRg[],
@@ -475,7 +485,7 @@ export function buildRgCalc(
   for (const r of rgs) {
     if (!r.fpp_key) continue;
     totalPorFpp.set(r.fpp_key, (totalPorFpp.get(r.fpp_key) ?? 0) + 1);
-    if (!isConcluida(r.status)) abertoPorFpp.set(r.fpp_key, (abertoPorFpp.get(r.fpp_key) ?? 0) + 1);
+    if (!jaDobrada(r.status)) abertoPorFpp.set(r.fpp_key, (abertoPorFpp.get(r.fpp_key) ?? 0) + 1);
   }
   const hoje = todayISO();
   const fator = 1 + (Number.isFinite(ajuste.fatorPct) ? ajuste.fatorPct : 0) / 100;
@@ -491,6 +501,8 @@ export function buildRgCalc(
 
     let situacao: Situacao;
     if (isConcluida(r.status)) situacao = "concluida";
+    else if (isLogistica(r.status)) situacao = "logistica";
+    else if (isSeparacao(r.status)) situacao = "separacao";
     else if (!r.tarefa_desc || !tarefaSet.has(normKey(r.tarefa_desc))) situacao = "aguardando";
     else if (isEmProducao(r.status)) situacao = "em_producao";
     else situacao = "disponivel";
@@ -499,10 +511,10 @@ export function buildRgCalc(
       ...r,
       situacao,
       // A RG tem até 23:59 do dia planejado; só fica atrasada a partir do dia seguinte.
-      atrasada: situacao !== "concluida" && !!r.data_planejamento && r.data_planejamento.slice(0, 10) < hoje,
+      atrasada: !isDobrada(situacao) && !!r.data_planejamento && r.data_planejamento.slice(0, 10) < hoje,
       dificuldade: nivel,
       tempoEstimadoSeg: Math.round(porRg),
-      horaConclusaoSeg: situacao === "concluida" ? r.tempo_seg : null,
+      horaConclusaoSeg: isDobrada(situacao) ? r.tempo_seg : null,
       totalRgsFpp: total,
       rgsRestantesFpp: restantes,
       horasRestantesFppSeg: Math.round(porRg * restantes),
@@ -511,7 +523,14 @@ export function buildRgCalc(
   });
 }
 
-export const SITUACAO_ORDER: Situacao[] = ["em_producao", "disponivel", "aguardando", "concluida"];
+export const SITUACAO_ORDER: Situacao[] = [
+  "em_producao",
+  "disponivel",
+  "aguardando",
+  "separacao",
+  "logistica",
+  "concluida",
+];
 
 export function sortEmAberto(rows: RgCalc[]): RgCalc[] {
   return [...rows].sort((a, b) => {
@@ -556,8 +575,8 @@ export function buildFppCalc(rgs: RgCalc[], fpps: DobraFpp[]): FppCalc[] {
     const meta = fppMap.get(key);
     const total = list.length;
     const porRg = list[0]?.tempoEstimadoSeg ?? 0;
-    const concluidas = list.filter((r) => r.situacao === "concluida").length;
-    const abertas = list.filter((r) => r.situacao !== "concluida");
+    const concluidas = list.filter((r) => isDobrada(r.situacao)).length;
+    const abertas = list.filter((r) => !isDobrada(r.situacao));
     const atrasadas = abertas.filter((r) => r.atrasada).length;
     // Prazo da FPP = prazo das RGs que ainda estão abertas (o da planilha pode
     // estar vencido mesmo com todas as RGs restantes dentro do prazo).

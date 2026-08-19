@@ -39,6 +39,51 @@ export function rangeDays(f: { dias: number; de?: string; ate?: string }) {
   return d > 0 ? Math.round(d) : 0;
 }
 
+/**
+ * Converte o rótulo do eixo X (dd/mm, dd/mm/aaaa ou mm/aa) em uma data ISO
+ * aproximada, para recortar séries pelo intervalo escolhido no widget.
+ */
+export function labelToISO(label: unknown, refAno: number): string | null {
+  const s = String(label ?? "").trim();
+  let m = s.match(/^(\d{2})\/(\d{2})\/(\d{2,4})$/);
+  if (m) {
+    const ano = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    return `${ano}-${m[2]}-${m[1]}`;
+  }
+  m = s.match(/^(\d{2})\/(\d{2})$/);
+  if (m) {
+    // dd/mm quando o primeiro grupo é dia válido; senão mm/aa
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (b >= 1 && b <= 12) return `${refAno}-${m[2]}-${m[1]}`;
+    return `${2000 + b}-${String(a).padStart(2, "0")}-15`;
+  }
+  m = s.match(/^(\d{4})-(\d{2})(-(\d{2}))?$/);
+  if (m) return `${m[1]}-${m[2]}-${m[4] ?? "15"}`;
+  return null;
+}
+
+/** Recorta uma série pelo intervalo, usando os rótulos do eixo X. */
+export function sliceByRange<T extends Record<string, unknown>>(
+  data: T[],
+  xKey: string,
+  de?: string,
+  ate?: string,
+): T[] | null {
+  if (!de && !ate) return null;
+  const refAno = Number((de ?? ate ?? "").slice(0, 4)) || new Date().getFullYear();
+  let reconhecidos = 0;
+  const out = data.filter((p) => {
+    const iso = labelToISO(p[xKey], refAno);
+    if (!iso) return false;
+    reconhecidos++;
+    if (de && iso < de) return false;
+    if (ate && iso > ate) return false;
+    return true;
+  });
+  return reconhecidos > 0 ? out : null;
+}
+
 export const ALL_MODULES: WidgetModule[] = ["Programação", "Puncionadeira", "Dobra", "Geral"];
 
 export const DEFAULT_FILTERS: DashboardFilters = { dias: 0, modules: ALL_MODULES };

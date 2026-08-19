@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Situacao } from "@/lib/dobra";
+import { isDobrada, SITUACAO_LABEL, type Situacao } from "@/lib/dobra";
 
 export function Card({
   title,
@@ -67,6 +67,8 @@ export function Kpi({
 
 const SIT_STYLE: Record<Situacao | "atrasada", string> = {
   concluida: "bg-[var(--success)]/15 text-[var(--success)] border-[var(--success)]/40",
+  logistica: "bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/30",
+  separacao: "bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/30",
   em_producao: "bg-primary/15 text-primary border-primary/40",
   disponivel: "bg-accent/15 text-accent border-accent/40",
   aguardando: "bg-muted text-muted-foreground border-border",
@@ -74,13 +76,8 @@ const SIT_STYLE: Record<Situacao | "atrasada", string> = {
 };
 
 export function StatusBadge({ situacao, atrasada }: { situacao: Situacao; atrasada?: boolean }) {
-  const key = atrasada && situacao !== "concluida" ? "atrasada" : situacao;
-  const label =
-    key === "atrasada"
-      ? "Atrasada"
-      : { concluida: "Concluída", em_producao: "Em produção", disponivel: "Disponível", aguardando: "Aguardando" }[
-          situacao
-        ];
+  const key = atrasada && !isDobrada(situacao) ? "atrasada" : situacao;
+  const label = key === "atrasada" ? "Atrasada" : SITUACAO_LABEL[situacao];
   return (
     <span className={cn("inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold", SIT_STYLE[key])}>
       {label}
@@ -102,6 +99,7 @@ export function DataTable<T>({
   pageSize: initialPageSize = 15,
   onRowClick,
   footer,
+  rowClass,
   empty = "Nenhum registro encontrado.",
 }: {
   rows: T[];
@@ -109,6 +107,8 @@ export function DataTable<T>({
   pageSize?: number;
   onRowClick?: (row: T) => void;
   footer?: ReactNode;
+  /** classe extra por linha (ex.: destaque de atraso) */
+  rowClass?: (row: T) => string | undefined;
   empty?: string;
 }) {
   const [page, setPage] = useState(0);
@@ -174,6 +174,7 @@ export function DataTable<T>({
                   "border-t border-border",
                   onRowClick && "cursor-pointer hover:bg-secondary/50",
                   i % 2 === 1 && "bg-secondary/20",
+                  rowClass?.(row),
                 )}
               >
                 {columns.map((c) => (

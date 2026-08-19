@@ -1,12 +1,12 @@
 import { useId, useMemo, useState } from "react";
 import { Filter, RotateCcw, X } from "lucide-react";
 import { inputCls, Field } from "./ui";
-import { normKey, tipoCode, type RgCalc, type Situacao } from "@/lib/dobra";
+import { isDobrada, normKey, tipoCode, type RgCalc, type Situacao } from "@/lib/dobra";
 
 export interface DobraFilters {
   dataIni: string;
   dataFim: string;
-  situacao: "" | Situacao | "atrasada";
+  situacao: "" | Situacao | "atrasada" | "dobrada";
   rg: string;
   fpp: string;
   tipo: string;
@@ -47,7 +47,11 @@ export function applyFilters(
     const d = (r[dateField] ?? "").slice(0, 10);
     if (f.dataIni && (!d || d < f.dataIni)) return false;
     if (f.dataFim && (!d || d > f.dataFim)) return false;
-    if (f.situacao === "atrasada" ? !r.atrasada : f.situacao && r.situacao !== f.situacao) return false;
+    if (f.situacao === "atrasada") {
+      if (!r.atrasada) return false;
+    } else if (f.situacao === "dobrada") {
+      if (!isDobrada(r.situacao)) return false;
+    } else if (f.situacao && r.situacao !== f.situacao) return false;
     if (f.tipo && tipoCode(r.fpp) !== f.tipo) return false;
     return (
       has(r.rg, f.rg) &&
@@ -191,7 +195,10 @@ export function FiltersBar({
             <option value="em_producao">Em produção</option>
             <option value="disponivel">Disponível para dobrar</option>
             <option value="aguardando">Aguardando etapa anterior</option>
+            <option value="logistica">Logística interna</option>
+            <option value="separacao">Em separação</option>
             <option value="concluida">Concluída</option>
+            <option value="dobrada">Já dobradas</option>
             <option value="atrasada">Atrasadas</option>
           </select>
         </div>
