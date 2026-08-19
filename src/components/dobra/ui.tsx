@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Situacao } from "@/lib/dobra";
+import { isDobrada, SITUACAO_LABEL, type Situacao } from "@/lib/dobra";
 
 export function Card({
   title,
