@@ -501,6 +501,8 @@ export function buildRgCalc(
 
     let situacao: Situacao;
     if (isConcluida(r.status)) situacao = "concluida";
+    else if (isLogistica(r.status)) situacao = "logistica";
+    else if (isSeparacao(r.status)) situacao = "separacao";
     else if (!r.tarefa_desc || !tarefaSet.has(normKey(r.tarefa_desc))) situacao = "aguardando";
     else if (isEmProducao(r.status)) situacao = "em_producao";
     else situacao = "disponivel";
@@ -509,10 +511,10 @@ export function buildRgCalc(
       ...r,
       situacao,
       // A RG tem até 23:59 do dia planejado; só fica atrasada a partir do dia seguinte.
-      atrasada: situacao !== "concluida" && !!r.data_planejamento && r.data_planejamento.slice(0, 10) < hoje,
+      atrasada: !isDobrada(situacao) && !!r.data_planejamento && r.data_planejamento.slice(0, 10) < hoje,
       dificuldade: nivel,
       tempoEstimadoSeg: Math.round(porRg),
-      horaConclusaoSeg: situacao === "concluida" ? r.tempo_seg : null,
+      horaConclusaoSeg: isDobrada(situacao) ? r.tempo_seg : null,
       totalRgsFpp: total,
       rgsRestantesFpp: restantes,
       horasRestantesFppSeg: Math.round(porRg * restantes),
