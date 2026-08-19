@@ -575,8 +575,8 @@ export function buildFppCalc(rgs: RgCalc[], fpps: DobraFpp[]): FppCalc[] {
     const meta = fppMap.get(key);
     const total = list.length;
     const porRg = list[0]?.tempoEstimadoSeg ?? 0;
-    const concluidas = list.filter((r) => r.situacao === "concluida").length;
-    const abertas = list.filter((r) => r.situacao !== "concluida");
+    const concluidas = list.filter((r) => isDobrada(r.situacao)).length;
+    const abertas = list.filter((r) => !isDobrada(r.situacao));
     const atrasadas = abertas.filter((r) => r.atrasada).length;
     // Prazo da FPP = prazo das RGs que ainda estão abertas (o da planilha pode
     // estar vencido mesmo com todas as RGs restantes dentro do prazo).
