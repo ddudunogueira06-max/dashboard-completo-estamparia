@@ -11,7 +11,7 @@ import {
   oeeByDay,
   paradasTop,
 } from "@/lib/dashboardData";
-import { buildCargaDiaria, buildProducaoDiaria, buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings, fmtBrDate, capacidadeTotalSeg, todayISO, addDaysISO } from "@/lib/dobra";
+import { isDobrada, buildCargaDiaria, buildProducaoDiaria, buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings, fmtBrDate, capacidadeTotalSeg, todayISO, addDaysISO } from "@/lib/dobra";
 import { controleRgPorMes, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
 import type { MetricModule } from "@/components/widgets/metrics";
 

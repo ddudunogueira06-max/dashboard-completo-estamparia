@@ -12,7 +12,7 @@ import {
   wasteTotalKg,
   wasteWeightedLoss,
 } from "@/lib/dashboardData";
-import { buildCargaDiaria, buildProducaoDiaria, buildRgCalc, capacidadeTotalSeg, fmtBrDate, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
+import { isDobrada, buildCargaDiaria, buildProducaoDiaria, buildRgCalc, capacidadeTotalSeg, fmtBrDate, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
 import { generateGeneralReportPDF, type ReportSection } from "@/lib/generalReport";
 
 export const Route = createFileRoute("/_app/relatorios")({

@@ -11,7 +11,7 @@ import { CapacidadePage } from "@/components/dobra/CapacidadePage";
 import { DobraImportPage } from "@/components/dobra/DobraImportPage";
 import { Card } from "@/components/dobra/ui";
 import { FiltersBar, applyFilters, EMPTY_FILTERS, type DobraFilters } from "@/components/dobra/filters";
-import { buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
+import { isDobrada, buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
 
 export const Route = createFileRoute("/_app/dobra")({
   ssr: false,

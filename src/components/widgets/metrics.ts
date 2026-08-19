@@ -11,7 +11,7 @@ import {
   prodByMachine,
 } from "@/lib/dashboardData";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
-import { buildRgCalc, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
+import { isDobrada, buildRgCalc, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
 import { resumoControleRg, resumoPerformance, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
 
 export type MetricModule = "Programação" | "Puncionadeira" | "Dobra";

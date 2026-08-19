@@ -1,6 +1,6 @@
 import { AlertTriangle, CheckCircle2, Factory, Gauge, Package } from "lucide-react";
 import { useMemo } from "react";
-import { buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
+import { isDobrada, buildRgCalc, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
 import { oeeAverage, useOeeDias, useProduction, useWaste, wasteWeightedLoss } from "@/lib/dashboardData";
 
 export function AlertsCenter() {
