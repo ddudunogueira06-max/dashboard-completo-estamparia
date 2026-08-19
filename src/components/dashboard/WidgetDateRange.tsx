@@ -1,15 +1,24 @@
-import { useState } from "react";
 import { CalendarIcon } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import type { DateRange } from "react-day-picker";
 
-const iso = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const parse = (s?: string) => (s ? new Date(`${s}T12:00:00`) : undefined);
-const br = (s?: string) => (s ? s.split("-").reverse().join("/") : "");
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
+const lastDay = (ano: number, mes: number) => new Date(ano, mes, 0).getDate();
+
+/** Lista de meses (YYYY-MM) do mês atual para trás. */
+function mesesDisponiveis(qtd = 24): string[] {
+  const hoje = new Date();
+  const out: string[] = [];
+  for (let i = 0; i < qtd; i++) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return out;
+}
+
+const label = (m: string) => `${MESES[Number(m.slice(5, 7)) - 1]}/${m.slice(2, 4)}`;
+
+/** Seletor mensal do widget: define o intervalo do mês escolhido. */
 export function WidgetDateRange({
   de,
   ate,
@@ -19,54 +28,39 @@ export function WidgetDateRange({
   ate?: string;
   onChange: (de?: string, ate?: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const range: DateRange | undefined = de || ate ? { from: parse(de), to: parse(ate) } : undefined;
-  const label = de || ate ? `${br(de) || "…"} – ${br(ate) || "…"}` : "Todo período";
+  const atual = de ? de.slice(0, 7) : "";
+  const meses = mesesDisponiveis();
+  if (atual && !meses.includes(atual)) meses.unshift(atual);
+
+  const selecionar = (m: string) => {
+    if (!m) return onChange(undefined, undefined);
+    const ano = Number(m.slice(0, 4));
+    const mes = Number(m.slice(5, 7));
+    onChange(`${m}-01`, `${m}-${String(lastDay(ano, mes)).padStart(2, "0")}`);
+  };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          className={cn(
-            "flex h-6 items-center gap-1 rounded border border-border bg-input px-1.5 text-[11px] text-foreground",
-            (de || ate) && "border-primary text-primary",
-          )}
-          title="Intervalo de datas deste widget"
-        >
-          <CalendarIcon className="size-3" />
-          {label}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-auto p-0"
-        align="end"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
+    <label
+      onPointerDown={(e) => e.stopPropagation()}
+      className={cn(
+        "flex h-6 items-center gap-1 rounded border border-border bg-input px-1.5 text-[11px] text-foreground",
+        (de || ate) && "border-primary text-primary",
+      )}
+      title="Mês exibido neste widget"
+    >
+      <CalendarIcon className="size-3" />
+      <select
+        value={atual}
+        onChange={(e) => selecionar(e.target.value)}
+        className="bg-transparent text-[11px] outline-none"
       >
-        <Calendar
-          mode="range"
-          selected={range}
-          onSelect={(r) => onChange(r?.from ? iso(r.from) : undefined, r?.to ? iso(r.to) : undefined)}
-          numberOfMonths={2}
-          initialFocus
-          className={cn("p-3 pointer-events-auto")}
-        />
-        <div className="flex justify-between border-t border-border p-2">
-          <button
-            onClick={() => onChange(undefined, undefined)}
-            className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
-          >
-            Limpar
-          </button>
-          <button
-            onClick={() => setOpen(false)}
-            className="rounded bg-primary px-2 py-1 text-xs text-primary-foreground"
-          >
-            Aplicar
-          </button>
-        </div>
-      </PopoverContent>
-    </Popover>
+        <option value="">Todo período</option>
+        {meses.map((m) => (
+          <option key={m} value={m}>
+            {label(m)}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
