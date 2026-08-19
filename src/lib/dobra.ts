@@ -485,7 +485,7 @@ export function buildRgCalc(
   for (const r of rgs) {
     if (!r.fpp_key) continue;
     totalPorFpp.set(r.fpp_key, (totalPorFpp.get(r.fpp_key) ?? 0) + 1);
-    if (!isConcluida(r.status)) abertoPorFpp.set(r.fpp_key, (abertoPorFpp.get(r.fpp_key) ?? 0) + 1);
+    if (!jaDobrada(r.status)) abertoPorFpp.set(r.fpp_key, (abertoPorFpp.get(r.fpp_key) ?? 0) + 1);
   }
   const hoje = todayISO();
   const fator = 1 + (Number.isFinite(ajuste.fatorPct) ? ajuste.fatorPct : 0) / 100;
