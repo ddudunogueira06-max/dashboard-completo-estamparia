@@ -610,14 +610,16 @@ export function SeriesChart({
   const { series, loading } = useSeriesCatalog();
   const f = useDashboardFilters();
   const dias = rangeDays(f);
+  const r = resolveRange(f);
   const def = series.find((s) => s.id === seriesId);
 
   if (loading) return <Shell title={title}><Loading /></Shell>;
   if (!def) return <Shell title={title}><div className="text-xs text-muted-foreground">Fonte de dados indisponível.</div></Shell>;
   const use = keys.length ? keys : [def.keys[0]?.key].filter(Boolean) as string[];
-  // Séries temporais respeitam o período escolhido no painel.
+  // Séries temporais respeitam o período escolhido no widget.
   const temporal = /dia|mes|producao|carga|diario|sla/i.test(def.id);
-  const data = dias > 0 && temporal ? def.data.slice(-dias) : def.data;
+  const porData = temporal && r ? sliceByRange(def.data, def.xKey, r.de === "0000-01-01" ? undefined : r.de, r.ate) : null;
+  const data = porData ?? (dias > 0 && temporal ? def.data.slice(-dias) : def.data);
 
   if (data.length === 0)
     return (
