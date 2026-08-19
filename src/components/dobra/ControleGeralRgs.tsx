@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, DataTable, StatusBadge, inputCls, type Column } from "./ui";
-import { fmtBrDate, secToHms, secToHoraDia, type RgCalc } from "@/lib/dobra";
+import { isDobrada, fmtBrDate, secToHms, secToHoraDia, type RgCalc } from "@/lib/dobra";
 import { applyFilters, FiltersBar, type DobraFilters } from "./filters";
 import { Download } from "lucide-react";
 
