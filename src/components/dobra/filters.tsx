@@ -191,7 +191,10 @@ export function FiltersBar({
             <option value="em_producao">Em produção</option>
             <option value="disponivel">Disponível para dobrar</option>
             <option value="aguardando">Aguardando etapa anterior</option>
+            <option value="logistica">Logística interna</option>
+            <option value="separacao">Em separação</option>
             <option value="concluida">Concluída</option>
+            <option value="dobrada">Já dobradas</option>
             <option value="atrasada">Atrasadas</option>
           </select>
         </div>
