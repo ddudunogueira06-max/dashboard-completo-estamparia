@@ -99,6 +99,7 @@ export function DataTable<T>({
   pageSize: initialPageSize = 15,
   onRowClick,
   footer,
+  rowClass,
   empty = "Nenhum registro encontrado.",
 }: {
   rows: T[];
@@ -106,6 +107,8 @@ export function DataTable<T>({
   pageSize?: number;
   onRowClick?: (row: T) => void;
   footer?: ReactNode;
+  /** classe extra por linha (ex.: destaque de atraso) */
+  rowClass?: (row: T) => string | undefined;
   empty?: string;
 }) {
   const [page, setPage] = useState(0);
@@ -171,6 +174,7 @@ export function DataTable<T>({
                   "border-t border-border",
                   onRowClick && "cursor-pointer hover:bg-secondary/50",
                   i % 2 === 1 && "bg-secondary/20",
+                  rowClass?.(row),
                 )}
               >
                 {columns.map((c) => (
