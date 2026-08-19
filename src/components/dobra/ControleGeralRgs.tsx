@@ -7,6 +7,9 @@ import { Download } from "lucide-react";
 const QUICK = [
   { id: "", label: "Todos" },
   { id: "concluida", label: "Concluído" },
+  { id: "dobrada", label: "Já dobradas" },
+  { id: "logistica", label: "Logística interna" },
+  { id: "separacao", label: "Em separação" },
   { id: "disponivel", label: "Disponíveis para dobrar" },
   { id: "em_producao", label: "Em produção" },
   { id: "aguardando", label: "Aguardando etapa anterior" },
@@ -41,6 +44,7 @@ export function ControleGeralRgs({
       emProducao: filtered.filter((r) => r.situacao === "em_producao").length,
       disponiveis: filtered.filter((r) => r.situacao === "disponivel").length,
       aguardando: filtered.filter((r) => r.situacao === "aguardando").length,
+      dobradas: filtered.filter((r) => isDobrada(r.situacao)).length,
       atrasadas: filtered.filter((r) => r.atrasada).length,
       fpps: new Set(filtered.map((r) => r.fpp_key).filter(Boolean)).size,
       seg: filtered.reduce((s, r) => s + r.tempoEstimadoSeg, 0),
@@ -131,6 +135,7 @@ export function ControleGeralRgs({
           rows={filtered}
           columns={cols}
           pageSize={25}
+          rowClass={(r) => (r.atrasada ? "bg-destructive/10 text-destructive" : undefined)}
           footer={
             <span className="flex flex-wrap gap-x-4 gap-y-1">
               <span>RGs: <b>{resumo.total}</b></span>
@@ -138,6 +143,7 @@ export function ControleGeralRgs({
               <span>Em produção: <b className="text-primary">{resumo.emProducao}</b></span>
               <span>Disponíveis: <b className="text-accent">{resumo.disponiveis}</b></span>
               <span>Aguardando: <b>{resumo.aguardando}</b></span>
+              <span>Dobradas: <b className="text-[var(--success)]">{resumo.dobradas}</b></span>
               <span>Atrasadas: <b className="text-destructive">{resumo.atrasadas}</b></span>
               <span>FPPs: <b>{resumo.fpps}</b></span>
               <span>Horas estimadas: <b className="tabular-nums">{secToHms(resumo.seg)}</b></span>
