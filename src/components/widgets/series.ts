@@ -40,8 +40,8 @@ export function useSeriesCatalog(): { series: SeriesDef[]; loading: boolean } {
 
   const series = useMemo<SeriesDef[]>(() => {
     const dobra = buildRgCalc(rgs.data ?? [], fpps.data ?? [], settings.data?.tarefas ?? [], settings.data?.ajuste);
-    const abertas = dobra.filter((r) => r.situacao !== "concluida");
-    const concluidas = dobra.filter((r) => r.situacao === "concluida");
+    const abertas = dobra.filter((r) => !isDobrada(r.situacao));
+    const concluidas = dobra.filter((r) => isDobrada(r.situacao));
 
     // peças reais por RG (BD-CONTROLE-RG)
     const pecasPorRg = new Map<string, number>();

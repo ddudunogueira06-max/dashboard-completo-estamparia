@@ -413,7 +413,7 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 2,
     Component: () => {
       const { rows, isLoading } = useDobraCalc();
-      const abertas = rows.filter((r) => r.situacao !== "concluida");
+      const abertas = rows.filter((r) => !isDobrada(r.situacao));
       return (
         <Shell title="RGs em aberto">
           {isLoading ? (
@@ -438,7 +438,7 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 2,
     Component: () => {
       const { rows, isLoading } = useDobraCalc();
-      const abertas = rows.filter((r) => r.situacao !== "concluida");
+      const abertas = rows.filter((r) => !isDobrada(r.situacao));
       const atrasadas = abertas.filter((r) => r.atrasada);
       const seg = atrasadas.reduce((s, r) => s + r.tempoEstimadoSeg, 0);
       return (
@@ -466,7 +466,7 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 2,
     Component: () => {
       const { rows, isLoading } = useDobraCalc();
-      const seg = rows.filter((r) => r.situacao !== "concluida").reduce((s, r) => s + r.tempoEstimadoSeg, 0);
+      const seg = rows.filter((r) => !isDobrada(r.situacao)).reduce((s, r) => s + r.tempoEstimadoSeg, 0);
       return <Shell title="Horas a produzir">{isLoading ? <Loading /> : <Stat value={secToHms(seg)} tone="text-accent" />}</Shell>;
     },
   },
@@ -496,7 +496,7 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 4,
     Component: () => {
       const { rows, isLoading } = useDobraCalc();
-      const abertas = rows.filter((r) => r.situacao !== "concluida");
+      const abertas = rows.filter((r) => !isDobrada(r.situacao));
       const series = [
         { name: "Em produção", value: abertas.filter((r) => r.situacao === "em_producao").length },
         { name: "Disponíveis", value: abertas.filter((r) => r.situacao === "disponivel").length },

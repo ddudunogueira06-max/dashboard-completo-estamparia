@@ -51,8 +51,8 @@ export function useTickerMetrics(): { metrics: TickerMetric[]; loading: boolean 
     const topParada = paradasTop(pr, 1)[0];
     const totalSeg = p.reduce((s, r) => s + (r.tempo_execucao_seg ?? 0), 0);
 
-    const abertas = dobra.filter((r) => r.situacao !== "concluida");
-    const concl = dobra.filter((r) => r.situacao === "concluida");
+    const abertas = dobra.filter((r) => !isDobrada(r.situacao));
+    const concl = dobra.filter((r) => isDobrada(r.situacao));
     const horasAbertas = abertas.reduce((s, r) => s + r.tempoEstimadoSeg, 0);
     const rp = resumoPerformance(perf.data ?? []);
     const rc = resumoControleRg(ctrl.data ?? []);

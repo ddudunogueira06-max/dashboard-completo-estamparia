@@ -52,9 +52,9 @@ function DobraModule() {
     ...(isAdmin ? [{ id: "importar", label: "Importar Dobra" }] : []),
   ];
 
-  const abertas = useMemo(() => applyFilters(rows, filters).filter((r) => r.situacao !== "concluida"), [rows, filters]);
+  const abertas = useMemo(() => applyFilters(rows, filters).filter((r) => !isDobrada(r.situacao)), [rows, filters]);
   const concluidas = useMemo(
-    () => applyFilters(rows.filter((r) => r.situacao === "concluida"), filters, "data_conclusao"),
+    () => applyFilters(rows.filter((r) => isDobrada(r.situacao)), filters, "data_conclusao"),
     [rows, filters],
   );
 

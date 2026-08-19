@@ -37,7 +37,7 @@ export function ControleGeralRgs({
   const resumo = useMemo(
     () => ({
       total: filtered.length,
-      concluidas: filtered.filter((r) => r.situacao === "concluida").length,
+      concluidas: filtered.filter((r) => isDobrada(r.situacao)).length,
       emProducao: filtered.filter((r) => r.situacao === "em_producao").length,
       disponiveis: filtered.filter((r) => r.situacao === "disponivel").length,
       aguardando: filtered.filter((r) => r.situacao === "aguardando").length,
