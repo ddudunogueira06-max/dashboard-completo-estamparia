@@ -466,7 +466,11 @@ export interface RgCalc extends DobraRg {
 }
 
 const isConcluida = (s: string | null) => normKey(s).startsWith("CONCLUID");
+const isLogistica = (s: string | null) => normKey(s).includes("LOGISTICA");
+const isSeparacao = (s: string | null) => normKey(s).includes("SEPARACAO");
 const isEmProducao = (s: string | null) => normKey(s).includes("EMPRODUCAO") || normKey(s).includes("PRODUCAO");
+/** RG já passou pela dobra (concluída, logística interna ou separação). */
+const jaDobrada = (s: string | null) => isConcluida(s) || isLogistica(s) || isSeparacao(s);
 
 export function buildRgCalc(
   rgs: DobraRg[],
