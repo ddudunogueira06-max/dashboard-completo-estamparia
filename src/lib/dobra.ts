@@ -66,14 +66,20 @@ export interface MetaParams {
   metaSla: number;
 }
 
-export type Situacao = "concluida" | "em_producao" | "disponivel" | "aguardando";
+export type Situacao = "concluida" | "logistica" | "separacao" | "em_producao" | "disponivel" | "aguardando";
 
 export const SITUACAO_LABEL: Record<Situacao, string> = {
   concluida: "Concluída",
+  logistica: "Logística interna",
+  separacao: "Em separação",
   em_producao: "Em produção",
   disponivel: "Disponível para dobrar",
   aguardando: "Aguardando etapa anterior",
 };
+
+/** RGs já dobradas: concluídas ou que seguiram para logística/separação. */
+export const isDobrada = (s: Situacao) => s === "concluida" || s === "logistica" || s === "separacao";
+
 
 /* ------------------------------------------------------------------ */
 /* Normalização / formatação                                           */
