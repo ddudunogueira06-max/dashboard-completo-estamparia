@@ -67,6 +67,8 @@ export function Kpi({
 
 const SIT_STYLE: Record<Situacao | "atrasada", string> = {
   concluida: "bg-[var(--success)]/15 text-[var(--success)] border-[var(--success)]/40",
+  logistica: "bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/30",
+  separacao: "bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/30",
   em_producao: "bg-primary/15 text-primary border-primary/40",
   disponivel: "bg-accent/15 text-accent border-accent/40",
   aguardando: "bg-muted text-muted-foreground border-border",
@@ -74,13 +76,8 @@ const SIT_STYLE: Record<Situacao | "atrasada", string> = {
 };
 
 export function StatusBadge({ situacao, atrasada }: { situacao: Situacao; atrasada?: boolean }) {
-  const key = atrasada && situacao !== "concluida" ? "atrasada" : situacao;
-  const label =
-    key === "atrasada"
-      ? "Atrasada"
-      : { concluida: "Concluída", em_producao: "Em produção", disponivel: "Disponível", aguardando: "Aguardando" }[
-          situacao
-        ];
+  const key = atrasada && !isDobrada(situacao) ? "atrasada" : situacao;
+  const label = key === "atrasada" ? "Atrasada" : SITUACAO_LABEL[situacao];
   return (
     <span className={cn("inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold", SIT_STYLE[key])}>
       {label}
