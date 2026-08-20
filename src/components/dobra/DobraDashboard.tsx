@@ -26,9 +26,10 @@ import {
   type Capacidade,
   type CargaDia,
   type MetaParams,
+  useDobraSettings,
   type RgCalc,
 } from "@/lib/dobra";
-import { useDobraControleRg, slaPlanilha } from "@/lib/dobraExtra";
+import { useDobraControleRg, slaExibido } from "@/lib/dobraExtra";
 
 export function DobraDashboard({
   rows,
@@ -46,6 +47,8 @@ export function DobraDashboard({
   const [serie, setSerie] = useState<"rgs" | "pecas" | "horas">("rgs");
   const [alerta, setAlerta] = useState<{ label: string; rows: RgCalc[] } | null>(null);
   const { data: ctrl } = useDobraControleRg();
+  const { data: cfg } = useDobraSettings();
+  const slaSalvo = cfg?.slaMensal ?? {};
 
   const pecasPorRg = useMemo(() => {
     const m = new Map<string, number>();
@@ -64,9 +67,9 @@ export function DobraDashboard({
     const base = ctrl ?? [];
     const ultimo = base.reduce<string>((mx, c) => (c.data_conclusao && c.data_conclusao > mx ? c.data_conclusao : mx), "");
     const mes = (filters.dataFim || filters.dataIni || ultimo || new Date().toISOString().slice(0, 10)).slice(0, 7);
-    const r = slaPlanilha(base, `${mes}-01`, `${mes}-31`);
-    return { mes, pct: r.pct, ok: r.ok, total: r.total };
-  }, [ctrl, filters.dataIni, filters.dataFim]);
+    const r = slaExibido(base, `${mes}-01`, `${mes}-31`, slaSalvo);
+    return { mes, pct: r.pct, ok: r.ok, total: r.total, oficial: r.oficial };
+  }, [ctrl, filters.dataIni, filters.dataFim, slaSalvo]);
 
 
   const kpis = useMemo(() => {
@@ -132,7 +135,7 @@ export function DobraDashboard({
         <Kpi
           label={`SLA ${slaMes.mes.slice(5)}/${slaMes.mes.slice(2, 4)}`}
           value={`${slaMes.pct.toFixed(1)}%`}
-          sub={slaMes.total ? `${slaMes.ok}/${slaMes.total} RGs no prazo · meta ${meta.metaSla}%` : "Sem controle de RG no mês"}
+          sub={slaMes.oficial ? `SLA da planilha · meta ${meta.metaSla}%` : slaMes.total ? `${slaMes.ok}/${slaMes.total} RGs no prazo · meta ${meta.metaSla}%` : "Sem controle de RG no mês"}
           tone={slaMes.pct >= meta.metaSla ? "success" : "destructive"}
         />
 

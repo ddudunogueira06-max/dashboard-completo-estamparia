@@ -34,7 +34,7 @@ import {
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { TickerPanel } from "@/components/TickerPanel";
 import { isDobrada, buildRgCalc, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
-import { slaPlanilha, resumoPerformance, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
+import { slaExibido, resumoPerformance, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
 import { useSeriesCatalog } from "@/components/widgets/series";
 import { useTickerMetrics } from "@/components/widgets/metrics";
 import type { CustomWidget } from "@/components/widgets/customWidgets";
@@ -374,6 +374,8 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 2,
     Component: () => {
       const { data = [], isLoading } = useDobraControleRg();
+      const { data: cfg } = useDobraSettings();
+      const slaSalvo = cfg?.slaMensal ?? {};
       const f = useDashboardFilters();
       const r = resolveRange(f);
       // Sem intervalo escolhido: mês da última conclusão registrada (mesma base da página Dobra).
@@ -381,7 +383,7 @@ export const WIDGETS: WidgetDef[] = [
       const mes = (ultimo || new Date().toISOString().slice(0, 10)).slice(0, 7);
       const de = r ? (r.de === "0000-01-01" ? undefined : r.de) : `${mes}-01`;
       const ate = r ? r.ate : `${mes}-31`;
-      const sla = slaPlanilha(data, de, ate);
+      const sla = slaExibido(data, de, ate, slaSalvo);
       const periodo = r
         ? `${de ? de.split("-").reverse().join("/") : "início"} a ${(ate ?? "").split("-").reverse().join("/")}`
         : `${mes.slice(5)}/${mes.slice(2, 4)}`;
@@ -392,9 +394,15 @@ export const WIDGETS: WidgetDef[] = [
             <Loading />
           ) : (
             <Stat
-              value={sla.total === 0 ? "—" : fmtPct(sla.pct, 1)}
-              hint={sla.total === 0 ? "Sem RGs concluídas no período" : `${fmtInt(sla.ok)}/${fmtInt(sla.total)} RGs no prazo · ${periodo}`}
-              tone={sla.total === 0 ? undefined : tone}
+              value={sla.total === 0 && !sla.oficial ? "—" : fmtPct(sla.pct, 1)}
+              hint={
+                sla.oficial
+                  ? `SLA da planilha · ${periodo}`
+                  : sla.total === 0
+                    ? "Sem RGs concluídas no período"
+                    : `${fmtInt(sla.ok)}/${fmtInt(sla.total)} RGs no prazo · ${periodo}`
+              }
+              tone={sla.total === 0 && !sla.oficial ? undefined : tone}
             />
           )}
         </Shell>

@@ -8,11 +8,14 @@ import {
   parseFppsSheet,
   parseRgsSheet,
   readWorkbook,
+  saveSetting,
   useDobraImports,
   type DobraFpp,
   type DobraRg,
 } from "@/lib/dobra";
 import {
+  lerSlaCelula,
+  mesReferencia,
   parseControleRgSheet,
   parsePerformanceSheet,
   type DobraCtrlRg,
@@ -28,6 +31,7 @@ interface Preview {
   fpps: DobraFpp[];
   performance: DobraPerf[];
   controle: DobraCtrlRg[];
+  slaCelula: number | null;
   novos: number;
   atualizados: number;
   semFpp: number;
@@ -66,6 +70,7 @@ export function DobraImportPage() {
         fpps: fppsParsed.rows,
         performance: performanceParsed.rows,
         controle: controleParsed.rows,
+        slaCelula: lerSlaCelula(wb),
         novos,
         atualizados: rgsParsed.rows.length - novos,
         semFpp: rgsParsed.rows.filter((r) => !r.fpp_key).length,
@@ -162,6 +167,15 @@ export function DobraImportPage() {
         if (error) throw error;
       }
 
+
+      // SLA oficial da planilha (BD-CONTROLE-RG!L3) fica salvo no mês de referência.
+      if (preview.slaCelula !== null) {
+        const mes = mesReferencia(preview.controle);
+        const { data: atual } = await supabase.from("dobra_settings").select("value").eq("key", "sla_mensal").maybeSingle();
+        const salvos = ((atual?.value as Record<string, number>) ?? {});
+        await saveSetting("sla_mensal", { ...salvos, [mes]: preview.slaCelula });
+        await qc.invalidateQueries({ queryKey: ["dobra_settings"] });
+      }
 
       await qc.invalidateQueries({ queryKey: ["dobra_rgs"] });
       await qc.invalidateQueries({ queryKey: ["dobra_fpps"] });
