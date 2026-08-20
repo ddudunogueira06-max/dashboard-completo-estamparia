@@ -34,7 +34,7 @@ import {
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { TickerPanel } from "@/components/TickerPanel";
 import { isDobrada, buildRgCalc, secToHms, useDobraFpps, useDobraRgs, useDobraSettings } from "@/lib/dobra";
-import { slaPlanilha, resumoPerformance, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
+import { slaExibido, resumoPerformance, useDobraControleRg, useDobraPerformance } from "@/lib/dobraExtra";
 import { useSeriesCatalog } from "@/components/widgets/series";
 import { useTickerMetrics } from "@/components/widgets/metrics";
 import type { CustomWidget } from "@/components/widgets/customWidgets";
@@ -381,7 +381,7 @@ export const WIDGETS: WidgetDef[] = [
       const mes = (ultimo || new Date().toISOString().slice(0, 10)).slice(0, 7);
       const de = r ? (r.de === "0000-01-01" ? undefined : r.de) : `${mes}-01`;
       const ate = r ? r.ate : `${mes}-31`;
-      const sla = slaPlanilha(data, de, ate);
+      const sla = slaExibido(data, de, ate, slaSalvo);
       const periodo = r
         ? `${de ? de.split("-").reverse().join("/") : "início"} a ${(ate ?? "").split("-").reverse().join("/")}`
         : `${mes.slice(5)}/${mes.slice(2, 4)}`;

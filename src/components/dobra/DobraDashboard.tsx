@@ -28,7 +28,7 @@ import {
   type MetaParams,
   type RgCalc,
 } from "@/lib/dobra";
-import { useDobraControleRg, slaPlanilha } from "@/lib/dobraExtra";
+import { useDobraControleRg, slaExibido } from "@/lib/dobraExtra";
 
 export function DobraDashboard({
   rows,
@@ -64,9 +64,9 @@ export function DobraDashboard({
     const base = ctrl ?? [];
     const ultimo = base.reduce<string>((mx, c) => (c.data_conclusao && c.data_conclusao > mx ? c.data_conclusao : mx), "");
     const mes = (filters.dataFim || filters.dataIni || ultimo || new Date().toISOString().slice(0, 10)).slice(0, 7);
-    const r = slaPlanilha(base, `${mes}-01`, `${mes}-31`);
-    return { mes, pct: r.pct, ok: r.ok, total: r.total };
-  }, [ctrl, filters.dataIni, filters.dataFim]);
+    const r = slaExibido(base, `${mes}-01`, `${mes}-31`, slaSalvo);
+    return { mes, pct: r.pct, ok: r.ok, total: r.total, oficial: r.oficial };
+  }, [ctrl, filters.dataIni, filters.dataFim, slaSalvo]);
 
 
   const kpis = useMemo(() => {
