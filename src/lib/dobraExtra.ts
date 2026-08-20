@@ -477,6 +477,46 @@ export function slaPlanilha(rows: DobraCtrlRg[], de?: string, ate?: string) {
   return { pct: avaliados.length ? (ok / avaliados.length) * 100 : 0, ok, total: avaliados.length };
 }
 
+/**
+ * SLA oficial informado na planilha: aba BD-CONTROLE-RG, célula L3.
+ * É o valor fechado do mês corrente calculado pelo setor.
+ */
+export function lerSlaCelula(wb: XLSX.WorkBook): number | null {
+  const name =
+    wb.SheetNames.find((n) => normKey(n) === normKey("BD-CONTROLE-RG")) ??
+    wb.SheetNames.find((n) => normKey(n).includes("CONTROLERG"));
+  if (!name) return null;
+  const cell = wb.Sheets[name]?.["L3"] as { v?: unknown } | undefined;
+  const v = num(cell?.v);
+  if (v === null) return null;
+  return v > 0 && v <= 1.5 ? v * 100 : v;
+}
+
+/** Mês (YYYY-MM) mais recente com conclusão registrada. */
+export function mesReferencia(rows: DobraCtrlRg[]): string {
+  const ultimo = rows.reduce<string>((mx, c) => (c.data_conclusao && c.data_conclusao > mx ? c.data_conclusao : mx), "");
+  return (ultimo || new Date().toISOString().slice(0, 10)).slice(0, 7);
+}
+
+/**
+ * SLA exibido: usa o valor salvo da planilha para o mês (quando existe) e,
+ * na falta dele, o cálculo pela coluna SLA dos registros.
+ */
+export function slaExibido(
+  rows: DobraCtrlRg[],
+  de: string | undefined,
+  ate: string | undefined,
+  salvos: Record<string, number> = {},
+) {
+  const calc = slaPlanilha(rows, de, ate);
+  const mesDe = de?.slice(0, 7);
+  const mesAte = ate?.slice(0, 7);
+  const mes = mesDe && mesDe === mesAte ? mesDe : undefined;
+  const fixo = mes ? salvos[mes] : undefined;
+  if (typeof fixo === "number") return { ...calc, pct: fixo, oficial: true };
+  return { ...calc, oficial: false };
+}
+
 /** Meses (YYYY-MM) presentes na base de controle, do mais recente para o mais antigo. */
 export function mesesControle(rows: DobraCtrlRg[]): string[] {
   const set = new Set<string>();
