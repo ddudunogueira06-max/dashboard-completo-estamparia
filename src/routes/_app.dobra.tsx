@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DobraDashboard } from "@/components/dobra/DobraDashboard";
 import { EmAbertoTable } from "@/components/dobra/EmAbertoTable";
 import { ConcluidasTable } from "@/components/dobra/ConcluidasTable";
+import { DobradasTable } from "@/components/dobra/DobradasTable";
 import { ControleGeralRgs } from "@/components/dobra/ControleGeralRgs";
 import { FppsPage } from "@/components/dobra/FppsPage";
 import { CapacidadePage } from "@/components/dobra/CapacidadePage";
@@ -84,6 +85,11 @@ function DobraModule() {
         {tab === "aberto" && (
           <Card title={`Dobra — Em aberto (${abertas.length})`}>
             <EmAbertoTable rows={abertas} pageSize={25} />
+          </Card>
+        )}
+        {tab === "dobradas" && (
+          <Card title={`RGs dobradas (${dobradas.length})`}>
+            <DobradasTable rows={dobradas} pageSize={25} />
           </Card>
         )}
         {tab === "concluidas" && (
