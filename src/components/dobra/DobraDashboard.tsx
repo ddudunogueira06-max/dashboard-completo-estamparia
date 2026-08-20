@@ -59,7 +59,7 @@ export function DobraDashboard({
     [rows, filters],
   );
 
-  /* SLA do mês — RG concluída até a data de planejamento (mesma regra do widget). */
+  /* SLA do mês — coluna SLA da planilha (OK / Não OK), mesma base do widget. */
   const slaMes = useMemo(() => {
     const base = ctrl ?? [];
     const ultimo = base.reduce<string>((mx, c) => (c.data_conclusao && c.data_conclusao > mx ? c.data_conclusao : mx), "");

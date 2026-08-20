@@ -50,6 +50,7 @@ export function EmAbertoTable({ rows, pageSize = 15 }: { rows: RgCalc[]; pageSiz
       rows={sorted}
       columns={emAbertoColumns()}
       pageSize={pageSize}
+      rowClass={(r) => (r.atrasada ? "bg-destructive/10 text-destructive" : undefined)}
       footer={
         <span className="flex flex-wrap gap-x-4 gap-y-1">
           <span>Em produção: <b className="text-primary">{totals.emProd}</b></span>
