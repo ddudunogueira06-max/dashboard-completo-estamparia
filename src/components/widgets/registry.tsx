@@ -374,6 +374,8 @@ export const WIDGETS: WidgetDef[] = [
     defaultH: 2,
     Component: () => {
       const { data = [], isLoading } = useDobraControleRg();
+      const { data: cfg } = useDobraSettings();
+      const slaSalvo = cfg?.slaMensal ?? {};
       const f = useDashboardFilters();
       const r = resolveRange(f);
       // Sem intervalo escolhido: mês da última conclusão registrada (mesma base da página Dobra).
@@ -392,9 +394,15 @@ export const WIDGETS: WidgetDef[] = [
             <Loading />
           ) : (
             <Stat
-              value={sla.total === 0 ? "—" : fmtPct(sla.pct, 1)}
-              hint={sla.total === 0 ? "Sem RGs concluídas no período" : `${fmtInt(sla.ok)}/${fmtInt(sla.total)} RGs no prazo · ${periodo}`}
-              tone={sla.total === 0 ? undefined : tone}
+              value={sla.total === 0 && !sla.oficial ? "—" : fmtPct(sla.pct, 1)}
+              hint={
+                sla.oficial
+                  ? `SLA da planilha · ${periodo}`
+                  : sla.total === 0
+                    ? "Sem RGs concluídas no período"
+                    : `${fmtInt(sla.ok)}/${fmtInt(sla.total)} RGs no prazo · ${periodo}`
+              }
+              tone={sla.total === 0 && !sla.oficial ? undefined : tone}
             />
           )}
         </Shell>
