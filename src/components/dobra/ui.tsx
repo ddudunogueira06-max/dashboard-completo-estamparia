@@ -75,12 +75,15 @@ const SIT_STYLE: Record<Situacao | "atrasada", string> = {
   atrasada: "bg-destructive/15 text-destructive border-destructive/40",
 };
 
+/**
+ * Mostra sempre o status real da RG. O atraso é sinalizado apenas pela linha
+ * em vermelho na tabela, sem substituir o status.
+ */
 export function StatusBadge({ situacao, atrasada }: { situacao: Situacao; atrasada?: boolean }) {
-  const key = atrasada && !isDobrada(situacao) ? "atrasada" : situacao;
-  const label = key === "atrasada" ? "Atrasada" : SITUACAO_LABEL[situacao];
+  const style = atrasada && !isDobrada(situacao) ? SIT_STYLE.atrasada : SIT_STYLE[situacao];
   return (
-    <span className={cn("inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold", SIT_STYLE[key])}>
-      {label}
+    <span className={cn("inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold", style)}>
+      {SITUACAO_LABEL[situacao]}
     </span>
   );
 }
