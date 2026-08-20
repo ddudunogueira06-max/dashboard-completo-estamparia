@@ -433,6 +433,8 @@ export function useDobraSettings() {
         meta: { ...DEFAULT_META, ...get<Partial<MetaParams>>("meta", {}) } as MetaParams,
         tarefas: get<string[]>("tarefas_dobra", DEFAULT_TAREFAS),
         ajuste: { ...DEFAULT_AJUSTE, ...get<Partial<AjusteDobra>>("ajuste_dobra", {}) } as AjusteDobra,
+        /** SLA oficial da planilha por mês (YYYY-MM -> %). */
+        slaMensal: get<Record<string, number>>("sla_mensal", {}),
       };
     },
   });
