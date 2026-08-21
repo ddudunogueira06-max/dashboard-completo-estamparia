@@ -28,6 +28,8 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
   const [buscaProduto, setBuscaProduto] = useState("");
   const { data: rgs } = useDobraRgs();
   const [saving, setSaving] = useState(false);
+  const [slaMensal, setSlaMensal] = useState<Record<string, number>>({});
+  const [slaMes, setSlaMes] = useState(() => new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
     if (!data) return;
@@ -35,6 +37,7 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
     setMeta(data.meta);
     setTarefas(data.tarefas);
     setAjuste(data.ajuste ?? DEFAULT_AJUSTE);
+    setSlaMensal(data.slaMensal ?? {});
   }, [data]);
 
   if (!cap || !meta) return <div className="p-6 text-sm text-muted-foreground">Carregando parâmetros...</div>;
