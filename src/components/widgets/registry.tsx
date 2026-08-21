@@ -394,7 +394,7 @@ export const WIDGETS: WidgetDef[] = [
             <Loading />
           ) : (
             <Stat
-              value={sla.total === 0 && !sla.oficial ? "—" : fmtPct(sla.pct, 1)}
+              value={sla.total === 0 && !sla.oficial ? "—" : fmtPct(sla.pct, 2)}
               hint={
                 sla.oficial
                   ? `SLA da planilha · ${periodo}`
