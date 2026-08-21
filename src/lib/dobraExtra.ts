@@ -478,18 +478,47 @@ export function slaPlanilha(rows: DobraCtrlRg[], de?: string, ate?: string) {
 }
 
 /**
- * SLA oficial informado na planilha: aba BD-CONTROLE-RG, célula L3.
- * É o valor fechado do mês corrente calculado pelo setor.
+ * SLA oficial informado na planilha (aba BD-CONTROLE-RG).
+ * Procura o rótulo "SLA" nas primeiras linhas e lê o percentual próximo a ele
+ * (a coluna pode mudar quando novas colunas são adicionadas); L3 é o fallback.
  */
 export function lerSlaCelula(wb: XLSX.WorkBook): number | null {
   const name =
     wb.SheetNames.find((n) => normKey(n) === normKey("BD-CONTROLE-RG")) ??
     wb.SheetNames.find((n) => normKey(n).includes("CONTROLERG"));
   if (!name) return null;
-  const cell = wb.Sheets[name]?.["L3"] as { v?: unknown } | undefined;
-  const v = num(cell?.v);
-  if (v === null) return null;
-  return v > 0 && v <= 1.5 ? v * 100 : v;
+  const ws = wb.Sheets[name];
+  if (!ws) return null;
+
+  const pct = (raw: unknown) => {
+    const v = num(raw);
+    if (v === null || v <= 0) return null;
+    const p = v <= 1.5 ? v * 100 : v;
+    return p > 0 && p <= 100 ? Number(p.toFixed(2)) : null;
+  };
+
+  // varre as 8 primeiras linhas / 60 primeiras colunas procurando o rótulo SLA
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 60; c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })] as { v?: unknown } | undefined;
+      if (!cell || typeof cell.v !== "string") continue;
+      if (!normKey(cell.v).includes("SLA")) continue;
+      const vizinhos = [
+        { r, c: c + 1 },
+        { r: r + 1, c },
+        { r, c: c + 2 },
+        { r: r + 2, c },
+        { r: r + 1, c: c + 1 },
+      ];
+      for (const p of vizinhos) {
+        const v = pct((ws[XLSX.utils.encode_cell(p)] as { v?: unknown } | undefined)?.v);
+        if (v !== null) return v;
+      }
+    }
+  }
+
+  return pct((ws["L3"] as { v?: unknown } | undefined)?.v);
+
 }
 
 /** Mês (YYYY-MM) mais recente com conclusão registrada. */

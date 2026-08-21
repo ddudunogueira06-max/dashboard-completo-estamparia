@@ -28,6 +28,8 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
   const [buscaProduto, setBuscaProduto] = useState("");
   const { data: rgs } = useDobraRgs();
   const [saving, setSaving] = useState(false);
+  const [slaMensal, setSlaMensal] = useState<Record<string, number>>({});
+  const [slaMes, setSlaMes] = useState(() => new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
     if (!data) return;
@@ -35,6 +37,7 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
     setMeta(data.meta);
     setTarefas(data.tarefas);
     setAjuste(data.ajuste ?? DEFAULT_AJUSTE);
+    setSlaMensal(data.slaMensal ?? {});
   }, [data]);
 
   if (!cap || !meta) return <div className="p-6 text-sm text-muted-foreground">Carregando parâmetros...</div>;
@@ -49,6 +52,10 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
         saveSetting("meta", meta),
         saveSetting("tarefas_dobra", tarefas),
         saveSetting("ajuste_dobra", ajuste),
+        saveSetting(
+          "sla_mensal",
+          Object.fromEntries(Object.entries(slaMensal).filter(([, v]) => typeof v === "number" && !Number.isNaN(v))),
+        ),
       ]);
       await qc.invalidateQueries({ queryKey: ["dobra_settings"] });
       toast.success("Parâmetros salvos.");
@@ -167,6 +174,31 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
             />
             Desconsiderar finais de semana
           </label>
+        </div>
+      </Card>
+
+      <Card title="SLA oficial da planilha">
+        <div className="grid gap-3 p-4 sm:grid-cols-3">
+          <Field label="Mês de referência">
+            <input type="month" className={inputCls} value={slaMes} onChange={(e) => setSlaMes(e.target.value)} disabled={readOnly} />
+          </Field>
+          <Field label="SLA (%)">
+            <input
+              type="number"
+              step="0.01"
+              className={inputCls}
+              value={slaMensal[slaMes] ?? ""}
+              placeholder="ex.: 95,68"
+              onChange={(e) =>
+                setSlaMensal({ ...slaMensal, [slaMes]: e.target.value === "" ? (undefined as unknown as number) : Number(e.target.value) })
+              }
+              disabled={readOnly}
+            />
+          </Field>
+          <div className="self-end text-xs text-muted-foreground">
+            Valor apresentado no card e no widget de SLA para esse mês. É preenchido automaticamente na importação (aba
+            BD-CONTROLE-RG) e pode ser corrigido aqui.
+          </div>
         </div>
       </Card>
 

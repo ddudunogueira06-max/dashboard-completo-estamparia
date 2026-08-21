@@ -134,7 +134,7 @@ export function DobraDashboard({
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-6">
         <Kpi
           label={`SLA ${slaMes.mes.slice(5)}/${slaMes.mes.slice(2, 4)}`}
-          value={`${slaMes.pct.toFixed(1)}%`}
+          value={`${slaMes.pct.toFixed(2)}%`}
           sub={slaMes.oficial ? `SLA da planilha · meta ${meta.metaSla}%` : slaMes.total ? `${slaMes.ok}/${slaMes.total} RGs no prazo · meta ${meta.metaSla}%` : "Sem controle de RG no mês"}
           tone={slaMes.pct >= meta.metaSla ? "success" : "destructive"}
         />
