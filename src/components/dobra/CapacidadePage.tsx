@@ -52,6 +52,10 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
         saveSetting("meta", meta),
         saveSetting("tarefas_dobra", tarefas),
         saveSetting("ajuste_dobra", ajuste),
+        saveSetting(
+          "sla_mensal",
+          Object.fromEntries(Object.entries(slaMensal).filter(([, v]) => typeof v === "number" && !Number.isNaN(v))),
+        ),
       ]);
       await qc.invalidateQueries({ queryKey: ["dobra_settings"] });
       toast.success("Parâmetros salvos.");
