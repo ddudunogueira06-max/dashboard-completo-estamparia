@@ -170,6 +170,31 @@ export function CapacidadePage({ readOnly }: { readOnly: boolean }) {
         </div>
       </Card>
 
+      <Card title="SLA oficial da planilha">
+        <div className="grid gap-3 p-4 sm:grid-cols-3">
+          <Field label="Mês de referência">
+            <input type="month" className={inputCls} value={slaMes} onChange={(e) => setSlaMes(e.target.value)} disabled={readOnly} />
+          </Field>
+          <Field label="SLA (%)">
+            <input
+              type="number"
+              step="0.01"
+              className={inputCls}
+              value={slaMensal[slaMes] ?? ""}
+              placeholder="ex.: 95,68"
+              onChange={(e) =>
+                setSlaMensal({ ...slaMensal, [slaMes]: e.target.value === "" ? (undefined as unknown as number) : Number(e.target.value) })
+              }
+              disabled={readOnly}
+            />
+          </Field>
+          <div className="self-end text-xs text-muted-foreground">
+            Valor apresentado no card e no widget de SLA para esse mês. É preenchido automaticamente na importação (aba
+            BD-CONTROLE-RG) e pode ser corrigido aqui.
+          </div>
+        </div>
+      </Card>
+
       <Card title="Ajuste de tempo da dobra">
         <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Acréscimo sobre o tempo estimado (%)">
