@@ -1,0 +1,1 @@
+update public.dobra_settings set value = jsonb_set(value::jsonb, '{2026-08}', '95.68'::jsonb, true) where key = 'sla_mensal';
