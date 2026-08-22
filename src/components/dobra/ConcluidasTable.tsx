@@ -40,7 +40,7 @@ export function ConcluidasTable({ rows, pageSize = 15 }: { rows: RgCalc[]; pageS
     const seg = rows.reduce((s, r) => s + r.tempoEstimadoSeg, 0);
     const avaliadas = rows.filter((r) => slaOk(r) !== null);
     const ok = avaliadas.filter((r) => slaOk(r) === true).length;
-    const dias = new Set(rows.map((r) => r.data_conclusao).filter(Boolean)).size;
+    const dias = new Set(rows.map((r) => r.data_dobra ?? r.data_conclusao).filter(Boolean)).size;
     return {
       total: rows.length,
       seg,
