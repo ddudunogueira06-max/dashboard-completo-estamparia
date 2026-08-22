@@ -49,7 +49,9 @@ export function useSeriesCatalog(): { series: SeriesDef[]; loading: boolean } {
       if (c.rg_key) pecasPorRg.set(c.rg_key, (pecasPorRg.get(c.rg_key) ?? 0) + (c.quantidade ?? 0));
     }
 
-    const dobraProducao = buildProducaoDiaria(concluidas, pecasPorRg);
+    // Histórico completo: o recorte por mês é feito no widget.
+    const dobraProducao = buildProducaoDiaria(concluidas, pecasPorRg, 3650);
+
 
     const capH = capacidadeTotalSeg(settings.data?.capacidade ?? ({} as never));
     const dobraCarga = buildCargaDiaria(abertas, capH);
