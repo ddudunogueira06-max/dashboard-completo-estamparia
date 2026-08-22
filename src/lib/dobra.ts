@@ -523,6 +523,7 @@ export function buildRgCalc(
       dificuldade: nivel,
       tempoEstimadoSeg: Math.round(porRg),
       horaConclusaoSeg: isDobrada(situacao) ? r.tempo_seg : null,
+      data_dobra: isDobrada(situacao) ? (r.data_conclusao ?? r.data_planejamento ?? null) : null,
       totalRgsFpp: total,
       rgsRestantesFpp: restantes,
       horasRestantesFppSeg: Math.round(porRg * restantes),
