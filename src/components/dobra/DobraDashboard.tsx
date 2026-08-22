@@ -58,7 +58,7 @@ export function DobraDashboard({
 
   const abertas = useMemo(() => applyFilters(rows, filters).filter((r) => !isDobrada(r.situacao)), [rows, filters]);
   const concluidas = useMemo(
-    () => applyFilters(rows.filter((r) => isDobrada(r.situacao)), filters, "data_conclusao"),
+    () => applyFilters(rows.filter((r) => isDobrada(r.situacao)), filters, "data_dobra"),
     [rows, filters],
   );
 
