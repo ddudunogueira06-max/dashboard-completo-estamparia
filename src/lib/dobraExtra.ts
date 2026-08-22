@@ -440,6 +440,7 @@ export function controleRgPorMes(rows: DobraCtrlRg[], meses = 12) {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .slice(-meses)
     .map(([key, v]) => ({
+      iso: `${key}-15`,
       label: `${key.slice(5, 7)}/${key.slice(2, 4)}`,
       rgs: v.total,
       pecas: v.pecas,
