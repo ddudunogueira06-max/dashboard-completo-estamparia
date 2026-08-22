@@ -461,6 +461,12 @@ export interface RgCalc extends DobraRg {
    * somatórios de horas produzidas — é exibida apenas como hora de conclusão.
    */
   horaConclusaoSeg: number | null;
+  /**
+   * Data em que a RG saiu da dobra. Para RGs já dobradas que seguiram para
+   * logística interna/separação sem data de conclusão preenchida, usa a data
+   * de planejamento como referência, para as horas de dobra continuarem batendo.
+   */
+  data_dobra: string | null;
   totalRgsFpp: number;
   rgsRestantesFpp: number;
   horasRestantesFppSeg: number;
@@ -517,6 +523,7 @@ export function buildRgCalc(
       dificuldade: nivel,
       tempoEstimadoSeg: Math.round(porRg),
       horaConclusaoSeg: isDobrada(situacao) ? r.tempo_seg : null,
+      data_dobra: isDobrada(situacao) ? (r.data_conclusao ?? r.data_planejamento ?? null) : null,
       totalRgsFpp: total,
       rgsRestantesFpp: restantes,
       horasRestantesFppSeg: Math.round(porRg * restantes),
@@ -643,7 +650,7 @@ export function buildProducaoDiaria(
 ): ProducaoDia[] {
   const map = new Map<string, { rgs: number; pecas: number; horas: number }>();
   for (const r of concluidas) {
-    const d = (r.data_conclusao ?? "").slice(0, 10);
+    const d = (r.data_dobra ?? r.data_conclusao ?? "").slice(0, 10);
     if (!d) continue;
     const cur = map.get(d) ?? { rgs: 0, pecas: 0, horas: 0 };
     cur.rgs += 1;

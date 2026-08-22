@@ -58,7 +58,7 @@ export function DobraDashboard({
 
   const abertas = useMemo(() => applyFilters(rows, filters).filter((r) => !isDobrada(r.situacao)), [rows, filters]);
   const concluidas = useMemo(
-    () => applyFilters(rows.filter((r) => isDobrada(r.situacao)), filters, "data_conclusao"),
+    () => applyFilters(rows.filter((r) => isDobrada(r.situacao)), filters, "data_dobra"),
     [rows, filters],
   );
 
@@ -76,7 +76,7 @@ export function DobraDashboard({
     const avaliadas = concluidas.filter((r) => slaOk(r) !== null);
     const sla = avaliadas.length ? (avaliadas.filter((r) => slaOk(r) === true).length / avaliadas.length) * 100 : 0;
     const horas = concluidas.reduce((s, r) => s + r.tempoEstimadoSeg, 0);
-    const dias = new Set(concluidas.map((r) => r.data_conclusao).filter(Boolean)).size || 1;
+    const dias = new Set(concluidas.map((r) => r.data_dobra ?? r.data_conclusao).filter(Boolean)).size || 1;
     return {
       sla,
       rgs: concluidas.length,
