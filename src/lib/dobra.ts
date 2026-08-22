@@ -650,7 +650,7 @@ export function buildProducaoDiaria(
 ): ProducaoDia[] {
   const map = new Map<string, { rgs: number; pecas: number; horas: number }>();
   for (const r of concluidas) {
-    const d = (r.data_conclusao ?? "").slice(0, 10);
+    const d = (r.data_dobra ?? r.data_conclusao ?? "").slice(0, 10);
     if (!d) continue;
     const cur = map.get(d) ?? { rgs: 0, pecas: 0, horas: 0 };
     cur.rgs += 1;

@@ -41,7 +41,7 @@ const has = (v: string | null, q: string) => (q ? normKey(v).includes(normKey(q)
 export function applyFilters(
   rows: RgCalc[],
   f: DobraFilters,
-  dateField: "data_planejamento" | "data_conclusao" = "data_planejamento",
+  dateField: "data_planejamento" | "data_conclusao" | "data_dobra" = "data_planejamento",
 ): RgCalc[] {
   return rows.filter((r) => {
     const d = (r[dateField] ?? "").slice(0, 10);
