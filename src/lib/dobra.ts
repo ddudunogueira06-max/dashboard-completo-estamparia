@@ -461,6 +461,12 @@ export interface RgCalc extends DobraRg {
    * somatórios de horas produzidas — é exibida apenas como hora de conclusão.
    */
   horaConclusaoSeg: number | null;
+  /**
+   * Data em que a RG saiu da dobra. Para RGs já dobradas que seguiram para
+   * logística interna/separação sem data de conclusão preenchida, usa a data
+   * de planejamento como referência, para as horas de dobra continuarem batendo.
+   */
+  data_dobra: string | null;
   totalRgsFpp: number;
   rgsRestantesFpp: number;
   horasRestantesFppSeg: number;
