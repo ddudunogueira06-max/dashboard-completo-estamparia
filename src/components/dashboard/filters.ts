@@ -63,7 +63,7 @@ export function labelToISO(label: unknown, refAno: number): string | null {
   return null;
 }
 
-/** Recorta uma série pelo intervalo, usando os rótulos do eixo X. */
+/** Recorta uma série pelo intervalo, usando o campo `iso` (quando existe) ou os rótulos do eixo X. */
 export function sliceByRange<T extends Record<string, unknown>>(
   data: T[],
   xKey: string,
@@ -71,6 +71,17 @@ export function sliceByRange<T extends Record<string, unknown>>(
   ate?: string,
 ): T[] | null {
   if (!de && !ate) return null;
+
+  // Caminho preferencial: o ponto já traz a data ISO.
+  if (data.length && typeof data[0]["iso"] === "string") {
+    return data.filter((p) => {
+      const iso = String(p["iso"]).slice(0, 10);
+      if (de && iso < de) return false;
+      if (ate && iso > ate) return false;
+      return true;
+    });
+  }
+
   const refAno = Number((de ?? ate ?? "").slice(0, 4)) || new Date().getFullYear();
   let reconhecidos = 0;
   const out = data.filter((p) => {
@@ -83,6 +94,7 @@ export function sliceByRange<T extends Record<string, unknown>>(
   });
   return reconhecidos > 0 ? out : null;
 }
+
 
 export const ALL_MODULES: WidgetModule[] = ["Programação", "Puncionadeira", "Dobra", "Geral"];
 
