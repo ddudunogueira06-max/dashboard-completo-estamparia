@@ -627,7 +627,9 @@ export function SeriesChart({
   // Séries temporais respeitam o período escolhido no widget.
   const temporal = /dia|mes|producao|carga|diario|sla/i.test(def.id);
   const porData = temporal && r ? sliceByRange(def.data, def.xKey, r.de === "0000-01-01" ? undefined : r.de, r.ate) : null;
-  const data: Record<string, unknown>[] = porData ?? (dias > 0 && temporal ? def.data.slice(-dias) : def.data);
+  const padrao = temporal && def.data.length > 30 ? def.data.slice(-30) : def.data;
+  const data: Record<string, unknown>[] = porData ?? (dias > 0 && temporal ? def.data.slice(-dias) : padrao);
+
 
   if (data.length === 0)
     return (
