@@ -413,6 +413,45 @@ export const WIDGETS: WidgetDef[] = [
 
   },
   {
+    id: "dobra.kpi.dobradas",
+    description: "RGs que passaram pela dobra no período escolhido no card (inclui logística interna e separação).",
+    title: "RGs dobradas no período",
+    module: "Dobra",
+    defaultW: 3,
+    defaultH: 2,
+    Component: () => {
+      const { rows, isLoading } = useDobraCalc();
+      const f = useDashboardFilters();
+      const r = resolveRange(f);
+      const de = r && r.de !== "0000-01-01" ? r.de : undefined;
+      const ate = r?.ate;
+      const dobradas = rows.filter((x) => {
+        if (!isDobrada(x.situacao)) return false;
+        const d = (x.data_dobra ?? "").slice(0, 10);
+        if (!d) return !de && !ate;
+        if (de && d < de) return false;
+        if (ate && d > ate) return false;
+        return true;
+      });
+      const seg = dobradas.reduce((s, x) => s + x.tempoEstimadoSeg, 0);
+      const posDobra = dobradas.filter((x) => x.situacao === "logistica" || x.situacao === "separacao").length;
+      const periodo = de || ate ? `${de ? de.split("-").reverse().join("/") : "início"} a ${(ate ?? "").split("-").reverse().join("/")}` : "todo o histórico";
+      return (
+        <Shell title="RGs dobradas no período">
+          {isLoading ? (
+            <Loading />
+          ) : (
+            <Stat
+              value={fmtInt(dobradas.length)}
+              hint={`${secToHms(seg)} estimadas · ${fmtInt(posDobra)} em pós-dobra · ${periodo}`}
+              tone="text-[var(--success)]"
+            />
+          )}
+        </Shell>
+      );
+    },
+  },
+  {
     id: "dobra.kpi.abertas",
     description: "RGs em aberto separadas por situação.",
     title: "RGs em aberto",
