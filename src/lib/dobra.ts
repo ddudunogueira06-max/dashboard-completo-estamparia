@@ -474,6 +474,10 @@ export interface RgCalc extends DobraRg {
 }
 
 const isConcluida = (s: string | null) => normKey(s).startsWith("CONCLUID");
+const isFinalizada = (s: string | null) => {
+  const k = normKey(s);
+  return k.startsWith("FINALIZ") || k.startsWith("ENCERRAD") || k.startsWith("ENTREGUE");
+};
 const isLogistica = (s: string | null) => {
   const k = normKey(s);
   // aceita variações: "Logística Interna", "Logist. Interna", "Log. Interna", "LOG INTERNA"
@@ -481,8 +485,8 @@ const isLogistica = (s: string | null) => {
 };
 const isSeparacao = (s: string | null) => normKey(s).includes("SEPARA");
 const isEmProducao = (s: string | null) => normKey(s).includes("EMPRODUCAO") || normKey(s).includes("PRODUCAO");
-/** RG já passou pela dobra (concluída, logística interna ou separação). */
-const jaDobrada = (s: string | null) => isConcluida(s) || isLogistica(s) || isSeparacao(s);
+/** RG já passou pela dobra e está em uma etapa posterior. */
+const jaDobrada = (s: string | null) => isConcluida(s) || isFinalizada(s) || isLogistica(s) || isSeparacao(s);
 
 export function buildRgCalc(
   rgs: DobraRg[],
@@ -512,9 +516,12 @@ export function buildRgCalc(
     const porRg = (total > 0 ? tempoFpp / total : 0) * multi;
 
     let situacao: Situacao;
-    if (isConcluida(r.status)) situacao = "concluida";
-    else if (isLogistica(r.status)) situacao = "logistica";
-    else if (isSeparacao(r.status)) situacao = "separacao";
+    // No BD-SCHED, "Concluído" significa que a operação de Dobra terminou.
+    // A RG então está na Logística Interna; só status finais explícitos são
+    // classificados como conclusão de todo o fluxo.
+    if (isSeparacao(r.status)) situacao = "separacao";
+    else if (isLogistica(r.status) || isConcluida(r.status)) situacao = "logistica";
+    else if (isFinalizada(r.status)) situacao = "concluida";
     else if (!r.tarefa_desc || !tarefaSet.has(normKey(r.tarefa_desc))) situacao = "aguardando";
     else if (isEmProducao(r.status)) situacao = "em_producao";
     else situacao = "disponivel";
