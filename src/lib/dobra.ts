@@ -532,12 +532,12 @@ export function buildRgCalc(
       // A RG tem até 23:59 do dia planejado; só fica atrasada a partir do dia seguinte.
       atrasada: !isDobrada(situacao) && !!r.data_planejamento && r.data_planejamento.slice(0, 10) < hoje,
       dificuldade: nivel,
-      tempoEstimadoSeg: Math.round(porRg),
+      tempoEstimadoSeg: porRg,
       horaConclusaoSeg: isDobrada(situacao) ? r.tempo_seg : null,
       data_dobra: isDobrada(situacao) ? (r.data_conclusao ?? r.data_planejamento ?? null) : null,
       totalRgsFpp: total,
       rgsRestantesFpp: restantes,
-      horasRestantesFppSeg: Math.round(porRg * restantes),
+      horasRestantesFppSeg: porRg * restantes,
       tempoFppSeg: tempoFpp,
     };
   });
