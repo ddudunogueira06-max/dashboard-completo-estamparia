@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { generateWasteReportPDF } from "@/lib/pdfReport";
+import { RealWasteMatrix } from "@/components/RealWasteMatrix";
 
 interface WasteRecord {
   id: string;
