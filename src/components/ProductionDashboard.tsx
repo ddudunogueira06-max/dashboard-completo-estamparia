@@ -157,6 +157,17 @@ function businessDaysBetween(a: Date, b: Date): number {
   }
   return cnt;
 }
+
+/** Dias úteis no intervalo [a, b], inclusive ambos. */
+function workingDaysInRange(a: Date, b: Date): number {
+  let cnt = 0;
+  const d = new Date(a);
+  while (d.getTime() <= b.getTime()) {
+    if (isWorkingDay(d)) cnt++;
+    d.setDate(d.getDate() + 1);
+  }
+  return cnt;
+}
 function atravessDias(dtProg: string | null, dtFimProg: string | null): number | null {
   // dtProg (col. B) = data em que efetivamente terminou
   // dtFimProg (col. K) = data em que deveria ter terminado (prazo)
