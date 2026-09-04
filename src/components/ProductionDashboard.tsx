@@ -616,7 +616,7 @@ export function ProductionDashboard() {
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Planejado (DT Planejamento · col. L)</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> Realizado ≥ média</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> Realizado &lt; média</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.78 0.16 75)" }} /> RG programado</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.78 0.16 75)" }} /> RG planejado</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.2 330)" }} /> RG realizado</span>
               <span className="text-muted-foreground">média = <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)} FPP/dia</span></span>
               <span className="text-primary text-[10px] uppercase tracking-wider">clique p/ ver tudo →</span>
@@ -637,7 +637,7 @@ export function ProductionDashboard() {
                     formatter={(v: number, name) => {
                       if (name === "planejado") return [`${v} FPPs`, "Para o dia (planejado)"];
                       if (name === "count") return [`${v} FPPs`, "Feito no dia"];
-                      if (name === "rg") return [`${v}`, "RG programado"];
+                      if (name === "rg") return [`${v}`, "RG planejado"];
                       if (name === "rgReal") return [`${v}`, "RG realizado"];
                       if (name === "media") return [`${fmtNum(v, 1)} FPPs`, "Média do período"];
                       return [`${v}`, name];
@@ -968,7 +968,7 @@ export function ProductionDashboard() {
                     formatter={(v: number, name) => {
                       if (name === "planejado") return [`${v} FPPs`, "Para o dia (planejado · col. L)"];
                       if (name === "count") return [`${v} FPPs`, "Feito no dia"];
-                      if (name === "rg") return [`${v}`, "RG programado"];
+                      if (name === "rg") return [`${v}`, "RG planejado"];
                       if (name === "rgReal") return [`${v}`, "RG realizado"];
                       if (name === "media") return [`${fmtNum(v, 1)} FPPs`, "Média do período"];
 
@@ -1016,9 +1016,9 @@ export function ProductionDashboard() {
                   </Bar>
                   <Bar dataKey="rg" radius={[8, 8, 0, 0]} maxBarSize={26} fill="oklch(0.78 0.16 75)" style={{ cursor: "pointer" }}
                     onClick={(d: { label: string; rg: number; rgReal: number; rgs: string[] }) => setDetail({
-                      title: `Dia ${d.label} — RG programado`,
+                      title: `Dia ${d.label} — RG planejado`,
                       rows: [
-                        { label: "RG programado", value: fmtInt(d.rg) },
+                        { label: "RG planejado", value: fmtInt(d.rg) },
                         { label: "RG realizado", value: fmtInt(d.rgReal) },
                         { label: "Média diária de RG", value: `${fmtNum(perDay.rgAvg, 1)} RG/dia` },
                       ],
@@ -1030,7 +1030,7 @@ export function ProductionDashboard() {
                       title: `Dia ${d.label} — RG realizado`,
                       rows: [
                         { label: "RG realizado", value: fmtInt(d.rgReal) },
-                        { label: "RG programado", value: fmtInt(d.rg) },
+                        { label: "RG planejado", value: fmtInt(d.rg) },
                       ],
                       fppLists: [{ label: "RG", fpps: d.rgsReal }],
                     })}
