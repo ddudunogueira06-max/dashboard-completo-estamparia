@@ -438,7 +438,7 @@ export function ProductionDashboard() {
         fpps: Array.from(byDay.get(dk) ?? []),
         fppsPlanejado: Array.from(plannedByDay.get(dk) ?? []),
       }));
-    return { avg, days, total, perMachine, series, rgAvg, rgTotal, rgDays };
+    return { avg, days, total, perMachine, series, rgAvg, rgTotal, rgRealTotal, rgDays, diasUteis };
   }, [filtered, fromDate, toDate, dobraRgs]);
 
 
