@@ -33,7 +33,7 @@ interface ProdRecord {
 }
 
 const MACHINES = [2000, 3000, 5000] as const;
-const WEEKLY_CAPACITY_HOURS = 75; // h por máquina por semana
+const WEEKLY_CAPACITY_HOURS = 64; // h por máquina por semana
 const ATRAVESSAMENTO_META_DIAS = 2; // dias úteis de antecedência considerados ideais
 const META_ATRAVESSAMENTO = 90; // %
 
@@ -599,7 +599,7 @@ export function ProductionDashboard() {
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> Realizado ≥ média</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> Realizado &lt; média</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.78 0.16 75)" }} /> RG programado</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.62 0.13 75)" }} /> RG realizado</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.2 330)" }} /> RG realizado</span>
               <span className="text-muted-foreground">média = <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)} FPP/dia</span></span>
               <span className="text-primary text-[10px] uppercase tracking-wider">clique p/ ver tudo →</span>
             </div>
@@ -636,7 +636,7 @@ export function ProductionDashboard() {
                     <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={600} />
                   </Bar>
                   <Bar dataKey="rg" radius={[4, 4, 0, 0]} maxBarSize={14} fill="oklch(0.78 0.16 75)" />
-                  <Bar dataKey="rgReal" radius={[4, 4, 0, 0]} maxBarSize={14} fill="oklch(0.62 0.13 75)" />
+                  <Bar dataKey="rgReal" radius={[4, 4, 0, 0]} maxBarSize={14} fill="oklch(0.7 0.2 330)" />
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
                   <ReferenceLine y={perDay.rgAvg} stroke="oklch(0.75 0.16 300)" strokeDasharray="2 4" />
 
@@ -842,7 +842,7 @@ export function ProductionDashboard() {
 
 
       <div className="text-xs text-muted-foreground">
-        * Capacidade considera o intervalo de datas selecionado (por Data Prog.) e o campo TEMPO FPP da planilha (75h/semana por máquina).
+        * Capacidade considera o intervalo de datas selecionado (por Data Prog.) e o campo TEMPO FPP da planilha (64h/semana por máquina).
         Urgente = PRODUTO contém "URGENTE". Atravessamento (dias úteis, exclui sábados/domingos, feriados de Curitiba e pontes) = DT FIM PROGRAMAÇÃO (col. K, prazo) − Data Prog. (col. B, entrega real): positivo = adiantado, negativo = atrasado, zero = no prazo (Ok). Meta de atravessamento: {ATRAVESSAMENTO_META_DIAS} dias úteis.
         Sem datas selecionadas, mostra todo o período disponível.
         Punch e Nest ainda usam o mesmo dado até a planilha trazer essa separação.
@@ -881,7 +881,7 @@ export function ProductionDashboard() {
 
       {/* Modal — gráfico expandido capacidade x real */}
       <Dialog open={capModalOpen} onOpenChange={setCapModalOpen}>
-        <DialogContent className="max-w-6xl">
+        <DialogContent className="max-w-[97vw] w-[97vw] sm:max-w-[97vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div>
@@ -920,7 +920,7 @@ export function ProductionDashboard() {
               </button>
             </div>
           </DialogHeader>
-          <div className="h-[500px]">
+          <div className="h-[calc(95vh-300px)] min-h-[520px]">
             {perDay.series.length === 0 ? (
               <div className="h-full grid place-items-center text-sm text-muted-foreground">Sem dados no período.</div>
             ) : (
@@ -1007,7 +1007,7 @@ export function ProductionDashboard() {
                       fppLists: [{ label: "RG", fpps: d.rgs }],
                     })}
                   />
-                  <Bar dataKey="rgReal" radius={[8, 8, 0, 0]} maxBarSize={26} fill="oklch(0.62 0.13 75)" style={{ cursor: "pointer" }}
+                  <Bar dataKey="rgReal" radius={[8, 8, 0, 0]} maxBarSize={26} fill="oklch(0.7 0.2 330)" style={{ cursor: "pointer" }}
                     onClick={(d: { label: string; rg: number; rgReal: number; rgsReal: string[] }) => setDetail({
                       title: `Dia ${d.label} — RG realizado`,
                       rows: [

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { generateWasteReportPDF } from "@/lib/pdfReport";
+import { RealWasteMatrix } from "@/components/RealWasteMatrix";
 
 interface WasteRecord {
   id: string;
@@ -582,6 +583,21 @@ export function Dashboard() {
         <KpiCard label="Média de Perda (%)" value={fmtPct(metrics.mediaPerda)} icon={Percent} accent="warning" hint={`meta ${META_PERDA}%`} onClick={() => setKpiDetail({ title: "Média de Perda — ponderada por quantidade (kg)", pct: metrics.mediaPerda, fpps: metrics.fppList, hint: `Meta: ${META_PERDA}% · Σ(qtde × fator) ÷ Σ(qtde) — respeita todos os filtros ativos` })} />
         <KpiCard label="Qtd estoque BR0140 (kg)" value={fmtNum(metrics.estoqueBR0140_kg)} icon={Package} accent="success" onClick={() => setKpiDetail({ title: "Qtd estoque BR0140", kg: metrics.estoqueBR0140_kg, m2: metrics.estoqueBR0140_m2, hint: "Total de retalho enviado ao armazém BR0140 (conforme filtros)" })} />
         <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, fpps: metrics.fppListFPPonly, hint: "Ordens distintas do tipo FPP" })} />
+      </section>
+
+      {/* === DESPERDÍCIO REAL (KPI) === */}
+      <section>
+        <Panel
+          title={`Desperdício Real (KPI) — ${yearSel}`}
+          right={
+            <select value={yearSel} onChange={(e) => setMatrixYear(e.target.value)} className={`${inputCls} max-w-[120px] py-1 text-xs`}>
+              {availableYears.length === 0 && <option>{yearSel}</option>}
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          }
+        >
+          <RealWasteMatrix year={yearSel} inputCls={inputCls} />
+        </Panel>
       </section>
 
       {/* === MATRIZ MENSAL POR CATEGORIA === */}
