@@ -410,12 +410,19 @@ export function ProductionDashboard() {
       mm.forEach(s => { t += s.size; });
       return { machine: m, avg: mm.size > 0 ? t / mm.size : 0, days: mm.size };
     }).sort((a, b) => a.machine - b.machine);
-    const avg = days > 0 ? total / days : 0;
     let rgTotal = 0;
     rgByDay.forEach(s => { rgTotal += s.size; });
+    let rgRealTotal = 0;
+    rgRealByDay.forEach(s => { rgRealTotal += s.size; });
     const rgDays = rgByDay.size;
-    const rgAvg = rgDays > 0 ? rgTotal / rgDays : 0;
     const allKeys = new Set<string>([...byDay.keys(), ...plannedByDay.keys(), ...rgByDay.keys(), ...rgRealByDay.keys()]);
+    // Média = total realizado ÷ dias úteis DO FILTRO (ou do intervalo dos dados, sem filtro)
+    const keys = Array.from(allKeys).sort((a, b) => a.localeCompare(b));
+    const rangeStart = fromDate ?? (keys.length ? parseLocalDate(keys[0]) : null);
+    const rangeEnd = toDate ?? (keys.length ? parseLocalDate(keys[keys.length - 1]) : null);
+    const diasUteis = rangeStart && rangeEnd ? Math.max(1, workingDaysInRange(rangeStart, rangeEnd)) : Math.max(1, days);
+    const avg = total / diasUteis;
+    const rgAvg = rgRealTotal / diasUteis;
     const series = Array.from(allKeys)
       .sort((a, b) => a.localeCompare(b))
       .map((dk) => ({
