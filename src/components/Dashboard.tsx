@@ -584,6 +584,21 @@ export function Dashboard() {
         <KpiCard label="Total de FPPs" value={fmtInt(metrics.totalFPP)} icon={FileText} accent="primary" onClick={() => setKpiDetail({ title: "Total de FPPs", count: metrics.totalFPP, fpps: metrics.fppListFPPonly, hint: "Ordens distintas do tipo FPP" })} />
       </section>
 
+      {/* === DESPERDÍCIO REAL (KPI) === */}
+      <section>
+        <Panel
+          title={`Desperdício Real (KPI) — ${yearSel}`}
+          right={
+            <select value={yearSel} onChange={(e) => setMatrixYear(e.target.value)} className={`${inputCls} max-w-[120px] py-1 text-xs`}>
+              {availableYears.length === 0 && <option>{yearSel}</option>}
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          }
+        >
+          <RealWasteMatrix year={yearSel} inputCls={inputCls} />
+        </Panel>
+      </section>
+
       {/* === MATRIZ MENSAL POR CATEGORIA === */}
       <section>
         <Panel
