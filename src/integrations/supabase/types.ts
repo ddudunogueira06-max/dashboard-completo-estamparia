@@ -808,6 +808,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      ia_query: { Args: { sql_text: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "viewer"

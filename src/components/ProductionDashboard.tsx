@@ -5,7 +5,7 @@ import { KpiCard } from "@/components/KpiCard";
 import { Gauge } from "@/components/Gauge";
 import { fmtInt, fmtNum, fmtDate } from "@/lib/format";
 import {
-  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, LabelList, ReferenceLine,
+  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, LabelList, ReferenceLine, Cell,
 } from "recharts";
 import { Zap, Clock, Gauge as GaugeIcon, Factory, RefreshCw, ListChecks, ChevronDown, ChevronUp, Scissors, LayoutGrid, TrendingUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -614,9 +614,10 @@ export function ProductionDashboard() {
             </div>
             <div className="flex items-center gap-3 text-[11px] flex-wrap">
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.72 0.15 215)" }} /> Planejado (DT Planejamento · col. L)</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm border border-border" style={{ background: "rgb(236,235,228)" }} /> Realizado</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.16 155)" }} /> Realizado &ge; média</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.65 0.22 25)" }} /> Realizado &lt; média</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.78 0.16 75)" }} /> RG planejado</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: "oklch(0.7 0.2 330)" }} /> RG realizado</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm border border-border" style={{ background: "rgb(236,235,228)" }} /> RG realizado</span>
               <span className="text-muted-foreground">média = <span className="text-foreground font-semibold">{fmtNum(perDay.avg, 1)} FPP/dia</span></span>
               <span className="text-primary text-[10px] uppercase tracking-wider">clique p/ ver tudo →</span>
             </div>
@@ -646,11 +647,14 @@ export function ProductionDashboard() {
                   <Bar dataKey="planejado" radius={[4, 4, 0, 0]} maxBarSize={22} fill="oklch(0.72 0.15 215)">
                     <LabelList dataKey="planejado" position="top" fill="oklch(0.85 0.05 215)" fontSize={10} fontWeight={600} />
                   </Bar>
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={22} fill="rgb(236,235,228)" stroke="oklch(0.4 0.02 250)" strokeWidth={0.5}>
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={22}>
+                    {weekSeries.map((d, i) => (
+                      <Cell key={i} fill={d.count >= perDay.avg ? "oklch(0.7 0.16 155)" : "oklch(0.65 0.22 25)"} />
+                    ))}
                     <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={600} />
                   </Bar>
                   <Bar dataKey="rg" radius={[4, 4, 0, 0]} maxBarSize={14} fill="oklch(0.78 0.16 75)" />
-                  <Bar dataKey="rgReal" radius={[4, 4, 0, 0]} maxBarSize={14} fill="oklch(0.7 0.2 330)" />
+                  <Bar dataKey="rgReal" radius={[4, 4, 0, 0]} maxBarSize={14} fill="rgb(236,235,228)" stroke="oklch(0.4 0.02 250)" strokeWidth={0.5} />
                   <ReferenceLine y={perDay.avg} stroke="oklch(0.78 0.16 75)" strokeDasharray="4 4" />
                   <ReferenceLine y={perDay.rgAvg} stroke="oklch(0.75 0.16 300)" strokeDasharray="2 4" />
 
@@ -990,7 +994,7 @@ export function ProductionDashboard() {
                   >
                     <LabelList dataKey="planejado" position="top" fill="oklch(0.9 0.05 215)" fontSize={12} fontWeight={700} />
                   </Bar>
-                  <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56} fill="rgb(236,235,228)" stroke="oklch(0.4 0.02 250)" strokeWidth={0.5} style={{ cursor: "pointer" }}
+                  <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56} fill="url(#gradOk)" style={{ cursor: "pointer" }}
                     onClick={(d: { label: string; planejado: number; count: number; fppsPlanejado: string[]; fpps: string[] }) => setDetail({
                       title: `Dia ${d.label} — FPPs realizadas`,
                       rows: [
@@ -1018,7 +1022,7 @@ export function ProductionDashboard() {
                       fppLists: [{ label: "RG", fpps: d.rgs }],
                     })}
                   />
-                  <Bar dataKey="rgReal" radius={[8, 8, 0, 0]} maxBarSize={26} fill="oklch(0.7 0.2 330)" style={{ cursor: "pointer" }}
+                  <Bar dataKey="rgReal" radius={[8, 8, 0, 0]} maxBarSize={26} fill="rgb(236,235,228)" stroke="oklch(0.4 0.02 250)" strokeWidth={0.5} style={{ cursor: "pointer" }}
                     onClick={(d: { label: string; rg: number; rgReal: number; rgsReal: string[] }) => setDetail({
                       title: `Dia ${d.label} — RG realizado`,
                       rows: [
