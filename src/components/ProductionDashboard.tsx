@@ -646,10 +646,7 @@ export function ProductionDashboard() {
                   <Bar dataKey="planejado" radius={[4, 4, 0, 0]} maxBarSize={22} fill="oklch(0.72 0.15 215)">
                     <LabelList dataKey="planejado" position="top" fill="oklch(0.85 0.05 215)" fontSize={10} fontWeight={600} />
                   </Bar>
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={22}>
-                    {weekSeries.map((d, i) => (
-                      <Cell key={i} fill={d.count >= perDay.avg ? "oklch(0.7 0.16 155)" : "oklch(0.65 0.22 25)"} />
-                    ))}
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={22} fill="rgb(236,235,228)" stroke="oklch(0.4 0.02 250)" strokeWidth={0.5}>
                     <LabelList dataKey="count" position="top" fill="oklch(0.95 0.01 240)" fontSize={10} fontWeight={600} />
                   </Bar>
                   <Bar dataKey="rg" radius={[4, 4, 0, 0]} maxBarSize={14} fill="oklch(0.78 0.16 75)" />
@@ -1008,9 +1005,6 @@ export function ProductionDashboard() {
                       ],
                     })}
                   >
-                    {perDay.series.map((d, i) => (
-                      <Cell key={i} fill={d.count >= perDay.avg ? "url(#gradOk)" : "url(#gradLow)"} />
-                    ))}
                     <LabelList dataKey="count" position="top" fill="oklch(0.97 0.01 240)" fontSize={12} fontWeight={800} />
                   </Bar>
                   <Bar dataKey="rg" radius={[8, 8, 0, 0]} maxBarSize={26} fill="oklch(0.78 0.16 75)" style={{ cursor: "pointer" }}
