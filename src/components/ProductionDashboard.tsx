@@ -586,7 +586,7 @@ export function ProductionDashboard() {
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Média de RGs por dia</div>
             <div className="text-3xl font-extrabold leading-tight text-foreground">{fmtNum(perDay.rgAvg, 1)}</div>
             <div className="text-xs text-muted-foreground mt-0.5">
-              {fmtInt(perDay.rgTotal)} RGs em {fmtInt(perDay.rgDays)} dias úteis · base da Dobra (data de planejamento)
+              {fmtInt(perDay.rgRealTotal)} RGs realizadas ÷ {fmtInt(perDay.diasUteis)} dias úteis do filtro
             </div>
           </div>
         </div>
@@ -879,13 +879,13 @@ export function ProductionDashboard() {
             ))}
           </div>
           {detail?.fppLists?.map((list, idx) => list.fpps.length > 0 && (
-            <div key={idx} className="mt-3 rounded-lg border border-border bg-secondary/20 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                {list.label} ({list.fpps.length})
+            <div key={idx} className="mt-3 rounded-lg border border-primary/30 bg-secondary/40 p-3">
+              <div className="text-[11px] uppercase tracking-wider text-foreground font-bold mb-2">
+                {list.label} <span className="text-primary">({list.fpps.length})</span>
               </div>
               <div className="max-h-48 overflow-auto flex flex-wrap gap-1.5">
                 {list.fpps.map(f => (
-                  <span key={f} className="inline-flex items-center rounded-md bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-mono font-medium">{f}</span>
+                  <span key={f} className="inline-flex items-center rounded-md bg-primary/20 border border-primary/40 text-foreground px-2 py-0.5 text-[11px] font-mono font-semibold">{f}</span>
                 ))}
               </div>
             </div>
@@ -901,7 +901,7 @@ export function ProductionDashboard() {
               <div>
                 <DialogTitle>Planejado × Realizado × Média — por dia</DialogTitle>
                 <DialogDescription>
-                  Barra azul = Planejado (<strong>DT Planejamento</strong>, col. L). Barra verde/vermelha = Realizado (dt prog). Linha tracejada = média realizada = {fmtNum(perDay.avg, 1)} FPP/dia útil. Clique numa barra para ver as FPPs.
+                  Barra azul = Planejado (<strong>DT Planejamento</strong>, col. L). Barra clara = Realizado (dt prog). Linha tracejada = média realizada = {fmtNum(perDay.avg, 1)} FPP/dia útil (realizadas ÷ dias úteis do filtro). Clique numa barra para ver as FPPs.
                 </DialogDescription>
                 <div className="text-[11px] text-muted-foreground/80 mt-1 italic">
                   Em breve: a classificação de dificuldade dos produtos (1° a 5°) irá ponderar o realizado para explicar dias com menor produção.
@@ -990,7 +990,7 @@ export function ProductionDashboard() {
                   >
                     <LabelList dataKey="planejado" position="top" fill="oklch(0.9 0.05 215)" fontSize={12} fontWeight={700} />
                   </Bar>
-                  <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56} style={{ cursor: "pointer" }}
+                  <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56} fill="rgb(236,235,228)" stroke="oklch(0.4 0.02 250)" strokeWidth={0.5} style={{ cursor: "pointer" }}
                     onClick={(d: { label: string; planejado: number; count: number; fppsPlanejado: string[]; fpps: string[] }) => setDetail({
                       title: `Dia ${d.label} — FPPs realizadas`,
                       rows: [
@@ -1037,23 +1037,54 @@ export function ProductionDashboard() {
               </ResponsiveContainer>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2 text-center">
-            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total planejado</div>
-              <div className="text-lg font-bold text-foreground">{fmtInt(perDay.series.reduce((s, d) => s + d.planejado, 0))}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+            {/* FPPs */}
+            <div className="rounded-xl border border-border bg-secondary/20 p-3">
+              <div className="text-[10px] uppercase tracking-widest font-bold text-foreground mb-2">FPPs</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total planejado</div>
+                  <div className="text-lg font-bold text-foreground">{fmtInt(perDay.series.reduce((s, d) => s + d.planejado, 0))}</div>
+                </div>
+                <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total realizado</div>
+                  <div className="text-lg font-bold text-foreground">{fmtInt(perDay.series.reduce((s, d) => s + d.count, 0))}</div>
+                </div>
+                <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias c/ déficit</div>
+                  <div className="text-lg font-bold text-destructive">{fmtInt(perDay.series.filter(d => d.count < d.planejado).length)}</div>
+                </div>
+                <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Média FPP/dia útil</div>
+                  <div className="text-lg font-bold text-foreground">{fmtNum(perDay.avg, 1)}</div>
+                </div>
+              </div>
             </div>
-            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total realizado</div>
-              <div className="text-lg font-bold text-foreground">{fmtInt(perDay.series.reduce((s, d) => s + d.count, 0))}</div>
+            {/* RGs */}
+            <div className="rounded-xl border border-accent/40 bg-accent/5 p-3">
+              <div className="text-[10px] uppercase tracking-widest font-bold text-foreground mb-2">RGs</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total planejado</div>
+                  <div className="text-lg font-bold text-foreground">{fmtInt(perDay.rgTotal)}</div>
+                </div>
+                <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total realizado</div>
+                  <div className="text-lg font-bold text-foreground">{fmtInt(perDay.rgRealTotal)}</div>
+                </div>
+                <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias c/ déficit</div>
+                  <div className="text-lg font-bold text-destructive">{fmtInt(perDay.series.filter(d => (d.rgReal ?? 0) < (d.rg ?? 0)).length)}</div>
+                </div>
+                <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Média RG/dia útil</div>
+                  <div className="text-lg font-bold text-foreground">{fmtNum(perDay.rgAvg, 1)}</div>
+                </div>
+              </div>
             </div>
-            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias c/ déficit</div>
-              <div className="text-lg font-bold text-destructive">{fmtInt(perDay.series.filter(d => d.count < d.planejado).length)}</div>
-            </div>
-            <div className="rounded-lg bg-secondary/30 border border-border px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias úteis avaliados</div>
-              <div className="text-lg font-bold text-foreground">{fmtInt(perDay.series.length)}</div>
-            </div>
+          </div>
+          <div className="mt-2 text-center text-[11px] text-muted-foreground">
+            Dias úteis no filtro: <span className="text-foreground font-semibold">{fmtInt(perDay.diasUteis)}</span> · médias = realizado ÷ dias úteis do período filtrado
           </div>
         </DialogContent>
 
