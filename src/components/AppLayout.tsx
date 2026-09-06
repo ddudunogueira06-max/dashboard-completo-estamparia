@@ -203,6 +203,7 @@ export function AppLayout() {
         <Outlet />
       </main>
       <Toaster />
+      {pathname !== "/painel-tv" && <DatabaseAssistant />}
     </div>
   );
 }
