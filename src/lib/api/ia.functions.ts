@@ -121,5 +121,9 @@ export const perguntarIA = createServerFn({ method: "POST" })
       }
     }
 
-    return { ok: false as const, error: "Não consegui concluir a análise. Tente reformular a pergunta." };
+    const ultimoErro = [...messages].reverse().find((m) => m.role === "tool")?.content ?? "";
+    return {
+      ok: false as const,
+      error: `Não consegui concluir a análise. ${String(ultimoErro).slice(0, 200)}`,
+    };
   });
