@@ -121,9 +121,24 @@ export const perguntarIA = createServerFn({ method: "POST" })
       }
     }
 
-    const ultimoErro = [...messages].reverse().find((m) => m.role === "tool")?.content ?? "";
-    return {
-      ok: false as const,
-      error: `Não consegui concluir a análise. ${String(ultimoErro).slice(0, 200)}`,
-    };
+    // Rodadas esgotadas: pede a resposta final sem ferramentas, usando o que já foi consultado.
+    messages.push({
+      role: "user",
+      content: "Responda agora, em português, usando apenas os dados já consultados acima. Não peça mais consultas.",
+    });
+    const finalRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Lovable-API-Key": apiKey,
+        "X-Lovable-AIG-SDK": "fetch",
+      },
+      body: JSON.stringify({ model: "google/gemini-3.7-flash", messages }),
+    });
+    if (finalRes.ok) {
+      const finalJson = (await finalRes.json()) as { choices?: { message: ChatMessage }[] };
+      const answer = finalJson.choices?.[0]?.message?.content;
+      if (answer) return { ok: true as const, answer };
+    }
+    return { ok: false as const, error: "Não consegui concluir a análise. Tente reformular a pergunta." };
   });
