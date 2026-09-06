@@ -16,7 +16,9 @@ import {
   PromptInputSubmit,
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
-import logoUrl from "@/assets/x-branco.png";
+import xLogo from "@/assets/x-branco.png.asset.json";
+
+const logoUrl = xLogo.url;
 
 type Msg = { role: "user" | "assistant"; content: string };
 
