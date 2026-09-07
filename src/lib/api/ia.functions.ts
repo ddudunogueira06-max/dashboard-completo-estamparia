@@ -26,21 +26,57 @@ Banco de dados Postgres (schema public) do sistema de controle industrial:
 - Tabelas de importação (histórico de uploads): production_imports, waste_imports, dobra_imports, oee_imports.
 `;
 
+const REGRAS_NEGOCIO = `
+REGRAS DE NEGÓCIO (use exatamente estas definições, elas são as mesmas do site):
+
+1) RG "dobrada" (já passou pela dobra) = dobra_rgs.status que começa com "Concluíd" OU contém "Logíst" (Logística Interna) OU contém "Separa" OU começa com "Finaliz"/"Encerrad"/"Entregue". Comparação sem acento e sem caixa.
+   SQL de referência (use unaccent-free, com upper + translate):
+   with s as (
+     select *, upper(translate(coalesce(status,''),'áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ','aaaaeeiooouucAAAAEEIOOOUUC')) as st
+     from dobra_rgs
+   )
+   select ... from s where st like 'CONCLUID%' or st like '%LOGIST%' or st like '%SEPARA%' or st like 'FINALIZ%' or st like 'ENCERRAD%' or st like 'ENTREGUE%'
+
+2) DATA em que a RG foi dobrada = coalesce(data_conclusao, data_planejamento) — só para RGs dobradas (regra 1). Nunca use data_rg para isso (data_rg é quando o RG foi criado).
+
+3) Datas escritas pelo usuário estão em dd/mm (Brasil) e o fuso é America/Sao_Paulo. "04/09" = 2026-09-04 (ano atual, salvo indicação em contrário).
+
+4) RG em aberto (ainda não dobrada) = status que NÃO se encaixa na regra 1.
+   Atrasada = em aberto e data_planejamento < data de hoje.
+
+5) SLA oficial da dobra vem da planilha (dobra_settings, chave que contém 'sla') e não deve ser recalculado, a não ser que peçam explicitamente o cálculo.
+
+6) Tempo de dobra: dobra_rgs.tempo_seg é o tempo distribuído por RG (em segundos). Some e converta para horas quando pedirem horas.
+
+Exemplo — "quantas RGs foram dobradas no dia 04/09":
+with s as (
+  select coalesce(data_conclusao, data_planejamento) as d,
+         upper(translate(coalesce(status,''),'áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ','aaaaeeiooouucAAAAEEIOOOUUC')) as st
+  from dobra_rgs
+)
+select count(*) as rgs_dobradas from s
+where d = date '2026-09-04'
+  and (st like 'CONCLUID%' or st like '%LOGIST%' or st like '%SEPARA%' or st like 'FINALIZ%' or st like 'ENCERRAD%' or st like 'ENTREGUE%')
+`;
+
 const SYSTEM = `Você é o assistente de dados da Trox (Controle Industrial). Responde em português do Brasil, de forma curta, objetiva e com números.
 
 Você tem acesso somente-leitura ao banco pela ferramenta executar_sql. Sempre consulte o banco antes de responder qualquer pergunta sobre números — nunca invente valores.
 
 ${SCHEMA_DOC}
+${REGRAS_NEGOCIO}
 
 Regras:
 - Só SELECT (ou WITH). Uma consulta por chamada, sem ponto e vírgula.
 - Agregue no SQL (count, sum, avg, date_trunc) em vez de trazer muitas linhas. O limite é 500 linhas.
+- Perguntas de contagem por data devem ser respondidas em 1 ou 2 consultas, usando as regras de negócio acima. Não fique explorando o schema quando a regra já está definida.
 - Se a pergunta for vaga, escolha a interpretação mais útil e diga qual usou. NUNCA devolva a pergunta sem antes consultar.
 - É PROIBIDO responder "não sei", "não tenho acesso" ou "não há dados" sem ter feito pelo menos uma consulta que comprove isso.
 - Se não souber onde está o dado, investigue o banco: consulte information_schema.columns (ex.: select table_name, column_name from information_schema.columns where table_schema='public') e olhe amostras com select * from <tabela> limit 5, ou valores distintos de uma coluna (select distinct status from dobra_rgs limit 50).
-- Se uma consulta der erro ou vier vazia, tente outra abordagem (outra tabela, outro filtro, período maior, comparação case-insensitive com ilike/unaccent) antes de desistir. Só diga que não há dados depois de tentar de verdade.
+- Se uma consulta der erro ou vier vazia, tente outra abordagem (outra tabela, outro filtro, período maior, comparação case-insensitive com ilike) antes de desistir. Se o dia pedido vier zero, confirme com uma consulta dos dias vizinhos e diga isso na resposta.
 - Datas: use date_trunc e intervalos explícitos; "este mês" = date_trunc('month', now()).
-- Formate resultados em markdown (tabelas curtas, listas, negrito nos números) e sempre diga em uma linha de que tabela/período veio o número.`;
+- Responda direto: primeiro a frase com o número em negrito, depois uma linha curta dizendo tabela/regra/período usados. Sem rodeios nem pedidos de esclarecimento quando a regra já resolve.`;
+
 
 type ChatMessage = {
   role: string;
