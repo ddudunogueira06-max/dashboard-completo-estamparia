@@ -94,7 +94,10 @@ export const perguntarIA = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const messages: ChatMessage[] = [
-      { role: "system", content: SYSTEM },
+      {
+        role: "system",
+        content: `${SYSTEM}\n\nHoje é ${new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "full" }).format(new Date())} (fuso America/Sao_Paulo).`,
+      },
       ...data.messages.map((m) => ({ role: m.role, content: m.content })),
     ];
 
