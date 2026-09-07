@@ -86,7 +86,7 @@ export function DatabaseAssistant() {
           onClick={() => setOpen(true)}
           title="Assistente de dados"
           aria-label="Abrir assistente de dados"
-          className="fixed bottom-4 right-4 z-40 size-11 rounded-full bg-foreground shadow-lg ring-1 ring-border grid place-items-center hover:scale-105 transition-transform"
+          className="fixed bottom-4 right-4 z-40 size-11 rounded-full bg-sidebar shadow-lg ring-1 ring-border grid place-items-center hover:scale-105 transition-transform"
         >
           <img src={logoUrl} alt="" className="size-6 object-contain" />
         </button>
@@ -98,7 +98,7 @@ export function DatabaseAssistant() {
           className="fixed bottom-4 right-4 z-50 flex w-[min(26rem,calc(100vw-2rem))] h-[min(34rem,calc(100vh-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-2xl"
         >
           <header className="flex items-center gap-2 border-b border-border px-3 py-2">
-            <span className="size-7 rounded-md bg-foreground grid place-items-center">
+            <span className="size-7 rounded-md bg-sidebar grid place-items-center">
               <img src={logoUrl} alt="" className="size-4 object-contain" />
             </span>
             <div className="min-w-0 flex-1">

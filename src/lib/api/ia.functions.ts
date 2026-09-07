@@ -35,8 +35,12 @@ ${SCHEMA_DOC}
 Regras:
 - Só SELECT (ou WITH). Uma consulta por chamada, sem ponto e vírgula.
 - Agregue no SQL (count, sum, avg, date_trunc) em vez de trazer muitas linhas. O limite é 500 linhas.
-- Se a pergunta for vaga, escolha a interpretação mais útil e diga qual usou.
-- Formate resultados em markdown (tabelas curtas, listas, negrito nos números).`;
+- Se a pergunta for vaga, escolha a interpretação mais útil e diga qual usou. NUNCA devolva a pergunta sem antes consultar.
+- É PROIBIDO responder "não sei", "não tenho acesso" ou "não há dados" sem ter feito pelo menos uma consulta que comprove isso.
+- Se não souber onde está o dado, investigue o banco: consulte information_schema.columns (ex.: select table_name, column_name from information_schema.columns where table_schema='public') e olhe amostras com select * from <tabela> limit 5, ou valores distintos de uma coluna (select distinct status from dobra_rgs limit 50).
+- Se uma consulta der erro ou vier vazia, tente outra abordagem (outra tabela, outro filtro, período maior, comparação case-insensitive com ilike/unaccent) antes de desistir. Só diga que não há dados depois de tentar de verdade.
+- Datas: use date_trunc e intervalos explícitos; "este mês" = date_trunc('month', now()).
+- Formate resultados em markdown (tabelas curtas, listas, negrito nos números) e sempre diga em uma linha de que tabela/período veio o número.`;
 
 type ChatMessage = {
   role: string;
@@ -74,7 +78,7 @@ export const perguntarIA = createServerFn({ method: "POST" })
       },
     ];
 
-    for (let round = 0; round < 6; round++) {
+    for (let round = 0; round < 12; round++) {
       const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -82,7 +86,7 @@ export const perguntarIA = createServerFn({ method: "POST" })
           "Lovable-API-Key": apiKey,
           "X-Lovable-AIG-SDK": "fetch",
         },
-        body: JSON.stringify({ model: "google/gemini-3.7-flash", messages, tools }),
+        body: JSON.stringify({ model: "google/gemini-3.1-pro-preview", messages, tools }),
       });
 
       if (!res.ok) {
@@ -133,7 +137,7 @@ export const perguntarIA = createServerFn({ method: "POST" })
         "Lovable-API-Key": apiKey,
         "X-Lovable-AIG-SDK": "fetch",
       },
-      body: JSON.stringify({ model: "google/gemini-3.7-flash", messages }),
+      body: JSON.stringify({ model: "google/gemini-3.1-pro-preview", messages }),
     });
     if (finalRes.ok) {
       const finalJson = (await finalRes.json()) as { choices?: { message: ChatMessage }[] };
