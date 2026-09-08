@@ -48,6 +48,23 @@ REGRAS DE NEGÓCIO (use exatamente estas definições, elas são as mesmas do si
 
 6) Tempo de dobra: dobra_rgs.tempo_seg é o tempo distribuído por RG (em segundos). Some e converta para horas quando pedirem horas.
 
+7) CARGA FUTURA / "como está de RG e dobra para os próximos dias": use as RGs em aberto (regra 4) agrupadas por data_planejamento::date, a partir de hoje. Traga por dia: quantidade de RGs, soma de tempo_seg em horas, e destaque separado o que já está atrasado (data_planejamento < hoje e ainda em aberto).
+   SQL de referência:
+   with s as (
+     select coalesce(data_planejamento, data_rg)::date as d, tempo_seg,
+            upper(translate(coalesce(status,''),'áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ','aaaaeeiooouucAAAAEEIOOOUUC')) as st
+     from dobra_rgs
+   )
+   select d, count(*) rgs, round(sum(tempo_seg)/3600.0, 1) horas
+   from s
+   where not (st like 'CONCLUID%' or st like '%LOGIST%' or st like '%SEPARA%' or st like 'FINALIZ%' or st like 'ENCERRAD%' or st like 'ENTREGUE%')
+     and d >= current_date and d < current_date + 15
+   group by d order by d
+
+8) "Como está de RG/dobra hoje" = três números juntos: dobradas hoje (regras 1+2), em aberto para hoje, e atrasadas — mesmo que o usuário peça só um.
+
+9) Quando o período pedido estiver vazio, informe até que data existem dados (ex.: select max(coalesce(data_conclusao, data_planejamento)) from dobra_rgs) e mostre os dias vizinhos.
+
 Exemplo — "quantas RGs foram dobradas no dia 04/09":
 with s as (
   select coalesce(data_conclusao, data_planejamento) as d,
@@ -68,8 +85,10 @@ ${REGRAS_NEGOCIO}
 
 Regras:
 - Só SELECT (ou WITH). Uma consulta por chamada, sem ponto e vírgula.
-- Agregue no SQL (count, sum, avg, date_trunc) em vez de trazer muitas linhas. O limite é 500 linhas.
+- Você pode fazer quantas consultas precisar (até 24 por pergunta). Prefira agregar no SQL (count, sum, avg, date_trunc) — cada consulta devolve no máximo 2000 linhas.
 - Perguntas de contagem por data devem ser respondidas em 1 ou 2 consultas, usando as regras de negócio acima. Não fique explorando o schema quando a regra já está definida.
+- Perguntas amplas ("como está a dobra?", "e os próximos dias?") merecem resposta completa: números de hoje, atrasados, carga por dia dos próximos dias e um comentário curto de risco (dias acima da média de horas).
+- Entregue tabela em markdown quando houver série por dia/cliente/máquina, e sempre um resumo em uma frase antes.
 - Se a pergunta for vaga, escolha a interpretação mais útil e diga qual usou. NUNCA devolva a pergunta sem antes consultar.
 - É PROIBIDO responder "não sei", "não tenho acesso" ou "não há dados" sem ter feito pelo menos uma consulta que comprove isso.
 - Se não souber onde está o dado, investigue o banco: consulte information_schema.columns (ex.: select table_name, column_name from information_schema.columns where table_schema='public') e olhe amostras com select * from <tabela> limit 5, ou valores distintos de uma coluna (select distinct status from dobra_rgs limit 50).
@@ -117,7 +136,7 @@ export const perguntarIA = createServerFn({ method: "POST" })
       },
     ];
 
-    for (let round = 0; round < 12; round++) {
+    for (let round = 0; round < 24; round++) {
       const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -156,7 +175,7 @@ export const perguntarIA = createServerFn({ method: "POST" })
           if (!sql) throw new Error("SQL vazio");
           const { data: rows, error } = await supabaseAdmin.rpc("ia_query" as never, { sql_text: sql } as never);
           if (error) throw new Error(error.message);
-          payload = JSON.stringify(rows).slice(0, 20000);
+          payload = JSON.stringify(rows).slice(0, 60000);
         } catch (e) {
           payload = JSON.stringify({ erro: e instanceof Error ? e.message : String(e) });
         }
