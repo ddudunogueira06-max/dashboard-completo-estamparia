@@ -175,7 +175,7 @@ export const perguntarIA = createServerFn({ method: "POST" })
           if (!sql) throw new Error("SQL vazio");
           const { data: rows, error } = await supabaseAdmin.rpc("ia_query" as never, { sql_text: sql } as never);
           if (error) throw new Error(error.message);
-          payload = JSON.stringify(rows).slice(0, 20000);
+          payload = JSON.stringify(rows).slice(0, 60000);
         } catch (e) {
           payload = JSON.stringify({ erro: e instanceof Error ? e.message : String(e) });
         }
