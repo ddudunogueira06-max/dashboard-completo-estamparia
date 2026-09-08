@@ -48,6 +48,23 @@ REGRAS DE NEGÓCIO (use exatamente estas definições, elas são as mesmas do si
 
 6) Tempo de dobra: dobra_rgs.tempo_seg é o tempo distribuído por RG (em segundos). Some e converta para horas quando pedirem horas.
 
+7) CARGA FUTURA / "como está de RG e dobra para os próximos dias": use as RGs em aberto (regra 4) agrupadas por data_planejamento::date, a partir de hoje. Traga por dia: quantidade de RGs, soma de tempo_seg em horas, e destaque separado o que já está atrasado (data_planejamento < hoje e ainda em aberto).
+   SQL de referência:
+   with s as (
+     select coalesce(data_planejamento, data_rg)::date as d, tempo_seg,
+            upper(translate(coalesce(status,''),'áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ','aaaaeeiooouucAAAAEEIOOOUUC')) as st
+     from dobra_rgs
+   )
+   select d, count(*) rgs, round(sum(tempo_seg)/3600.0, 1) horas
+   from s
+   where not (st like 'CONCLUID%' or st like '%LOGIST%' or st like '%SEPARA%' or st like 'FINALIZ%' or st like 'ENCERRAD%' or st like 'ENTREGUE%')
+     and d >= current_date and d < current_date + 15
+   group by d order by d
+
+8) "Como está de RG/dobra hoje" = três números juntos: dobradas hoje (regras 1+2), em aberto para hoje, e atrasadas — mesmo que o usuário peça só um.
+
+9) Quando o período pedido estiver vazio, informe até que data existem dados (ex.: select max(coalesce(data_conclusao, data_planejamento)) from dobra_rgs) e mostre os dias vizinhos.
+
 Exemplo — "quantas RGs foram dobradas no dia 04/09":
 with s as (
   select coalesce(data_conclusao, data_planejamento) as d,
