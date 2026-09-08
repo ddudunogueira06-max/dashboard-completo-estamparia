@@ -136,7 +136,7 @@ export const perguntarIA = createServerFn({ method: "POST" })
       },
     ];
 
-    for (let round = 0; round < 12; round++) {
+    for (let round = 0; round < 24; round++) {
       const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
