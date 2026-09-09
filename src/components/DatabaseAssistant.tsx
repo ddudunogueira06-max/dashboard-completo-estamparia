@@ -23,8 +23,10 @@ const logoUrl = xLogo.url;
 type Msg = { role: "user" | "assistant"; content: string };
 
 const SUGESTOES = [
+  "Como está a dobra hoje?",
+  "Carga de RGs para os próximos dias",
+  "Quais RGs estão atrasadas?",
   "Qual o SLA da dobra neste mês?",
-  "Quantas FPPs foram realizadas nos últimos 7 dias?",
   "Desperdício por material no mês atual",
   "Top 5 clientes por quantidade de RGs",
 ];
