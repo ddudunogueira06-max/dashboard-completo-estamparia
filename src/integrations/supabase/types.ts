@@ -274,12 +274,14 @@ export type Database = {
           cliente: string | null
           created_at: string
           data_conclusao: string | null
+          data_dobra: string | null
           data_planejamento: string | null
           data_rg: string | null
           fpp: string | null
           fpp_key: string | null
           id: string
           import_id: string | null
+          import_id_dobra: string | null
           item_ov: string | null
           maquina_ativa: string | null
           nr_ov: string | null
@@ -296,12 +298,14 @@ export type Database = {
           cliente?: string | null
           created_at?: string
           data_conclusao?: string | null
+          data_dobra?: string | null
           data_planejamento?: string | null
           data_rg?: string | null
           fpp?: string | null
           fpp_key?: string | null
           id?: string
           import_id?: string | null
+          import_id_dobra?: string | null
           item_ov?: string | null
           maquina_ativa?: string | null
           nr_ov?: string | null
@@ -318,12 +322,14 @@ export type Database = {
           cliente?: string | null
           created_at?: string
           data_conclusao?: string | null
+          data_dobra?: string | null
           data_planejamento?: string | null
           data_rg?: string | null
           fpp?: string | null
           fpp_key?: string | null
           id?: string
           import_id?: string | null
+          import_id_dobra?: string | null
           item_ov?: string | null
           maquina_ativa?: string | null
           nr_ov?: string | null
@@ -338,10 +344,68 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "dobra_rgs_import_id_dobra_fkey"
+            columns: ["import_id_dobra"]
+            isOneToOne: false
+            referencedRelation: "dobra_imports"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "dobra_rgs_import_id_fkey"
             columns: ["import_id"]
             isOneToOne: false
             referencedRelation: "dobra_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dobra_rgs_status_history: {
+        Row: {
+          changed_at: string
+          data_conclusao: string | null
+          data_planejamento: string | null
+          id: string
+          import_id: string | null
+          rg_id: string
+          rg_key: string
+          status_anterior: string | null
+          status_novo: string | null
+        }
+        Insert: {
+          changed_at?: string
+          data_conclusao?: string | null
+          data_planejamento?: string | null
+          id?: string
+          import_id?: string | null
+          rg_id: string
+          rg_key: string
+          status_anterior?: string | null
+          status_novo?: string | null
+        }
+        Update: {
+          changed_at?: string
+          data_conclusao?: string | null
+          data_planejamento?: string | null
+          id?: string
+          import_id?: string | null
+          rg_id?: string
+          rg_key?: string
+          status_anterior?: string | null
+          status_novo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dobra_rgs_status_history_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "dobra_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dobra_rgs_status_history_rg_id_fkey"
+            columns: ["rg_id"]
+            isOneToOne: false
+            referencedRelation: "dobra_rgs"
             referencedColumns: ["id"]
           },
         ]
@@ -801,6 +865,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      dobra_status_is_dobrado: { Args: { value: string }; Returns: boolean }
+      dobra_status_key: { Args: { value: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
