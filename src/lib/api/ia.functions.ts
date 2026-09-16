@@ -144,7 +144,7 @@ export const perguntarIA = createServerFn({ method: "POST" })
           "Lovable-API-Key": apiKey,
           "X-Lovable-AIG-SDK": "fetch",
         },
-        body: JSON.stringify({ model: "google/gemini-3.1-pro-preview", messages, tools }),
+        body: JSON.stringify({ model: "gpt-4o", messages, tools }),
       });
 
       if (!res.ok) {
@@ -195,7 +195,7 @@ export const perguntarIA = createServerFn({ method: "POST" })
         "Lovable-API-Key": apiKey,
         "X-Lovable-AIG-SDK": "fetch",
       },
-      body: JSON.stringify({ model: "google/gemini-3.1-pro-preview", messages }),
+      body: JSON.stringify({ model: "gpt-4o", messages }),
     });
     if (finalRes.ok) {
       const finalJson = (await finalRes.json()) as { choices?: { message: ChatMessage }[] };
