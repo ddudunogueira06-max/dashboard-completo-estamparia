@@ -66,6 +66,7 @@ export function ControleGeralRgs({
     { key: "maq", header: "Máquina ativa", cell: (r) => r.maquina_ativa ?? "—" },
     { key: "plan", header: "Data planejamento", cell: (r) => fmtBrDate(r.data_planejamento), sortValue: (r) => r.data_planejamento ?? "" },
     { key: "concl", header: "Data conclusão", cell: (r) => fmtBrDate(r.data_conclusao), sortValue: (r) => r.data_conclusao ?? "" },
+    { key: "dobra", header: "Data Dobra", cell: (r) => fmtBrDate(r.data_dobra), sortValue: (r) => r.data_dobra ?? "" },
     { key: "est", header: "Tempo estimado", cell: (r) => <span className="tabular-nums">{secToHms(r.tempoEstimadoSeg)}</span>, sortValue: (r) => r.tempoEstimadoSeg },
     { key: "hora", header: "Hora conclusão", cell: (r) => <span className="tabular-nums">{secToHoraDia(r.horaConclusaoSeg)}</span>, sortValue: (r) => r.horaConclusaoSeg ?? -1 },
   ];
@@ -89,6 +90,7 @@ export function ControleGeralRgs({
           fmtBrDate(r.data_planejamento),
           fmtBrDate(r.data_conclusao),
           secToHms(r.tempoEstimadoSeg),
+          fmtBrDate(r.data_dobra),
           secToHoraDia(r.horaConclusaoSeg),
         ].join(";"),
       )

@@ -11,6 +11,7 @@ export function ConcluidasTable({ rows, pageSize = 15 }: { rows: RgCalc[]; pageS
     { key: "produto", header: "Produto", cell: (r) => r.produto ?? "—", sortValue: (r) => r.produto ?? "" },
     { key: "item", header: "Item OV", cell: (r) => r.item_ov ?? "—" },
     { key: "plan", header: "Data plan.", cell: (r) => fmtBrDate(r.data_planejamento), sortValue: (r) => r.data_planejamento ?? "" },
+    { key: "dobra", header: "Data Dobra", cell: (r) => fmtBrDate(r.data_dobra), sortValue: (r) => r.data_dobra ?? "" },
     { key: "concl", header: "Conclusão", cell: (r) => fmtBrDate(r.data_conclusao), sortValue: (r) => r.data_conclusao ?? "" },
     {
       key: "hora",
