@@ -118,6 +118,14 @@ export const secToHms = (sec: number | null | undefined): string => {
 export const secToHoraDia = (sec: number | null | undefined): string => {
   if (sec === null || sec === undefined) return "—";
   const s = Math.max(0, Math.round(sec)) % 86400;
+
+/** Extrai segundos desde a meia-noite de um ISO (timestamptz). */
+export const getSystemTime = (iso: string | null | undefined): number | null => {
+  if (!iso || !iso.includes("T")) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+};
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}`;
 };
 
@@ -510,6 +518,7 @@ export function buildRgCalc(
 
   return rgs.map((r) => {
     const total = r.fpp_key ? (totalPorFpp.get(r.fpp_key) ?? 1) : 1;
+    const systemTime = getSystemTime(r.data_dobra);
     const restantes = r.fpp_key ? (abertoPorFpp.get(r.fpp_key) ?? 0) : 0;
     const tempoFpp = (r.fpp_key ? fppMap.get(r.fpp_key)?.tempo_fpp_seg : null) ?? 0;
     const nivel = dificuldade[normKey(r.produto)] ?? 3;
@@ -534,7 +543,7 @@ export function buildRgCalc(
       atrasada: !isDobrada(situacao) && !!r.data_planejamento && r.data_planejamento.slice(0, 10) < hoje,
       dificuldade: nivel,
       tempoEstimadoSeg: porRg,
-      horaConclusaoSeg: isDobrada(situacao) ? r.tempo_seg : null,
+      horaConclusaoSeg: isDobrada(situacao) ? (systemTime ?? r.tempo_seg) : null,
       data_dobra: r.data_dobra || (isDobrada(situacao) ? (r.data_conclusao ?? r.data_planejamento ?? null) : null),
       totalRgsFpp: total,
       rgsRestantesFpp: restantes,
