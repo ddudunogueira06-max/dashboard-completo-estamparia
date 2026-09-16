@@ -22,6 +22,7 @@ export interface DobraRg {
   operador: string | null;
   maquina_ativa: string | null;
   data_planejamento: string | null;
+  data_dobra: string | null;
   data_conclusao: string | null;
   tempo_seg: number | null;
 }
@@ -534,7 +535,7 @@ export function buildRgCalc(
       dificuldade: nivel,
       tempoEstimadoSeg: porRg,
       horaConclusaoSeg: isDobrada(situacao) ? r.tempo_seg : null,
-      data_dobra: isDobrada(situacao) ? (r.data_conclusao ?? r.data_planejamento ?? null) : null,
+      data_dobra: r.data_dobra || (isDobrada(situacao) ? (r.data_conclusao ?? r.data_planejamento ?? null) : null),
       totalRgsFpp: total,
       rgsRestantesFpp: restantes,
       horasRestantesFppSeg: porRg * restantes,
